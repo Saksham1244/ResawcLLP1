@@ -57,13 +57,22 @@ export default function AttendancePage() {
       const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&email=${encodeURIComponent(user.email)}`);
       const data = await res.json();
       if (data.success) {
-        setAttendanceHistory(data.data.map((record: any) => ({
+        const history = data.data.map((record: any) => ({
           date: record.date,
           checkIn: record.mobileLoginTime || record.systemLoginTime || record.timeIn,
           checkOut: '--',
           hours: '8h',
           status: record.status
-        })));
+        }));
+        setAttendanceHistory(history);
+
+        // Auto-hydrate Check In panel state from database
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayRecord = history.find((r: any) => r.date === todayStr);
+        if (todayRecord) {
+          setIsCheckedIn(true);
+          setCheckInTime(todayRecord.checkIn);
+        }
       }
     } catch {}
     setLoadingPersonal(false);
