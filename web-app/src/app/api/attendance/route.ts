@@ -70,10 +70,12 @@ export async function GET(req: Request) {
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const startDate = searchParams.get('start') || date;
     const endDate = searchParams.get('end') || date;
+    const userId = searchParams.get('userId');
 
     const records = await prisma.attendance.findMany({
       where: {
-        date: { gte: startDate, lte: endDate }
+        date: { gte: startDate, lte: endDate },
+        ...(userId ? { userId } : {})
       },
       include: { user: { select: { name: true, role: true, email: true } } },
       orderBy: { createdAt: 'desc' }

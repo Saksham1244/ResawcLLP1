@@ -43,11 +43,36 @@ export default function AttendancePage() {
     setLoadingTeam(false);
   }, [startDate, endDate]);
 
+  const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
+  const [loadingPersonal, setLoadingPersonal] = useState(false);
+
+  const fetchPersonalAttendance = useCallback(async () => {
+    if (!user || !user.id || user.id.startsWith('mock-')) return;
+    setLoadingPersonal(true);
+    try {
+      // Fetch last 30 days of personal attendance
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const startStr = start.toISOString().split('T')[0];
+      const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&userId=${user.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setAttendanceHistory(data.data.map((record: any) => ({
+          date: record.date,
+          checkIn: record.mobileLoginTime || record.systemLoginTime || record.timeIn,
+          checkOut: '--',
+          hours: '8h',
+          status: record.status
+        })));
+      }
+    } catch {}
+    setLoadingPersonal(false);
+  }, [user, endDate]);
+
   useEffect(() => {
     if (viewMode === 'team') fetchTeamAttendance();
-  }, [viewMode, fetchTeamAttendance]);
-
-  const attendanceHistory: any[] = [];
+    if (viewMode === 'personal') fetchPersonalAttendance();
+  }, [viewMode, fetchTeamAttendance, fetchPersonalAttendance]);
 
   return (
     <div className="animate-fadeIn">
