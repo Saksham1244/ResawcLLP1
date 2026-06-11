@@ -11,8 +11,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Email and password are required' }, { status: 400 });
     }
 
-    // Look up user by email
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    // Look up user by email (case-insensitive)
+    const user = await prisma.user.findFirst({ 
+      where: { 
+        email: { equals: email, mode: 'insensitive' } 
+      } 
+    });
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });

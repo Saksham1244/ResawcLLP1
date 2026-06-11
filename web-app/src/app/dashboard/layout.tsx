@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, CheckSquare, MessageSquare,
-  Settings, LogOut, Bell, TrendingUp, ChevronDown, CalendarCheck, Activity
+  Settings, LogOut, Bell, TrendingUp, ChevronDown, CalendarCheck, Activity, Smartphone
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRole, UserRole } from "@/context/RoleContext";
@@ -19,6 +20,7 @@ const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]>
     { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
     { name: "Live Monitor", href: "/dashboard/monitor", icon: Activity },
     { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Mobile App", href: "/dashboard/mobile-app", icon: Smartphone },
   ],
   marketing: [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -26,11 +28,13 @@ const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]>
     { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
     { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
     { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Mobile App", href: "/dashboard/mobile-app", icon: Smartphone },
   ],
   editor: [
     { name: "My Tasks", href: "/dashboard/tasks", icon: CheckSquare },
     { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
     { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Mobile App", href: "/dashboard/mobile-app", icon: Smartphone },
   ],
 };
 
@@ -54,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showNotifs, setShowNotifs] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.id) return;
     const fetchNotifs = async () => {
       try {
         const res = await fetch(`/api/notifications?userId=${user.id}`);
