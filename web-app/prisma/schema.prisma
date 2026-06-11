@@ -24,6 +24,7 @@ model User {
   receivedMessages  Message[] @relation("ReceivedMessages")
   notifications     Notification[]
   interactions      LeadInteraction[]
+  attendance        Attendance[]
 }
 
 model Lead {
@@ -96,4 +97,14 @@ model LeadInteraction {
   notes       String?
   
   createdAt   DateTime @default(now())
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String
+  timeIn    String
+  status    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
