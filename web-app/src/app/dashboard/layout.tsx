@@ -47,9 +47,40 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, isHydrated } = useRole();
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useRole();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchNotifs = async () => {
+      try {
+        const res = await fetch(`/api/notifications?userId=${user.id}`);
+        const data = await res.json();
+        if (data.success) setNotifications(data.data);
+      } catch (e) {}
+    };
+    fetchNotifs();
+    const int = setInterval(fetchNotifs, 10000);
+    return () => clearInterval(int);
+  }, [user]);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const markAsRead = async (id?: string) => {
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(id ? { notificationId: id } : { userId: user?.id })
+      });
+      setNotifications(prev => prev.map(n => id ? (n.id === id ? { ...n, isRead: true } : n) : { ...n, isRead: true }));
+    } catch {}
+  };
+
+  if (!isHydrated || !user) return null;
   const navItems = NAV_BY_ROLE[user.role];
 
   // Guard: if editor tries to access leads, redirect to tasks
@@ -191,10 +222,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <ThemeToggle />
 
-          <button className="btn btn-ghost" style={{ width: '36px', height: '36px', padding: 0, position: 'relative' }}>
-            <Bell size={18} />
-            <span style={{ position: 'absolute', top: '6px', right: '6px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--destructive)', border: '1.5px solid var(--background)' }} />
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowNotifs(!showNotifs)} className="btn btn-ghost" style={{ width: '36px', height: '36px', padding: 0, position: 'relative' }}>
+              <Bell size={18} />
+              {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--destructive)', border: '1.5px solid var(--background)' }} />}
+            </button>
+            {showNotifs && (
+              <div className="glass-card animate-fadeIn" style={{ position: 'absolute', top: '100%', right: 0, width: '320px', padding: '1rem', zIndex: 50, marginTop: '0.5rem', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Notifications</h3>
+                  {unreadCount > 0 && <button onClick={() => markAsRead()} style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Mark all read</button>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '1rem 0' }}>No notifications yet.</p>
+                  ) : notifications.map(n => (
+                    <div key={n.id} onClick={() => !n.isRead && markAsRead(n.id)} style={{ padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: n.isRead ? 'transparent' : 'var(--overlay-bg)', border: n.isRead ? '1px solid transparent' : '1px solid var(--surface-border)', cursor: n.isRead ? 'default' : 'pointer' }}>
+                      <p style={{ fontSize: '0.8rem', color: n.isRead ? 'var(--secondary-foreground)' : 'var(--foreground)', lineHeight: 1.4, fontWeight: n.isRead ? 500 : 600 }}>{n.text}</p>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '0.25rem', display: 'block' }}>{new Date(n.createdAt).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div style={{
             width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',

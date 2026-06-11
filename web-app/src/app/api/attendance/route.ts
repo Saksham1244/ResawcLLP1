@@ -40,8 +40,20 @@ export async function POST(req: Request) {
         mobileLoginTime: source === 'mobile' ? timeIn : null,
         systemLoginTime: source === 'system' ? timeIn : null,
         status: status || 'Present',
-      }
+      },
+      include: { user: true }
     });
+
+    // Notify admins
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+    for (const admin of admins) {
+      await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          text: `${attendance.user?.name} checked in at ${timeIn} (${source} login)`
+        }
+      });
+    }
 
     return NextResponse.json({ success: true, data: attendance });
   } catch (error) {
@@ -49,6 +61,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
+
 
 // GET — fetch today's team attendance with both login times
 export async function GET(req: Request) {
