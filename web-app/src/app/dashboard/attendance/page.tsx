@@ -19,12 +19,22 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
+    const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
     if (!isCheckedIn) {
-      setCheckInTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }));
+      setCheckInTime(timeNow);
       setIsCheckedIn(true);
     } else {
       setIsCheckedIn(false);
+      // Hit API to record checkout time
+      if (user && user.id && !user.id.startsWith('mock-')) {
+        await fetch('/api/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, timeIn: timeNow, source: 'checkout' })
+        });
+        fetchPersonalAttendance();
+      }
     }
   };
 
@@ -60,7 +70,7 @@ export default function AttendancePage() {
         const history = data.data.map((record: any) => ({
           date: record.date,
           checkIn: record.mobileLoginTime || record.systemLoginTime || record.timeIn,
-          checkOut: '--',
+          checkOut: record.timeOut || '--',
           hours: '8h',
           status: record.status
         }));

@@ -16,12 +16,16 @@ export async function POST(req: Request) {
     const existing = await prisma.attendance.findFirst({ where: { userId, date } });
 
     if (existing) {
-      // Already has a record — update the other login source if not set yet
+      // Already has a record — update the other login source or check out
       const updateData: any = {};
       if (source === 'mobile' && !existing.mobileLoginTime) {
         updateData.mobileLoginTime = timeIn;
       } else if (source === 'system' && !existing.systemLoginTime) {
         updateData.systemLoginTime = timeIn;
+      }
+      
+      if (source === 'checkout') {
+        updateData.timeOut = timeIn;
       }
 
       if (Object.keys(updateData).length > 0) {
