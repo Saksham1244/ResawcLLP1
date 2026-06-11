@@ -12,14 +12,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Hardcoded role-based credentials
+  const USERS = [
+    { email: "admin@resawc.com",     password: "Admin@123",     role: "ADMIN" },
+    { email: "marketing@resawc.com", password: "Marketing@123", role: "MARKETING" },
+    { email: "editor@resawc.com",    password: "Editor@123",    role: "EDITOR" },
+  ];
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
+
+    const match = USERS.find(
+      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
+
     setTimeout(() => {
       setLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+      if (match) {
+        // Store role in localStorage for RoleContext
+        localStorage.setItem("userRole", match.role);
+        localStorage.setItem("userEmail", match.email);
+        router.push("/dashboard");
+      } else {
+        setError("Invalid email or password.");
+      }
+    }, 800);
   };
 
   return (
@@ -87,6 +108,12 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {error && (
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '0.75rem 1rem', color: '#ef4444', fontSize: '0.875rem', fontWeight: 500 }}>
+                {error}
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn btn-primary"
@@ -105,6 +132,16 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Test Credentials hint */}
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.15)' }}>
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Test Credentials</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Admin:</strong> admin@resawc.com / Admin@123</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟡 <strong>Marketing:</strong> marketing@resawc.com / Marketing@123</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟢 <strong>Editor:</strong> editor@resawc.com / Editor@123</p>
+            </div>
+          </div>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>
