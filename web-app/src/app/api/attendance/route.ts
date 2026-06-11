@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       orderBy: { createdAt: 'desc' }
     });
 
-    if (existing) {
+    if (existing && !(existing.timeOut && source !== 'checkout')) {
       // Already has a record — update the other login source or check out
       const updateData: any = {};
       if (source === 'mobile' && !existing.mobileLoginTime) {

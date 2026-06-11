@@ -8,9 +8,7 @@ export default function AttendancePage() {
   const { user } = useRole();
   const [currentTime, setCurrentTime] = useState("");
   const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [hasCheckedOut, setHasCheckedOut] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
-  const [checkOutTimeStr, setCheckOutTimeStr] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves">("personal");
 
   useEffect(() => {
@@ -28,8 +26,6 @@ export default function AttendancePage() {
       setIsCheckedIn(true);
     } else {
       setIsCheckedIn(false);
-      setHasCheckedOut(true);
-      setCheckOutTimeStr(timeNow);
       // Hit API to record checkout time
       if (user && user.id && !user.id.startsWith('mock-')) {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
@@ -78,13 +74,35 @@ export default function AttendancePage() {
       const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&email=${encodeURIComponent(user.email)}`);
       const data = await res.json();
       if (data.success) {
-        const history = data.data.map((record: any) => ({
-          date: record.date,
-          checkIn: record.mobileLoginTime || record.systemLoginTime || record.timeIn,
-          checkOut: record.timeOut || '--',
-          hours: '8h',
-          status: record.status
-        }));
+        const calculateHours = (inStr: string, outStr: string) => {
+          if (!inStr || outStr === '--' || !outStr) return '--';
+          try {
+            const parseTime = (t: string) => {
+              const [time, modifier] = t.split(' ');
+              let [hours, minutes] = time.split(':').map(Number);
+              if (hours === 12) hours = 0;
+              if (modifier.toLowerCase() === 'pm') hours += 12;
+              return hours * 60 + minutes;
+            };
+            const diffMins = parseTime(outStr) - parseTime(inStr);
+            if (diffMins < 0) return '--';
+            const h = Math.floor(diffMins / 60);
+            const m = diffMins % 60;
+            return `${h}h ${m}m`;
+          } catch { return '--'; }
+        };
+
+        const history = data.data.map((record: any) => {
+          const checkIn = record.mobileLoginTime || record.systemLoginTime || record.timeIn;
+          const checkOut = record.timeOut || '--';
+          return {
+            date: record.date,
+            checkIn,
+            checkOut,
+            hours: calculateHours(checkIn, checkOut),
+            status: record.status
+          };
+        });
         setAttendanceHistory(history);
 
         // Auto-hydrate Check In panel state from database
@@ -92,13 +110,9 @@ export default function AttendancePage() {
         const todayRecord = history.find((r: any) => r.date === todayStr);
         if (todayRecord) {
           if (todayRecord.checkOut && todayRecord.checkOut !== '--') {
-            setIsCheckedIn(false);
-            setHasCheckedOut(true);
-            setCheckInTime(todayRecord.checkIn);
-            setCheckOutTimeStr(todayRecord.checkOut);
+            setIsCheckedIn(false); // They checked out of their latest shift, let them check in again
           } else {
             setIsCheckedIn(true);
-            setHasCheckedOut(false);
             setCheckInTime(todayRecord.checkIn);
           }
         }
@@ -271,22 +285,7 @@ export default function AttendancePage() {
               <MapPin size={14} /> South Extension Part 1, New Delhi
             </p>
 
-            {hasCheckedOut ? (
-              <div style={{ width: '100%' }}>
-                <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
-                  <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#818cf8', fontWeight: 700, fontSize: '0.9rem' }}>
-                    <CheckCircle2 size={16} /> Shift Completed
-                  </p>
-                  <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>Checked in: {checkInTime} • Checked out: {checkOutTimeStr}</p>
-                </div>
-                <button disabled style={{
-                  width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'not-allowed',
-                  background: 'var(--surface-border)', color: 'var(--muted)', fontWeight: 700, fontSize: '1rem',
-                }}>
-                  Checked Out
-                </button>
-              </div>
-            ) : isCheckedIn ? (
+            {isCheckedIn ? (
               <div style={{ width: '100%' }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
                   <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>
