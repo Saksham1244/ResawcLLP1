@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 export type UserRole = "admin" | "marketing" | "editor";
 
@@ -8,12 +8,13 @@ export type CurrentUser = {
   name: string;
   role: UserRole;
   initials: string;
+  email: string;
 };
 
 const USERS: Record<UserRole, CurrentUser> = {
-  admin: { name: "Alex Johnson", role: "admin", initials: "AJ" },
-  marketing: { name: "Sarah Connor", role: "marketing", initials: "SC" },
-  editor: { name: "Mike Davis", role: "editor", initials: "MD" },
+  admin:     { name: "Admin",     role: "admin",     initials: "AD", email: "admin@resawc.com" },
+  marketing: { name: "Marketing", role: "marketing", initials: "MK", email: "marketing@resawc.com" },
+  editor:    { name: "Editor",    role: "editor",    initials: "ED", email: "editor@resawc.com" },
 };
 
 type RoleContextType = {
@@ -28,7 +29,20 @@ const RoleContext = createContext<RoleContextType>({
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser>(USERS.admin);
-  const setRole = (role: UserRole) => setUser(USERS[role]);
+
+  useEffect(() => {
+    // Read the role that was stored during login
+    const storedRole = localStorage.getItem("userRole") as UserRole | null;
+    if (storedRole && USERS[storedRole]) {
+      setUser(USERS[storedRole]);
+    }
+  }, []);
+
+  const setRole = (role: UserRole) => {
+    setUser(USERS[role]);
+    localStorage.setItem("userRole", role);
+  };
+
   return (
     <RoleContext.Provider value={{ user, setRole }}>
       {children}

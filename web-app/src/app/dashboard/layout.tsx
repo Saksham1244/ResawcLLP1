@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRole, UserRole } from "@/context/RoleContext";
-import { useState } from "react";
 
 // Role-based nav config
 const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]> = {
@@ -50,9 +49,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, setRole } = useRole();
-  const [showRolePicker, setShowRolePicker] = useState(false);
-
+  const { user } = useRole();
   const navItems = NAV_BY_ROLE[user.role];
 
   // Guard: if editor tries to access leads, redirect to tasks
@@ -181,43 +178,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           position: 'sticky', top: 0, zIndex: 30,
         }}>
 
-          {/* Role Switcher (for demo/dev purposes) */}
-          <div style={{ position: 'relative', marginRight: '0.5rem' }}>
-            <button
-              onClick={() => setShowRolePicker(p => !p)}
-              className="btn btn-secondary"
-              style={{ fontSize: '0.78rem', gap: '0.4rem', padding: '0.4rem 0.8rem', border: `1px solid ${ROLE_COLORS[user.role]}50`, color: ROLE_COLORS[user.role] }}
-            >
-              {ROLE_LABELS[user.role]} <ChevronDown size={13} />
-            </button>
-
-            {showRolePicker && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 0.5rem)', right: 0,
-                background: 'var(--glass-bg)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)',
-                padding: '0.5rem', zIndex: 50, minWidth: '170px',
-                boxShadow: 'var(--shadow-lg)',
-              }}>
-                <p style={{ fontSize: '0.65rem', color: 'var(--secondary-foreground)', padding: '0.25rem 0.5rem 0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                  Switch Role (Demo)
-                </p>
-                {(["admin", "marketing", "editor"] as UserRole[]).map(r => (
-                  <button key={r} onClick={() => { setRole(r); setShowRolePicker(false); if (r === "editor") router.push("/dashboard/tasks"); else router.push("/dashboard"); }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.6rem', width: '100%',
-                      padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem',
-                      background: user.role === r ? `${ROLE_COLORS[r]}20` : 'transparent',
-                      color: user.role === r ? ROLE_COLORS[r] : 'var(--foreground)',
-                      fontWeight: user.role === r ? 700 : 500,
-                      transition: 'background var(--transition-fast)',
-                    }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: ROLE_COLORS[r], flexShrink: 0 }} />
-                    {ROLE_LABELS[r]}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Role Badge (read-only) */}
+          <div style={{
+            fontSize: '0.78rem', fontWeight: 700,
+            padding: '0.4rem 0.85rem', borderRadius: '20px',
+            border: `1px solid ${ROLE_COLORS[user.role]}50`,
+            color: ROLE_COLORS[user.role],
+            background: `${ROLE_COLORS[user.role]}12`,
+          }}>
+            {ROLE_LABELS[user.role]}
           </div>
 
           <ThemeToggle />
