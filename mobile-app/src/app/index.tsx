@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckSquare, TrendingUp, Users, ArrowRight } from 'lucide-react-native';
+import { CheckSquare, TrendingUp, Users, ArrowRight, ShieldAlert, LogOut } from 'lucide-react-native';
+import { globalUser, logout } from '@/utils/api';
 
 const RECENT_LEADS = [
   { id: 1, name: "John Doe", service: "Video Editing", date: "Today" },
@@ -18,9 +19,22 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, Alex 👋</Text>
-          <Text style={styles.subtitle}>Here is what's happening today.</Text>
+        <View style={[styles.header, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View>
+            <Text style={styles.greeting}>
+              Hello, {globalUser?.name ? globalUser.name.split(' ')[0] : 'User'} 👋
+            </Text>
+            <Text style={styles.subtitle}>
+              {globalUser?.role?.toLowerCase() === 'admin' 
+                ? "Here is your admin overview today." 
+                : globalUser?.role?.toLowerCase() === 'editor'
+                ? "Here is your editing workspace."
+                : "Here is what's happening today."}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={logout} style={{ padding: 10, backgroundColor: 'rgba(239,68,68,0.1)', borderRadius: 12 }}>
+            <LogOut color="#ef4444" size={20} />
+          </TouchableOpacity>
         </View>
 
         {/* Quick Stats Grid */}
@@ -41,42 +55,47 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Leads Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Leads</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
+        {/* Leads Section (Admin and Marketing Only) */}
+        {globalUser?.role?.toLowerCase() !== 'editor' && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Leads</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {RECENT_LEADS.map(lead => (
+              <TouchableOpacity key={lead.id} style={styles.listItem}>
+                <View style={styles.listIcon}>
+                  <Users color="#6366f1" size={20} />
+                </View>
+                <View style={styles.listContent}>
+                  <Text style={styles.listTitle}>{lead.name}</Text>
+                  <Text style={styles.listSub}>{lead.service}</Text>
+                </View>
+                <View style={styles.listRight}>
+                  <Text style={styles.listDate}>{lead.date}</Text>
+                  <ArrowRight color="#cbd5e1" size={16} />
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
-          
-          {RECENT_LEADS.map(lead => (
-            <TouchableOpacity key={lead.id} style={styles.listItem}>
-              <View style={styles.listIcon}>
-                <Users color="#6366f1" size={20} />
-              </View>
-              <View style={styles.listContent}>
-                <Text style={styles.listTitle}>{lead.name}</Text>
-                <Text style={styles.listSub}>{lead.service}</Text>
-              </View>
-              <View style={styles.listRight}>
-                <Text style={styles.listDate}>{lead.date}</Text>
-                <ArrowRight color="#cbd5e1" size={16} />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        )}
 
-        {/* Tasks Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Tasks</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>See All</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Tasks Section (Marketing and Editor Only) */}
+        {globalUser?.role?.toLowerCase() !== 'admin' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {globalUser?.role?.toLowerCase() === 'editor' ? 'Video Editing Tasks' : 'My Tasks'}
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAll}>See All</Text>
+              </TouchableOpacity>
+            </View>
 
-          {MY_TASKS.map(task => (
+            {MY_TASKS.map(task => (
             <TouchableOpacity key={task.id} style={styles.listItem}>
               <View style={[styles.listIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
                 <CheckSquare color="#10b981" size={20} />
@@ -89,6 +108,23 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Admin Actions</Text>
+            </View>
+            <TouchableOpacity style={styles.listItem}>
+              <View style={[styles.listIcon, { backgroundColor: 'rgba(239,68,68,0.1)' }]}>
+                <ShieldAlert color="#ef4444" size={20} />
+              </View>
+              <View style={styles.listContent}>
+                <Text style={styles.listTitle}>Pending Leave Approvals</Text>
+                <Text style={styles.listSub}>Review team requests</Text>
+              </View>
+              <ArrowRight color="#cbd5e1" size={16} />
+            </TouchableOpacity>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>

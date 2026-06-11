@@ -1,19 +1,33 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { Lock, Mail } from 'lucide-react-native';
+import { fetchAPI, setGlobalUser } from '@/utils/api';
 
 export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = () => {
-    // Basic mock authentication
-    if (email.trim().toUpperCase() === 'ADMIN' && password === 'Admin@123') {
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please fill in both fields');
+      return;
+    }
+    setLoading(true);
+    const data = await fetchAPI('/auth', {
+      method: 'POST',
+      body: JSON.stringify({ email: email.trim(), password })
+    });
+    setLoading(false);
+
+    if (data.success) {
       setError('');
+      setGlobalUser(data.user);
       onLogin();
     } else {
-      setError('Invalid ID or Password');
+      setError(data.error || 'Invalid email or password');
     }
   };
 
@@ -69,11 +83,11 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.loginBtn, (!email || !password) && styles.loginBtnDisabled]} 
+          style={[styles.loginBtn, (!email || !password || loading) && styles.loginBtnDisabled]} 
           onPress={handleLogin}
-          disabled={!email || !password}
+          disabled={!email || !password || loading}
         >
-          <Text style={styles.loginBtnText}>Sign In</Text>
+          <Text style={styles.loginBtnText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

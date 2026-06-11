@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { checkGeofence, GeofenceResult } from '@/services/locationService';
 import { MapPin, Clock, CalendarCheck, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { fetchAPI, globalUser } from '@/utils/api';
 
 export default function AttendanceScreen() {
   const [loading, setLoading] = useState(true);
@@ -25,7 +26,7 @@ export default function AttendanceScreen() {
     setLoading(false);
   };
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     if (!geofence) return;
     
     if (!isCheckedIn) {
@@ -33,12 +34,39 @@ export default function AttendanceScreen() {
         Alert.alert("Check-in Failed", `You are ${geofence.distance}m away from the office. You must be within 100m to check in.`);
         return;
       }
-      setIsCheckedIn(true);
-      setCheckInTime(new Date().toLocaleTimeString());
-      Alert.alert("Success", "You are checked in!");
+      
+      const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+      const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
+      
+      // Hit live API to mark mobile checkin
+      const res = await fetchAPI('/attendance', {
+        method: 'POST',
+        body: JSON.stringify({ userId: globalUser?.id, date: todayStr, timeIn: timeNow, source: 'mobile' })
+      });
+
+      if (res.success) {
+        setIsCheckedIn(true);
+        setCheckInTime(timeNow);
+        Alert.alert("Success", "You are checked in via Mobile App!");
+      } else {
+        Alert.alert("Error", "Failed to connect to the database.");
+      }
     } else {
-      setIsCheckedIn(false);
-      Alert.alert("Success", "You are checked out!");
+      const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+      const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
+      
+      // Hit live API to mark mobile checkout
+      const res = await fetchAPI('/attendance', {
+        method: 'POST',
+        body: JSON.stringify({ userId: globalUser?.id, date: todayStr, timeIn: timeNow, source: 'checkout' })
+      });
+
+      if (res.success) {
+        setIsCheckedIn(false);
+        Alert.alert("Success", "You are checked out!");
+      } else {
+        Alert.alert("Error", "Failed to connect to the database.");
+      }
     }
   };
 
@@ -59,7 +87,7 @@ export default function AttendanceScreen() {
         
         <View style={styles.locationContainer}>
           <MapPin size={16} color="#64748b" />
-          <Text style={styles.locationText}>Gyani Bazar, Kotla Mubarakpur</Text>
+          <Text style={styles.locationText}>South Extension Part 1, New Delhi</Text>
         </View>
 
         {loading ? (
