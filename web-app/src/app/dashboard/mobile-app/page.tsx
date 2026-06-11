@@ -13,7 +13,7 @@ export default function MobileAppPage() {
           Get the Resawc Mobile App
         </h1>
         <p className="text-muted" style={{ fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
-          Mark attendance with geofencing, manage leads on the go, and stay connected with the team directly from your phone.
+          Mark attendance using GPS geofencing at the official office location in <strong>South Extension, New Delhi</strong>. Manage leads on the go and stay connected with the team directly from your phone.
         </p>
       </div>
 

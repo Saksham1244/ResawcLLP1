@@ -57,7 +57,7 @@ export default function AttendancePage() {
             {viewMode === "team" ? "Team Attendance" : viewMode === "leaves" ? "Leave Management" : "Attendance"}
           </h1>
           <p className="text-muted text-sm">
-            {viewMode === "team" ? "Monitor real-time team check-ins." : viewMode === "leaves" ? "Manage time off requests." : "Mark your daily attendance and view history."}
+            {viewMode === "team" ? "Monitor real-time team check-ins." : viewMode === "leaves" ? "Manage time off requests." : "Mark your daily attendance using the mobile app at our South Extension, New Delhi office."}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--overlay-bg)', padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
