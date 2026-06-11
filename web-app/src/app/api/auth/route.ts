@@ -18,10 +18,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
     }
 
-    // Direct password comparison (plain text — upgrade to bcrypt later)
     if (user.passwordHash !== password) {
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
     }
+
+    // Auto-record system login time in attendance
+    const today = new Date().toISOString().split('T')[0];
+    const timeNow = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const existingAtt = await prisma.attendance.findFirst({ where: { userId: user.id, date: today } });
+    if (existingAtt) {
+      // Update systemLoginTime if not already set
+      if (!existingAtt.systemLoginTime) {
+        await prisma.attendance.update({
+          where: { id: existingAtt.id },
+          data: { systemLoginTime: timeNow }
+        });
+      }
+    } else {
+      await prisma.attendance.create({
+        data: {
+          userId: user.id,
+          date: today,
+          timeIn: timeNow,
+          systemLoginTime: timeNow,
+          status: 'Present',
+        }
+      });
+    }
+
 
     return NextResponse.json({
       success: true,

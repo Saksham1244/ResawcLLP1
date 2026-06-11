@@ -109,6 +109,7 @@ export default function AttendancePage() {
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
+            <tbody>
               {filteredTeam.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
