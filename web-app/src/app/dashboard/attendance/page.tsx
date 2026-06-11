@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRole } from "@/context/RoleContext";
-import { MapPin, Clock, CalendarDays, CheckCircle2, Users, Search, FileText, Check, X } from "lucide-react";
+import { MapPin, Clock, CalendarDays, CheckCircle2, Search, FileText, Check, X, RefreshCw } from "lucide-react";
 
 export default function AttendancePage() {
   const { user } = useRole();
@@ -28,28 +28,26 @@ export default function AttendancePage() {
     }
   };
 
-  const attendanceHistory: any[] = [];
-
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [teamRecords, setTeamRecords] = useState<any[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
 
-  const teamAttendance = [
-    {
-      date: new Date().toISOString().split('T')[0],
-      name: user.name,
-      role: user.role,
-      mobileLogin: "--",
-      systemLogin: isCheckedIn ? (checkInTime || "--") : "--",
-      checkOut: "--",
-      status: isCheckedIn ? "Present" : "Absent"
-    },
-  ];
+  const fetchTeamAttendance = useCallback(async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await fetch(`/api/attendance?start=${startDate}&end=${endDate}`);
+      const data = await res.json();
+      if (data.success) setTeamRecords(data.data);
+    } catch {}
+    setLoadingTeam(false);
+  }, [startDate, endDate]);
 
-  const filteredTeam = teamAttendance.filter(r => {
-    if (startDate && r.date < startDate) return false;
-    if (endDate && r.date > endDate) return false;
-    return true;
-  });
+  useEffect(() => {
+    if (viewMode === 'team') fetchTeamAttendance();
+  }, [viewMode, fetchTeamAttendance]);
+
+  const attendanceHistory: any[] = [];
 
   return (
     <div className="animate-fadeIn">
@@ -88,13 +86,14 @@ export default function AttendancePage() {
               <input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ background: 'var(--overlay-bg)', padding: '0.4rem 0.75rem', width: 'auto' }} />
               <span className="text-muted text-sm font-semibold">to</span>
               <input type="date" className="input" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ background: 'var(--overlay-bg)', padding: '0.4rem 0.75rem', width: 'auto' }} />
+              <button onClick={fetchTeamAttendance} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', gap: '0.4rem', fontSize: '0.8rem' }}>
+                <RefreshCw size={14} /> Refresh
+              </button>
             </div>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981' }}/> Present</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}/> Absent</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }}/> Late</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }}/> Early Log Out</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#8b5cf6' }}/> Half Day</div>
             </div>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -105,56 +104,41 @@ export default function AttendancePage() {
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Role</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>📱 Mobile Login</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>💻 System Login</th>
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Check Out</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTeam.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
-                    No team attendance records found for this period.
-                  </td>
-                </tr>
-              ) : filteredTeam.map((record, idx) => {
-                let bg = 'rgba(16,185,129,0.12)';
-                let color = '#10b981';
+              {loadingTeam ? (
+                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>Loading...</td></tr>
+              ) : teamRecords.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No attendance records for this period.</td></tr>
+              ) : teamRecords.map((record, idx) => {
+                let bg = 'rgba(16,185,129,0.12)'; let color = '#10b981';
                 if (record.status === "Absent") { bg = 'rgba(239,68,68,0.12)'; color = '#ef4444'; }
-                if (record.status === "Late") { bg = 'rgba(245,158,11,0.12)'; color = '#f59e0b'; }
-                if (record.status === "Early Log Out") { bg = 'rgba(59,130,246,0.12)'; color = '#3b82f6'; }
-                if (record.status === "Half Day") { bg = 'rgba(139,92,246,0.12)'; color = '#8b5cf6'; }
-                const mobileLogin = (record as any).mobileLogin ?? '--';
-                const systemLogin = (record as any).systemLogin ?? '--';
+                if (record.status === "Late")   { bg = 'rgba(245,158,11,0.12)'; color = '#f59e0b'; }
+                const mobile = record.mobileLoginTime || null;
+                const system = record.systemLoginTime || null;
                 return (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                    <td style={{ padding: '1rem 0', fontWeight: 500 }}>{record.date}</td>
-                    <td style={{ padding: '1rem 0', fontWeight: 600, color: 'var(--foreground)' }}>{record.name}</td>
-                    <td style={{ padding: '1rem 0', textTransform: 'capitalize' }}>{record.role}</td>
-                    {/* Mobile Login */}
-                    <td style={{ padding: '1rem 0' }}>
-                      {mobileLogin !== '--' ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(99,102,241,0.1)', color: '#818cf8', borderRadius: '10px', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: 600 }}>
-                          📱 {mobileLogin}
+                    <td style={{ padding: '0.875rem 0', fontWeight: 500, fontSize: '0.82rem' }}>{record.date}</td>
+                    <td style={{ padding: '0.875rem 0', fontWeight: 700 }}>{record.user?.name || '—'}</td>
+                    <td style={{ padding: '0.875rem 0', textTransform: 'capitalize', color: 'var(--secondary-foreground)' }}>{record.user?.role?.toLowerCase()}</td>
+                    <td style={{ padding: '0.875rem 0' }}>
+                      {mobile ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(99,102,241,0.12)', color: '#818cf8', borderRadius: '10px', padding: '0.25rem 0.65rem', fontSize: '0.78rem', fontWeight: 700 }}>
+                          📱 {mobile}
                         </span>
-                      ) : (
-                        <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>--</span>
-                      )}
+                      ) : <span style={{ color: 'var(--muted)' }}>—</span>}
                     </td>
-                    {/* System Login */}
-                    <td style={{ padding: '1rem 0' }}>
-                      {systemLogin !== '--' ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: '10px', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: 600 }}>
-                          💻 {systemLogin}
+                    <td style={{ padding: '0.875rem 0' }}>
+                      {system ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(16,185,129,0.12)', color: '#10b981', borderRadius: '10px', padding: '0.25rem 0.65rem', fontSize: '0.78rem', fontWeight: 700 }}>
+                          💻 {system}
                         </span>
-                      ) : (
-                        <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>--</span>
-                      )}
+                      ) : <span style={{ color: 'var(--muted)' }}>—</span>}
                     </td>
-                    <td style={{ padding: '1rem 0', color: record.checkOut !== '--' ? 'var(--foreground)' : 'var(--muted)' }}>{record.checkOut}</td>
-                    <td style={{ padding: '1rem 0' }}>
-                      <span style={{ padding: '0.35rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: bg, color: color }}>
-                        {record.status}
-                      </span>
+                    <td style={{ padding: '0.875rem 0' }}>
+                      <span style={{ padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: bg, color }}>{record.status}</span>
                     </td>
                   </tr>
                 );
@@ -163,6 +147,7 @@ export default function AttendancePage() {
           </table>
         </div>
       )}
+
 
       {viewMode === "personal" && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '2rem', alignItems: 'start' }}>
