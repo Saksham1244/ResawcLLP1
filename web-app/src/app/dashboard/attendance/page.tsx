@@ -8,7 +8,9 @@ export default function AttendancePage() {
   const { user } = useRole();
   const [currentTime, setCurrentTime] = useState("");
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [hasCheckedOut, setHasCheckedOut] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [checkOutTimeStr, setCheckOutTimeStr] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves">("personal");
 
   useEffect(() => {
@@ -26,6 +28,8 @@ export default function AttendancePage() {
       setIsCheckedIn(true);
     } else {
       setIsCheckedIn(false);
+      setHasCheckedOut(true);
+      setCheckOutTimeStr(timeNow);
       // Hit API to record checkout time
       if (user && user.id && !user.id.startsWith('mock-')) {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
@@ -87,8 +91,16 @@ export default function AttendancePage() {
         const todayStr = getISTDate();
         const todayRecord = history.find((r: any) => r.date === todayStr);
         if (todayRecord) {
-          setIsCheckedIn(true);
-          setCheckInTime(todayRecord.checkIn);
+          if (todayRecord.checkOut && todayRecord.checkOut !== '--') {
+            setIsCheckedIn(false);
+            setHasCheckedOut(true);
+            setCheckInTime(todayRecord.checkIn);
+            setCheckOutTimeStr(todayRecord.checkOut);
+          } else {
+            setIsCheckedIn(true);
+            setHasCheckedOut(false);
+            setCheckInTime(todayRecord.checkIn);
+          }
         }
       }
     } catch {}
@@ -259,7 +271,22 @@ export default function AttendancePage() {
               <MapPin size={14} /> South Extension Part 1, New Delhi
             </p>
 
-            {isCheckedIn ? (
+            {hasCheckedOut ? (
+              <div style={{ width: '100%' }}>
+                <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
+                  <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#818cf8', fontWeight: 700, fontSize: '0.9rem' }}>
+                    <CheckCircle2 size={16} /> Shift Completed
+                  </p>
+                  <p style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.75rem', marginTop: '0.5rem' }}>Checked in: {checkInTime} • Checked out: {checkOutTimeStr}</p>
+                </div>
+                <button disabled style={{
+                  width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'not-allowed',
+                  background: 'var(--surface-border)', color: 'var(--muted)', fontWeight: 700, fontSize: '1rem',
+                }}>
+                  Checked Out
+                </button>
+              </div>
+            ) : isCheckedIn ? (
               <div style={{ width: '100%' }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
                   <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>
