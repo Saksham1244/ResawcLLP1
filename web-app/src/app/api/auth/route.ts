@@ -31,7 +31,10 @@ export async function POST(req: Request) {
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     const timeNow = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
-    const existingAtt = await prisma.attendance.findFirst({ where: { userId: user.id, date: today } });
+    const existingAtt = await prisma.attendance.findFirst({ 
+      where: { userId: user.id, date: today },
+      orderBy: { createdAt: 'desc' }
+    });
     if (existingAtt) {
       // Update systemLoginTime if not already set
       if (!existingAtt.systemLoginTime) {

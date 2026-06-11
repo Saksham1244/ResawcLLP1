@@ -12,8 +12,10 @@ export async function POST(req: Request) {
     if (!userId || !date || !timeIn) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
-
-    const existing = await prisma.attendance.findFirst({ where: { userId, date } });
+    const existing = await prisma.attendance.findFirst({ 
+      where: { userId, date },
+      orderBy: { createdAt: 'desc' }
+    });
 
     if (existing) {
       // Already has a record — update the other login source or check out
