@@ -134,16 +134,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Credentials hint — remove before public launch */}
-          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Credentials</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Mukul (Admin):</strong> mukul@resawc.com / Mukul@123</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Mukesh (Admin):</strong> mukesh@resawc.com / Mukesh@123</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟡 <strong>Marketing:</strong> marketing@resawc.com / Marketing@123</p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟢 <strong>Editor:</strong> editor@resawc.com / Editor@123</p>
-            </div>
-          </div>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--secondary-foreground)' }}>

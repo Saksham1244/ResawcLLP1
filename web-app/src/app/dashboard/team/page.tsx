@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { UserPlus, Mail, Phone, Search, Trash2, X } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -84,11 +84,30 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
 }
 
 function TeamContent() {
-  const [team, setTeam] = useState<Member[]>(initialTeam);
+  const [team, setTeam] = useState<Member[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("resawc_team");
+    if (stored) {
+      setTeam(JSON.parse(stored));
+    } else {
+      setTeam(initialTeam);
+    }
+    setLoaded(true);
+  }, []);
+
+  // Save to localStorage whenever team changes
+  useEffect(() => {
+    if (loaded) {
+      localStorage.setItem("resawc_team", JSON.stringify(team));
+    }
+  }, [team, loaded]);
 
   const filtered = team.filter(m => {
     const matchTab = activeTab === "all" || m.role.toLowerCase() === activeTab.replace("s", "").replace("admin", "admin");
