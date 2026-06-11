@@ -30,15 +30,33 @@ const roleColors: Record<string, { bg: string; text: string }> = {
 const avatarColors = ["#f43f5e", "#f43f5e", "#6366f1", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
 
 function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Member) => void }) {
-  const [form, setForm] = useState({ name: "", role: "Marketing" as Member["role"], email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", role: "Marketing" as Member["role"], email: "", phone: "", password: "" });
   const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email) { setErr("Name and Email are required."); return; }
-    const initials = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-    onAdd({ id: Date.now(), ...form, status: "offline", initials });
-    onClose();
+    if (!form.name || !form.email || !form.password) { setErr("Name, Email and Password are required."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const initials = form.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+        onAdd({ id: data.data.id, name: form.name, role: form.role, email: form.email, phone: form.phone, status: "offline", initials });
+        onClose();
+      } else {
+        setErr(data.error || 'Failed to create user');
+      }
+    } catch {
+      setErr('Connection error. Try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -70,12 +88,16 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
             <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Phone</label>
             <input className="input" style={{ width: '100%' }} placeholder="+91 9800000000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
           </div>
+          <div>
+            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Password *</label>
+            <input className="input" style={{ width: '100%' }} type="password" placeholder="Set login password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+          </div>
 
           {err && <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>{err}</p>}
 
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
-            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Add Member</button>
+            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={saving}>{saving ? 'Adding...' : 'Add Member'}</button>
           </div>
         </form>
       </div>
@@ -91,23 +113,41 @@ function TeamContent() {
   const [showModal, setShowModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
-  // Load from localStorage on mount
+  // Load from real database on mount
   useEffect(() => {
-    const stored = localStorage.getItem("resawc_team");
-    if (stored) {
-      setTeam(JSON.parse(stored));
-    } else {
-      setTeam(initialTeam);
-    }
-    setLoaded(true);
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setTeam(data.data.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role.charAt(0) + u.role.slice(1).toLowerCase() as Member['role'],
+            email: u.email,
+            phone: '',
+            status: 'offline' as const,
+            initials: u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+          })));
+        } else {
+          setTeam(initialTeam); // fallback
+        }
+        setLoaded(true);
+      })
+      .catch(() => { setTeam(initialTeam); setLoaded(true); });
   }, []);
 
-  // Save to localStorage whenever team changes
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem("resawc_team", JSON.stringify(team));
-    }
-  }, [team, loaded]);
+  // Delete from real database
+  const handleDelete = async (id: number | string) => {
+    try {
+      await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+    } catch {}
+    setTeam(t => t.filter(m => m.id !== id));
+    setConfirmDelete(null);
+  };
 
   const filtered = team.filter(m => {
     const matchTab = activeTab === "all" || m.role.toLowerCase() === activeTab.replace("s", "").replace("admin", "admin");
@@ -116,7 +156,6 @@ function TeamContent() {
   });
 
   const handleAdd = (member: Member) => setTeam(t => [...t, member]);
-  const handleDelete = (id: number) => { setTeam(t => t.filter(m => m.id !== id)); setConfirmDelete(null); };
 
   return (
     <div className="animate-fadeIn">

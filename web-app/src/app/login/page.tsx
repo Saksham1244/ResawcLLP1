@@ -14,34 +14,31 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Role-based credentials
-  const USERS = [
-    { email: "mukul@resawc.com",     password: "Mukul@123",     role: "admin" },
-    { email: "mukesh@resawc.com",    password: "Mukesh@123",    role: "admin" },
-    { email: "marketing@resawc.com", password: "Marketing@123", role: "marketing" },
-    { email: "editor@resawc.com",    password: "Editor@123",    role: "editor" },
-  ];
-
+  // Authenticate against the real database
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    const match = USERS.find(
-      u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-    );
-
-    setTimeout(() => {
-      setLoading(false);
-      if (match) {
-        // Store role in localStorage for RoleContext
-        localStorage.setItem("userRole", match.role);
-        localStorage.setItem("userEmail", match.email);
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("userRole", data.user.role);
+        localStorage.setItem("userEmail", data.user.email);
+        localStorage.setItem("userName", data.user.name);
         router.push("/dashboard");
       } else {
-        setError("Invalid email or password.");
+        setError(data.error || 'Invalid email or password');
       }
-    }, 800);
+    } catch {
+      setError('Connection error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
