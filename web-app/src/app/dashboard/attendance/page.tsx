@@ -54,7 +54,7 @@ export default function AttendancePage() {
       const start = new Date();
       start.setDate(start.getDate() - 30);
       const startStr = start.toISOString().split('T')[0];
-      const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&userId=${user.id}`);
+      const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&email=${encodeURIComponent(user.email)}`);
       const data = await res.json();
       if (data.success) {
         setAttendanceHistory(data.data.map((record: any) => ({
