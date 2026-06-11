@@ -14,11 +14,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Hardcoded role-based credentials
+  // Role-based credentials
   const USERS = [
-    { email: "admin@resawc.com",     password: "Admin@123",     role: "ADMIN" },
-    { email: "marketing@resawc.com", password: "Marketing@123", role: "MARKETING" },
-    { email: "editor@resawc.com",    password: "Editor@123",    role: "EDITOR" },
+    { email: "mukul@resawc.com",     password: "Mukul@123",     role: "admin" },
+    { email: "mukesh@resawc.com",    password: "Mukesh@123",    role: "admin" },
+    { email: "marketing@resawc.com", password: "Marketing@123", role: "marketing" },
+    { email: "editor@resawc.com",    password: "Editor@123",    role: "editor" },
   ];
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -133,11 +134,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Test Credentials hint */}
+          {/* Credentials hint — remove before public launch */}
           <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(99,102,241,0.06)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.15)' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Test Credentials</p>
+            <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Credentials</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Admin:</strong> admin@resawc.com / Admin@123</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Mukul (Admin):</strong> mukul@resawc.com / Mukul@123</p>
+              <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🔴 <strong>Mukesh (Admin):</strong> mukesh@resawc.com / Mukesh@123</p>
               <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟡 <strong>Marketing:</strong> marketing@resawc.com / Marketing@123</p>
               <p style={{ fontSize: '0.78rem', color: 'var(--secondary-foreground)' }}>🟢 <strong>Editor:</strong> editor@resawc.com / Editor@123</p>
             </div>

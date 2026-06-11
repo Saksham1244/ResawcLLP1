@@ -11,10 +11,12 @@ export type CurrentUser = {
   email: string;
 };
 
-const USERS: Record<UserRole, CurrentUser> = {
-  admin:     { name: "Admin",     role: "admin",     initials: "AD", email: "admin@resawc.com" },
-  marketing: { name: "Marketing", role: "marketing", initials: "MK", email: "marketing@resawc.com" },
-  editor:    { name: "Editor",    role: "editor",    initials: "ED", email: "editor@resawc.com" },
+// Master user list — single source of truth
+export const MASTER_USERS: Record<string, { password: string; user: CurrentUser }> = {
+  "mukul@resawc.com":     { password: "Mukul@123",     user: { name: "Mukul",     role: "admin",     initials: "MK", email: "mukul@resawc.com" } },
+  "mukesh@resawc.com":    { password: "Mukesh@123",    user: { name: "Mukesh",    role: "admin",     initials: "MS", email: "mukesh@resawc.com" } },
+  "marketing@resawc.com": { password: "Marketing@123", user: { name: "Marketing", role: "marketing", initials: "MR", email: "marketing@resawc.com" } },
+  "editor@resawc.com":    { password: "Editor@123",    user: { name: "Editor",    role: "editor",    initials: "ED", email: "editor@resawc.com" } },
 };
 
 type RoleContextType = {
@@ -23,24 +25,27 @@ type RoleContextType = {
 };
 
 const RoleContext = createContext<RoleContextType>({
-  user: USERS.admin,
+  user: MASTER_USERS["mukul@resawc.com"].user,
   setRole: () => {},
 });
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser>(USERS.admin);
+  const [user, setUser] = useState<CurrentUser>(MASTER_USERS["mukul@resawc.com"].user);
 
   useEffect(() => {
-    // Read the role that was stored during login
-    const storedRole = localStorage.getItem("userRole") as UserRole | null;
-    if (storedRole && USERS[storedRole]) {
-      setUser(USERS[storedRole]);
+    const storedEmail = localStorage.getItem("userEmail");
+    if (storedEmail && MASTER_USERS[storedEmail]) {
+      setUser(MASTER_USERS[storedEmail].user);
     }
   }, []);
 
   const setRole = (role: UserRole) => {
-    setUser(USERS[role]);
-    localStorage.setItem("userRole", role);
+    const found = Object.values(MASTER_USERS).find(u => u.user.role === role);
+    if (found) {
+      setUser(found.user);
+      localStorage.setItem("userEmail", found.user.email);
+      localStorage.setItem("userRole", role);
+    }
   };
 
   return (
