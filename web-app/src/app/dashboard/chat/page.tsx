@@ -14,7 +14,6 @@ type Contact = {
   avatar?: string;
 };
 
-const ALL_MEMBERS: string[] = []; // Populated from real DB users
 const AVATAR_COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#a78bfa", "#06b6d4"];
 
 const INITIAL_CONTACTS: Contact[] = [
@@ -45,7 +44,21 @@ export default function ChatSystem() {
   const [newType, setNewType] = useState<"direct" | "group">("direct");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
+  const [allMembers, setAllMembers] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function loadMembers() {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        if (data.success) {
+          setAllMembers(data.data.map((u: any) => u.name));
+        }
+      } catch (err) {}
+    }
+    loadMembers();
+  }, []);
 
   const activeContact = contacts.find(c => c.id === activeId)!;
   const activeMessages = messages[activeId] ?? [];
@@ -254,8 +267,9 @@ export default function ChatSystem() {
             <p className="text-xs text-muted font-semibold" style={{ marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {newType === 'direct' ? 'Select a person' : 'Select members'}
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
-              {ALL_MEMBERS.map(m => {
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem', maxHeight: '200px', overflowY: 'auto' }}>
+              {allMembers.length === 0 && <p className="text-xs text-muted">Loading team members...</p>}
+              {allMembers.map(m => {
                 const selected = selectedMembers.includes(m);
                 return (
                   <div key={m} onClick={() => toggleMember(m)} style={{

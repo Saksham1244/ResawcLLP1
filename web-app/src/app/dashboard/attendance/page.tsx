@@ -28,10 +28,11 @@ export default function AttendancePage() {
       setIsCheckedIn(false);
       // Hit API to record checkout time
       if (user && user.id && !user.id.startsWith('mock-')) {
+        const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
         await fetch('/api/attendance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, timeIn: timeNow, source: 'checkout' })
+          body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source: 'checkout' })
         });
         fetchPersonalAttendance();
       }
