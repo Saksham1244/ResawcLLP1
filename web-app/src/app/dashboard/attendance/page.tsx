@@ -28,7 +28,8 @@ export default function AttendancePage() {
       setIsCheckedIn(false);
       // Hit API to record checkout time
       if (user && user.id && !user.id.startsWith('mock-')) {
-        const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         await fetch('/api/attendance', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -39,8 +40,13 @@ export default function AttendancePage() {
     }
   };
 
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const getISTDate = () => {
+    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const [startDate, setStartDate] = useState(getISTDate());
+  const [endDate, setEndDate] = useState(getISTDate());
   const [teamRecords, setTeamRecords] = useState<any[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
 
@@ -78,7 +84,7 @@ export default function AttendancePage() {
         setAttendanceHistory(history);
 
         // Auto-hydrate Check In panel state from database
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getISTDate();
         const todayRecord = history.find((r: any) => r.date === todayStr);
         if (todayRecord) {
           setIsCheckedIn(true);
