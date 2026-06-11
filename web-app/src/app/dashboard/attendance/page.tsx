@@ -28,25 +28,21 @@ export default function AttendancePage() {
     }
   };
 
-  const attendanceHistory = [
-    { date: "Oct 12, 2023", checkIn: "09:02 AM", checkOut: "06:15 PM", status: "Present", hours: "9h 13m" },
-    { date: "Oct 11, 2023", checkIn: "08:55 AM", checkOut: "06:05 PM", status: "Present", hours: "9h 10m" },
-    { date: "Oct 10, 2023", checkIn: "09:15 AM", checkOut: "06:30 PM", status: "Late", hours: "9h 15m" },
-    { date: "Oct 09, 2023", checkIn: "--", checkOut: "--", status: "Absent", hours: "--" },
-    { date: "Oct 08, 2023", checkIn: "08:50 AM", checkOut: "05:50 PM", status: "Present", hours: "9h 00m" },
-  ];
+  const attendanceHistory: any[] = [];
 
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
   const teamAttendance = [
-    { date: new Date().toISOString().split('T')[0], name: user.name, role: user.role, checkIn: isCheckedIn ? (checkInTime || "09:00 AM") : "--", checkOut: "--", status: isCheckedIn ? "Present" : "Absent" },
-    { date: new Date().toISOString().split('T')[0], name: "Sarah Williams", role: "marketing", checkIn: "08:55 AM", checkOut: "06:00 PM", status: "Present" },
-    { date: new Date().toISOString().split('T')[0], name: "Mike Ross", role: "editor", checkIn: "09:15 AM", checkOut: "06:05 PM", status: "Late" },
-    { date: new Date().toISOString().split('T')[0], name: "Jane Smith", role: "editor", checkIn: "--", checkOut: "--", status: "Absent" },
-    { date: "2023-10-11", name: "Sarah Williams", role: "marketing", checkIn: "09:00 AM", checkOut: "01:30 PM", status: "Half Day" },
-    { date: "2023-10-11", name: "David Miller", role: "editor", checkIn: "08:50 AM", checkOut: "04:15 PM", status: "Early Log Out" },
-    { date: "2023-10-10", name: "Mike Ross", role: "editor", checkIn: "09:30 AM", checkOut: "06:00 PM", status: "Late" },
+    {
+      date: new Date().toISOString().split('T')[0],
+      name: user.name,
+      role: user.role,
+      mobileLogin: "--",
+      systemLogin: isCheckedIn ? (checkInTime || "--") : "--",
+      checkOut: "--",
+      status: isCheckedIn ? "Present" : "Absent"
+    },
   ];
 
   const filteredTeam = teamAttendance.filter(r => {
@@ -107,25 +103,52 @@ export default function AttendancePage() {
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Date</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Employee</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Role</th>
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Check In</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>📱 Mobile Login</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>💻 System Login</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Check Out</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredTeam.map((record, idx) => {
+              {filteredTeam.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
+                    No team attendance records found for this period.
+                  </td>
+                </tr>
+              ) : filteredTeam.map((record, idx) => {
                 let bg = 'rgba(16,185,129,0.12)';
                 let color = '#10b981';
                 if (record.status === "Absent") { bg = 'rgba(239,68,68,0.12)'; color = '#ef4444'; }
                 if (record.status === "Late") { bg = 'rgba(245,158,11,0.12)'; color = '#f59e0b'; }
                 if (record.status === "Early Log Out") { bg = 'rgba(59,130,246,0.12)'; color = '#3b82f6'; }
                 if (record.status === "Half Day") { bg = 'rgba(139,92,246,0.12)'; color = '#8b5cf6'; }
+                const mobileLogin = (record as any).mobileLogin ?? '--';
+                const systemLogin = (record as any).systemLogin ?? '--';
                 return (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                     <td style={{ padding: '1rem 0', fontWeight: 500 }}>{record.date}</td>
                     <td style={{ padding: '1rem 0', fontWeight: 600, color: 'var(--foreground)' }}>{record.name}</td>
                     <td style={{ padding: '1rem 0', textTransform: 'capitalize' }}>{record.role}</td>
-                    <td style={{ padding: '1rem 0', color: record.checkIn !== '--' ? 'var(--foreground)' : 'var(--muted)', fontWeight: 500 }}>{record.checkIn}</td>
+                    {/* Mobile Login */}
+                    <td style={{ padding: '1rem 0' }}>
+                      {mobileLogin !== '--' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(99,102,241,0.1)', color: '#818cf8', borderRadius: '10px', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: 600 }}>
+                          📱 {mobileLogin}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>--</span>
+                      )}
+                    </td>
+                    {/* System Login */}
+                    <td style={{ padding: '1rem 0' }}>
+                      {systemLogin !== '--' ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(16,185,129,0.1)', color: '#10b981', borderRadius: '10px', padding: '0.25rem 0.6rem', fontSize: '0.78rem', fontWeight: 600 }}>
+                          💻 {systemLogin}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>--</span>
+                      )}
+                    </td>
                     <td style={{ padding: '1rem 0', color: record.checkOut !== '--' ? 'var(--foreground)' : 'var(--muted)' }}>{record.checkOut}</td>
                     <td style={{ padding: '1rem 0' }}>
                       <span style={{ padding: '0.35rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: bg, color: color }}>
@@ -159,7 +182,13 @@ export default function AttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {attendanceHistory.map((record, idx) => (
+                {attendanceHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
+                      No attendance log found.
+                    </td>
+                  </tr>
+                ) : attendanceHistory.map((record, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                     <td style={{ padding: '1rem 0', fontWeight: 500 }}>{record.date}</td>
                     <td style={{ padding: '1rem 0', color: record.checkIn !== '--' ? 'var(--foreground)' : 'var(--muted)' }}>{record.checkIn}</td>
@@ -249,32 +278,10 @@ export default function AttendancePage() {
               </tr>
             </thead>
             <tbody>
-              <tr style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                {user.role === "admin" && <td style={{ padding: '1rem 0', fontWeight: 600, color: 'var(--foreground)' }}>Jane Smith</td>}
-                <td style={{ padding: '1rem 0', fontWeight: 500 }}>Oct 15, 2023</td>
-                <td style={{ padding: '1rem 0' }}>Sick Leave</td>
-                <td style={{ padding: '1rem 0', color: 'var(--muted)' }}>Fever and cold</td>
-                <td style={{ padding: '1rem 0' }}>
-                  <span style={{ padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>Pending</span>
+              <tr>
+                <td colSpan={user.role === "admin" ? 6 : 4} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
+                  No leave requests found.
                 </td>
-                {user.role === "admin" && (
-                  <td style={{ padding: '1rem 0', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                      <button style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(16,185,129,0.15)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Check size={14}/></button>
-                      <button style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: 'rgba(239,68,68,0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={14}/></button>
-                    </div>
-                  </td>
-                )}
-              </tr>
-              <tr style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                {user.role === "admin" && <td style={{ padding: '1rem 0', fontWeight: 600, color: 'var(--foreground)' }}>Mike Ross</td>}
-                <td style={{ padding: '1rem 0', fontWeight: 500 }}>Oct 18 - Oct 20</td>
-                <td style={{ padding: '1rem 0' }}>Casual Leave</td>
-                <td style={{ padding: '1rem 0', color: 'var(--muted)' }}>Family function</td>
-                <td style={{ padding: '1rem 0' }}>
-                  <span style={{ padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>Approved</span>
-                </td>
-                {user.role === "admin" && <td style={{ padding: '1rem 0', textAlign: 'right' }}>--</td>}
               </tr>
             </tbody>
           </table>

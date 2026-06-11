@@ -3,57 +3,67 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// POST — record check-in (mobile geofencing or system login)
 export async function POST(req: Request) {
   try {
-    const data = await req.json();
-    const { userId, date, timeIn, status, coordinates } = data;
+    const { userId, date, timeIn, status, source } = await req.json();
+    // source: "mobile" | "system"
 
     if (!userId || !date || !timeIn) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    // In a real app, verify the mock token from headers here
-    
-    // Check if attendance already exists for today
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        userId: userId,
-        date: date
-      }
-    });
+    const existing = await prisma.attendance.findFirst({ where: { userId, date } });
 
     if (existing) {
-      return NextResponse.json({ success: false, error: 'Already checked in today' }, { status: 400 });
+      // Already has a record — update the other login source if not set yet
+      const updateData: any = {};
+      if (source === 'mobile' && !existing.mobileLoginTime) {
+        updateData.mobileLoginTime = timeIn;
+      } else if (source === 'system' && !existing.systemLoginTime) {
+        updateData.systemLoginTime = timeIn;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.attendance.update({ where: { id: existing.id }, data: updateData });
+      }
+
+      return NextResponse.json({ success: true, message: 'Login time updated' });
     }
 
+    // Create fresh attendance record
     const attendance = await prisma.attendance.create({
       data: {
-        userId: userId,
-        date: date,
-        timeIn: timeIn,
+        userId,
+        date,
+        timeIn,
+        mobileLoginTime: source === 'mobile' ? timeIn : null,
+        systemLoginTime: source === 'system' ? timeIn : null,
         status: status || 'Present',
       }
     });
 
     return NextResponse.json({ success: true, data: attendance });
   } catch (error) {
-    console.error('Attendance Check-In Error:', error);
+    console.error('Attendance error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
+// GET — fetch today's team attendance with both login times
 export async function GET(req: Request) {
   try {
-    // Return today's attendance for the dashboard
-    const today = new Date().toISOString().split('T')[0];
-    
+    const { searchParams } = new URL(req.url);
+    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const startDate = searchParams.get('start') || date;
+    const endDate = searchParams.get('end') || date;
+
     const records = await prisma.attendance.findMany({
       where: {
-        date: today
+        date: { gte: startDate, lte: endDate }
       },
-      include: {
-        user: true
-      }
+      include: { user: { select: { name: true, role: true, email: true } } },
+      orderBy: { createdAt: 'desc' }
     });
 
     return NextResponse.json({ success: true, data: records });

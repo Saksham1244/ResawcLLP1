@@ -100,11 +100,14 @@ model LeadInteraction {
 }
 
 model Attendance {
-  id        String   @id @default(cuid())
-  userId    String
-  date      String
-  timeIn    String
-  status    String
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  id               String   @id @default(cuid())
+  userId           String
+  date             String
+  timeIn           String
+  mobileLoginTime  String?  // Set when checked in from mobile app
+  systemLoginTime  String?  // Set when checked in from web browser
+  timeOut          String?
+  status           String
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id])
 }
