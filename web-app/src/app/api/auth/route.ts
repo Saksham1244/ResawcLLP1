@@ -27,8 +27,8 @@ export async function POST(req: Request) {
     }
 
     // Auto-record system login time in attendance
-    const today = new Date().toISOString().split('T')[0];
-    const timeNow = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-'); // Output roughly YYYY-MM-DD
+    const timeNow = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
 
     const existingAtt = await prisma.attendance.findFirst({ where: { userId: user.id, date: today } });
     if (existingAtt) {

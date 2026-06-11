@@ -4,8 +4,17 @@ import { Users, CheckSquare, TrendingUp, Activity, ArrowUpRight, ArrowRight } fr
 import Link from "next/link";
 import { useRole } from "@/context/RoleContext";
 
+function getGreeting() {
+  const hour = new Date().toLocaleTimeString('en-US', { hour12: false, hour: 'numeric', timeZone: 'Asia/Kolkata' });
+  const h = parseInt(hour, 10);
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function DashboardOverview() {
   const { user } = useRole();
+  const greeting = getGreeting();
   // Editor-specific simplified view
   if (user.role === "editor") {
     return (
@@ -54,7 +63,7 @@ export default function DashboardOverview() {
       <div className="animate-fadeIn">
         <div style={{ marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            Good morning, {user.name} 📞
+            {greeting}, {user.name} 📞
           </h1>
           <p className="text-muted text-sm">Your leads and tasks for today.</p>
         </div>
@@ -91,7 +100,7 @@ export default function DashboardOverview() {
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            Good morning, {user.name} 👋
+            {greeting}, {user.name} 👋
           </h1>
           <p className="text-muted text-sm">Here's what's happening at Resawc LLP today.</p>
         </div>
