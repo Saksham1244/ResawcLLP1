@@ -16,19 +16,9 @@ type Task = {
   color: string;
 };
 
-const INITIAL_TASKS: Task[] = [
-  { id: 1, title: "Edit Wedding Highlights",       assignee: "Mike Davis",    initials: "MD", status: "In Progress", priority: "High",   due: "Today",    color: "#f43f5e" },
-  { id: 2, title: "Color Grade Commercial",         assignee: "James Wilson",  initials: "JW", status: "Assigned",    priority: "Medium", due: "Tomorrow", color: "#f59e0b" },
-  { id: 3, title: "Social Media Snippets",          assignee: "Nadia Khan",    initials: "NK", status: "Not Started", priority: "Low",    due: "Next Week",color: "#6366f1" },
-  { id: 4, title: "Motion Graphics Intro",          assignee: "Nadia Khan",    initials: "NK", status: "Completed",   priority: "High",   due: "10 Jun",   color: "#10b981" },
-  { id: 5, title: "Product Demo Edit",              assignee: "Mike Davis",    initials: "MD", status: "On Hold",     priority: "Medium", due: "Today",    color: "#a78bfa" },
-  { id: 6, title: "Call TechCorp Lead",             assignee: "Sarah Connor",  initials: "SC", status: "Not Started", priority: "High",   due: "Today",    color: "#f43f5e" },
-  { id: 7, title: "Follow up with DesignCo",        assignee: "Priya Sharma",  initials: "PS", status: "In Progress", priority: "Medium", due: "Tomorrow", color: "#f59e0b" },
-  { id: 8, title: "Send proposal to Startup Labs",  assignee: "Sarah Connor",  initials: "SC", status: "Completed",   priority: "Low",    due: "10 Jun",   color: "#10b981" },
-  { id: 9, title: "Youtube Shorts — Batch Edit",   assignee: "Mike Davis",    initials: "MD", status: "Delayed",     priority: "High",   due: "12 Jun",   color: "#f43f5e" },
-];
+const INITIAL_TASKS: Task[] = [];
 
-const TEAM_MEMBERS = ["Mike Davis", "James Wilson", "Nadia Khan", "Sarah Connor", "Priya Sharma", "Alex Johnson", "Raj Mehta", "David Lee", "Nina Patel"];
+const TEAM_MEMBERS: string[] = []; // Populated from real DB users
 
 const ALL_STATUSES: Task["status"][] = ["Not Started", "Assigned", "In Progress", "On Hold", "Delayed", "Completed"];
 

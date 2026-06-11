@@ -76,18 +76,14 @@ export default function DashboardOverview() {
 
   // Admin full view
   const stats = [
-    { label: "Active Leads", value: "142", delta: "+12 this week", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)" },
-    { label: "Pending Tasks", value: "28", delta: "6 due today", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
-    { label: "Team Online", value: "24", sub: "of 30", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)" },
-    { label: "System Activity", value: "92%", delta: "↑ 4% vs yesterday", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
+    { label: "Active Leads", value: "0", delta: "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)" },
+    { label: "Pending Tasks", value: "0", delta: "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
+    { label: "Team Members", value: "0", sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)" },
+    { label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
   ];
 
-  const recentActivity = [
-    { text: "Sarah updated task #1042 to", highlight: "In Progress", time: "10m ago", color: "var(--primary-2)" },
-    { text: "Mike converted lead", highlight: "Acme Corp", time: "1h ago", color: "var(--success)" },
-    { text: "3 new leads distributed to", highlight: "Marketing Team", time: "2h ago", color: "var(--accent)" },
-    { text: "Alex created task", highlight: "Product Video Edit", time: "3h ago", color: "var(--warning)" },
-  ];
+  const recentActivity: { text: string; highlight: string; time: string; color: string }[] = [];
+
 
   return (
     <div className="animate-fadeIn">
@@ -139,7 +135,12 @@ export default function DashboardOverview() {
             <button className="btn btn-ghost text-xs" style={{ padding: '0.3rem 0.7rem' }}>View all</button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            {recentActivity.map((item, i) => (
+            {recentActivity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
+                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📭</p>
+                <p className="text-sm">No activity yet. Actions will appear here as you use the platform.</p>
+              </div>
+            ) : recentActivity.map((item, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
                 <p className="text-sm" style={{ flex: 1 }}>
@@ -150,6 +151,7 @@ export default function DashboardOverview() {
               </div>
             ))}
           </div>
+
         </div>
 
         {/* Quick Actions */}

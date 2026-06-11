@@ -9,7 +9,7 @@ import {
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 
-const MARKETING_TEAM = ["Sarah Connor", "Priya Sharma", "Raj Mehta", "David Lee", "Nina Patel"];
+const MARKETING_TEAM: string[] = []; // Populated from real team members in DB
 
 type Interaction = {
   id: number;

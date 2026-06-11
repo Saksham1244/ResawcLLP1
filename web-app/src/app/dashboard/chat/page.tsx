@@ -14,29 +14,15 @@ type Contact = {
   avatar?: string;
 };
 
-const ALL_MEMBERS = ["Sarah Connor", "Mike Davis", "Priya Sharma", "James Wilson", "Nadia Khan", "Alex Johnson"];
+const ALL_MEMBERS: string[] = []; // Populated from real DB users
 const AVATAR_COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#a78bfa", "#06b6d4"];
 
 const INITIAL_CONTACTS: Contact[] = [
   { id: 1, name: "General Channel", type: "channel", unread: 0 },
-  { id: 2, name: "Sarah Connor", type: "direct", status: "online", unread: 2 },
-  { id: 3, name: "Mike Davis", type: "direct", status: "offline", unread: 0 },
 ];
 
 const INITIAL_MESSAGES: Record<number, MessageType[]> = {
-  1: [
-    { id: 1, sender: "Sarah Connor", time: "10:30 AM", text: "Hey team, the new leads have been uploaded." },
-    { id: 2, sender: "You", time: "10:35 AM", text: "Got it! I will start distributing them now." },
-    { id: 3, sender: "Mike Davis", time: "10:42 AM", text: "I finished the wedding highlights edit. Moving to the commercial." },
-  ],
-  2: [
-    { id: 1, sender: "Sarah Connor", time: "09:00 AM", text: "Hey, are you free for a quick sync?" },
-    { id: 2, sender: "Sarah Connor", time: "09:05 AM", text: "I found some discrepancies in the Excel sheet." },
-  ],
-  3: [
-    { id: 1, sender: "You", time: "Yesterday", text: "Mike, don't forget the TechCorp video export." },
-    { id: 2, sender: "Mike Davis", time: "Yesterday", text: "Already done! Uploaded to the cloud." },
-  ],
+  1: [],
 };
 
 function getInitials(name: string) {
