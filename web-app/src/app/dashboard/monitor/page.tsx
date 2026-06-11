@@ -17,28 +17,7 @@ type PCActivity = {
   lastScreenshot: string;
 };
 
-const MOCK_DATA: PCActivity[] = [
-  {
-    id: 1, name: "Sarah Williams", role: "Marketing", status: "Active",
-    currentApp: "Google Chrome", appTitle: "Meta Business Suite - Ad Campaign Q3",
-    productivity: 85, lastScreenshot: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=500&q=80"
-  },
-  {
-    id: 2, name: "Mike Ross", role: "Video Editor", status: "Active",
-    currentApp: "Adobe Premiere Pro", appTitle: "Resawc_Corporate_Video_v2.prproj",
-    productivity: 92, lastScreenshot: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500&q=80"
-  },
-  {
-    id: 3, name: "Jane Smith", role: "Photo Editor", status: "Idle", idleTime: "12m 45s",
-    currentApp: "Adobe Photoshop", appTitle: "Client_Retouching_Final.psd",
-    productivity: 45, lastScreenshot: "https://images.unsplash.com/photo-1542744094-3a31f272c490?w=500&q=80"
-  },
-  {
-    id: 4, name: "David Miller", role: "Video Editor", status: "Offline",
-    currentApp: "--", appTitle: "--",
-    productivity: 0, lastScreenshot: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80"
-  }
-];
+const MOCK_DATA: PCActivity[] = [];
 
 export default function LiveMonitorPage() {
   const { user } = useRole();
@@ -71,8 +50,12 @@ export default function LiveMonitorPage() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
-          {activities.map(act => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+          {activities.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', background: 'var(--overlay-bg)', borderRadius: 'var(--radius-lg)' }}>
+              No active PC tracking sessions found.
+            </div>
+          ) : activities.map(act => (
             <div key={act.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {/* Card Header */}
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

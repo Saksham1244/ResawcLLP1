@@ -172,7 +172,7 @@ export default function ChatSystem() {
             <div>
               <h3 className="font-bold text-sm">{activeContact.name}</h3>
               <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
-                {activeContact.type === 'channel' ? '24 members' : activeContact.type === 'group' ? `${activeContact.members?.join(', ')}` : activeContact.status}
+                {activeContact.type === 'channel' ? 'All Team' : activeContact.type === 'group' ? `${activeContact.members?.join(', ')}` : activeContact.status}
               </p>
             </div>
           </div>
