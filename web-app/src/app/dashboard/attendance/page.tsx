@@ -230,7 +230,7 @@ export default function AttendancePage() {
               {currentTime || "--:--:--"}
             </h3>
             <p className="text-muted text-sm" style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: 'center' }}>
-              <MapPin size={14} /> Head Office, Mumbai
+              <MapPin size={14} /> South Extension Part 1, New Delhi
             </p>
 
             {isCheckedIn ? (
