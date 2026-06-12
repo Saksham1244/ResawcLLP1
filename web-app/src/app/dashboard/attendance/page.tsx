@@ -44,7 +44,7 @@ export default function AttendancePage() {
       });
       const result = await res.json();
       if (!result.success) {
-        alert('Failed to record attendance. Please try again.');
+        alert(result.error || 'Failed to record attendance. Please try again.');
         return;
       }
       // Let the DB be the single source of truth — fetch fresh state
