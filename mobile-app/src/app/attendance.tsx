@@ -13,11 +13,29 @@ export default function AttendanceScreen() {
 
   useEffect(() => {
     refreshLocation();
+    checkExistingAttendance();
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const checkExistingAttendance = async () => {
+    if (!globalUser?.id) return;
+    const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    
+    try {
+      const res = await fetchAPI(`/attendance?start=${todayStr}&end=${todayStr}&userId=${globalUser.id}`);
+      if (res.success && res.data && res.data.length > 0) {
+        const todayRecord = res.data[0];
+        setIsCheckedIn(true);
+        setCheckInTime(todayRecord.mobileLoginTime || todayRecord.systemLoginTime || todayRecord.timeIn);
+      }
+    } catch (e) {
+      console.log('Error fetching attendance', e);
+    }
+  };
 
   const refreshLocation = async () => {
     setLoading(true);
@@ -30,13 +48,14 @@ export default function AttendanceScreen() {
     if (!geofence) return;
     
     if (!isCheckedIn) {
-      if (!geofence.isAllowed) {
+      if (!geofence.isAllowed && globalUser?.role?.toUpperCase() !== 'ADMIN') {
         Alert.alert("Check-in Failed", `You are ${geofence.distance}m away from the office. You must be within 100m to check in.`);
         return;
       }
       
       const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-      const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
+      const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       
       // Hit live API to mark mobile checkin
       const res = await fetchAPI('/attendance', {
@@ -53,7 +72,8 @@ export default function AttendanceScreen() {
       }
     } else {
       const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-      const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }).split('/').reverse().join('-');
+      const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       
       // Hit live API to mark mobile checkout
       const res = await fetchAPI('/attendance', {
