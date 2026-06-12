@@ -9,6 +9,7 @@ export default function AttendancePage() {
   const [currentTime, setCurrentTime] = useState("");
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [attendanceBusy, setAttendanceBusy] = useState(false); // prevent double-click
   const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves">("personal");
 
   useEffect(() => {
@@ -19,41 +20,40 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleToggle = async () => {
-    const timeNow = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-    if (!isCheckedIn) {
-      setCheckInTime(timeNow);
-      setIsCheckedIn(true);
-      // POST check-in to DB
-      if (user && user.id && !user.id.startsWith('mock-')) {
-        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        await fetch('/api/attendance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source: 'system' })
-        });
-        fetchPersonalAttendance();
-      }
-    } else {
-      setIsCheckedIn(false);
-      // POST checkout to DB
-      if (user && user.id && !user.id.startsWith('mock-')) {
-        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        await fetch('/api/attendance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source: 'checkout' })
-        });
-        fetchPersonalAttendance();
-      }
-    }
-  };
-
   const getISTDate = () => {
     const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const getISTTime = () =>
+    new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+
+  // All state is driven by the DB — no optimistic updates
+  const handleToggle = async () => {
+    if (attendanceBusy) return;
+    if (!user || !user.id || user.id.startsWith('mock-')) return;
+    setAttendanceBusy(true);
+    try {
+      const timeNow = getISTTime();
+      const todayStr = getISTDate();
+      const source = isCheckedIn ? 'checkout' : 'system';
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source })
+      });
+      const result = await res.json();
+      if (!result.success) {
+        alert('Failed to record attendance. Please try again.');
+        return;
+      }
+      // Let the DB be the single source of truth — fetch fresh state
+      await fetchPersonalAttendance();
+    } catch {
+      alert('Connection error. Please check your internet and try again.');
+    } finally {
+      setAttendanceBusy(false);
+    }
   };
 
   const [startDate, setStartDate] = useState(getISTDate());
@@ -296,7 +296,16 @@ export default function AttendancePage() {
               <MapPin size={14} /> South Extension Part 1, New Delhi
             </p>
 
-            {isCheckedIn ? (
+            {attendanceBusy ? (
+              <button disabled style={{
+                width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none',
+                background: 'var(--overlay-bg)', color: 'var(--muted)', fontWeight: 700, fontSize: '1rem',
+                cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem'
+              }}>
+                <span style={{ width: '16px', height: '16px', border: '2px solid var(--muted)', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+                {isCheckedIn ? 'Checking Out...' : 'Checking In...'}
+              </button>
+            ) : isCheckedIn ? (
               <div style={{ width: '100%' }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem' }}>
                   <p style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#10b981', fontWeight: 700, fontSize: '0.9rem' }}>
