@@ -70,8 +70,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // ENFORCE MOBILE-FIRST RULE: System cannot create a fresh record unless Admin.
-    if (source === 'system' && user.role !== 'ADMIN') {
+    // ENFORCE MOBILE-FIRST RULE: System cannot create a fresh record.
+    if (source === 'system') {
       // Check if they've checked in via mobile at all today
       const mobileToday = await prisma.attendance.findFirst({
         where: { userId, date, mobileLoginTime: { not: null } }
