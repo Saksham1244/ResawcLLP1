@@ -21,14 +21,25 @@ const MOCK_DATA: PCActivity[] = [];
 
 export default function LiveMonitorPage() {
   const { user } = useRole();
-  const [activities, setActivities] = useState(MOCK_DATA);
-  const [lastSync, setLastSync] = useState("Just now");
+  const [activities, setActivities] = useState<PCActivity[]>([]);
+  const [lastSync, setLastSync] = useState("Never");
+
+  const fetchActivities = async () => {
+    try {
+      const res = await fetch('/api/monitor/sync');
+      const data = await res.json();
+      if (data.success) {
+        setActivities(data.data);
+        setLastSync(new Date().toLocaleTimeString());
+      }
+    } catch (e) {
+      console.error('Error fetching activities:', e);
+    }
+  };
 
   useEffect(() => {
-    // Simulate real-time updates
-    const interval = setInterval(() => {
-      setLastSync(new Date().toLocaleTimeString());
-    }, 10000);
+    fetchActivities();
+    const interval = setInterval(fetchActivities, 10000);
     return () => clearInterval(interval);
   }, []);
 

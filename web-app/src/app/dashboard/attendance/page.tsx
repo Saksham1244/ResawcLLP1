@@ -47,6 +47,12 @@ export default function AttendancePage() {
         alert(result.error || 'Failed to record attendance. Please try again.');
         return;
       }
+
+      // If successfully checked in (not checking out), launch the PC activity tracker seamlessly
+      if (!isCheckedIn) {
+        window.location.href = `resawc-agent://login?userId=${user.id}`;
+      }
+
       // Let the DB be the single source of truth — fetch fresh state
       await fetchPersonalAttendance();
     } catch {

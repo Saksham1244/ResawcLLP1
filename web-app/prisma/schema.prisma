@@ -25,6 +25,7 @@ model User {
   notifications     Notification[]
   interactions      LeadInteraction[]
   attendance        Attendance[]
+  pcActivity        PCActivity?
 }
 
 model Lead {
@@ -112,4 +113,16 @@ model Attendance {
   status           String
   createdAt        DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id])
+}
+
+model PCActivity {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  status       String   @default("Offline") // Active, Idle, Offline
+  idleTime     String?
+  currentApp   String?
+  appTitle     String?
+  productivity Int      @default(0)
+  lastSync     DateTime @default(now())
 }
