@@ -189,8 +189,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
           <button
             onClick={() => {
-              localStorage.removeItem('resawc_user');
-              localStorage.removeItem('resawc_token');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('userEmail');
+              localStorage.removeItem('userName');
+              localStorage.removeItem('userRole');
               router.replace('/');
             }}
             style={{
