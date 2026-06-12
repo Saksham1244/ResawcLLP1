@@ -85,47 +85,95 @@ export default function AttendancePage() {
       const res = await fetch(`/api/attendance?start=${startStr}&end=${getISTDate()}&email=${encodeURIComponent(user.email)}`);
       const data = await res.json();
       if (data.success) {
-        const calculateHours = (inStr: string, outStr: string) => {
-          if (!inStr || outStr === '--' || !outStr) return '--';
-          try {
-            const parseTime = (t: string) => {
-              const [time, modifier] = t.split(' ');
-              let [hours, minutes] = time.split(':').map(Number);
-              if (hours === 12) hours = 0;
-              if (modifier.toLowerCase() === 'pm') hours += 12;
-              return hours * 60 + minutes;
-            };
-            const diffMins = parseTime(outStr) - parseTime(inStr);
-            if (diffMins < 0) return '--';
-            const h = Math.floor(diffMins / 60);
-            const m = diffMins % 60;
-            return `${h}h ${m}m`;
-          } catch { return '--'; }
+        const parseTime = (t: string) => {
+          if (!t || t === '--') return 0;
+          const [time, modifier] = t.split(' ');
+          let [hours, minutes] = time.split(':').map(Number);
+          if (hours === 12) hours = 0;
+          if (modifier.toLowerCase() === 'pm') hours += 12;
+          return hours * 60 + minutes;
         };
 
-        const history = data.data.map((record: any) => {
-          const checkIn = record.mobileLoginTime || record.systemLoginTime || record.timeIn;
-          const checkOut = record.timeOut || '--';
-          return {
-            date: record.date,
-            checkIn,
-            checkOut,
-            hours: calculateHours(checkIn, checkOut),
-            status: record.status
-          };
+        const formatDuration = (diffMins: number) => {
+          if (diffMins <= 0) return '--';
+          const h = Math.floor(diffMins / 60);
+          const m = diffMins % 60;
+          return `${h}h ${m}m`;
+        };
+
+        const rawRecords = data.data;
+        const groupedByDate: Record<string, any> = {};
+
+        rawRecords.forEach((record: any) => {
+          const date = record.date;
+          const checkInStr = record.mobileLoginTime || record.systemLoginTime || record.timeIn;
+          const checkOutStr = record.timeOut;
+          
+          const isOpen = !checkOutStr || checkOutStr === '--' || checkOutStr === '';
+
+          let shiftMins = 0;
+          if (!isOpen) {
+            const inMins = parseTime(checkInStr);
+            const outMins = parseTime(checkOutStr);
+            if (outMins >= inMins) {
+              shiftMins = outMins - inMins;
+            }
+          }
+
+          if (!groupedByDate[date]) {
+            groupedByDate[date] = {
+              date: date,
+              checkIn: checkInStr,
+              checkOut: isOpen ? '--' : checkOutStr,
+              totalMins: shiftMins,
+              status: record.status,
+              hasOpenShift: isOpen
+            };
+          } else {
+            // Keep the earliest checkIn
+            if (parseTime(checkInStr) < parseTime(groupedByDate[date].checkIn)) {
+              groupedByDate[date].checkIn = checkInStr;
+            }
+
+            // Keep the latest checkOut (if it exists and we don't have an open shift)
+            if (isOpen) {
+              groupedByDate[date].hasOpenShift = true;
+              groupedByDate[date].checkOut = '--';
+            } else if (!groupedByDate[date].hasOpenShift) {
+               if (groupedByDate[date].checkOut === '--' || parseTime(checkOutStr) > parseTime(groupedByDate[date].checkOut)) {
+                  groupedByDate[date].checkOut = checkOutStr;
+               }
+            }
+
+            // Add the hours for this specific shift to the total
+            groupedByDate[date].totalMins += shiftMins;
+          }
         });
+
+        // Convert back to array, sorted by date desc
+        const history = Object.values(groupedByDate).sort((a: any, b: any) => b.date.localeCompare(a.date)).map((r: any) => ({
+          date: r.date,
+          checkIn: r.checkIn,
+          checkOut: r.checkOut,
+          hours: formatDuration(r.totalMins),
+          status: r.status
+        }));
+        
         setAttendanceHistory(history);
 
-        // Auto-hydrate Check In panel state from database
+        // Auto-hydrate Check In panel state from database using the absolute latest record for today
         const todayStr = getISTDate();
-        const todayRecord = history.find((r: any) => r.date === todayStr);
-        if (todayRecord) {
-          if (todayRecord.checkOut && todayRecord.checkOut !== '--') {
-            setIsCheckedIn(false); // They checked out of their latest shift, let them check in again
+        const latestTodayRecord = rawRecords.find((r: any) => r.date === todayStr);
+        if (latestTodayRecord) {
+          if (latestTodayRecord.timeOut && latestTodayRecord.timeOut !== '--' && latestTodayRecord.timeOut !== '') {
+            setIsCheckedIn(false);
           } else {
             setIsCheckedIn(true);
-            setCheckInTime(todayRecord.checkIn);
+            setCheckInTime(latestTodayRecord.timeIn || latestTodayRecord.systemLoginTime || latestTodayRecord.mobileLoginTime);
           }
+        } else {
+          setIsCheckedIn(false);
+          setCheckInTime(null);
         }
       }
     } catch {}
