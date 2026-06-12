@@ -50,6 +50,8 @@ model Task {
   title       String
   description String?
   status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  priority    String   @default("MEDIUM")  // HIGH, MEDIUM, LOW
+  dueDate     String?
   
   assignedToId String?
   assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id])

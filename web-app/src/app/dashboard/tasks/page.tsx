@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Clock, CheckCircle, AlertCircle, Calendar, X } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Clock, CheckCircle, AlertCircle, Calendar, X, Loader2 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 
 type Task = {
-  id: number;
+  id: string;
   title: string;
   description?: string;
   assignee: string;
+  assigneeId?: string;
   initials: string;
   status: "Not Started" | "In Progress" | "On Hold" | "Completed" | "Assigned" | "Delayed";
   priority: "High" | "Medium" | "Low";
@@ -16,9 +17,27 @@ type Task = {
   color: string;
 };
 
-const INITIAL_TASKS: Task[] = [];
+type DBUser = { id: string; name: string; role: string };
 
-const TEAM_MEMBERS: string[] = []; // Populated from real DB users
+const STATUS_MAP: Record<string, Task["status"]> = {
+  PENDING: "Not Started",
+  IN_PROGRESS: "In Progress",
+  ON_HOLD: "On Hold",
+  COMPLETED: "Completed",
+  ASSIGNED: "Assigned",
+  DELAYED: "Delayed",
+};
+const STATUS_MAP_REVERSE: Record<string, string> = {
+  "Not Started": "PENDING",
+  "In Progress": "IN_PROGRESS",
+  "On Hold": "ON_HOLD",
+  "Completed": "COMPLETED",
+  "Assigned": "ASSIGNED",
+  "Delayed": "DELAYED",
+};
+const PRIORITY_MAP: Record<string, Task["priority"]> = {
+  HIGH: "High", MEDIUM: "Medium", LOW: "Low",
+};
 
 const ALL_STATUSES: Task["status"][] = ["Not Started", "Assigned", "In Progress", "On Hold", "Delayed", "Completed"];
 
@@ -27,54 +46,113 @@ const PRIORITY_COLORS: Record<string, { bg: string; text: string; border: string
   Medium: { bg: "rgba(245,158,11,0.15)", text: "#f59e0b", border: "rgba(245,158,11,0.4)" },
   Low:    { bg: "rgba(99,102,241,0.15)", text: "#818cf8", border: "rgba(99,102,241,0.4)" },
 };
-
 const TASK_COLORS: Record<string, string> = { High: "#f43f5e", Medium: "#f59e0b", Low: "#6366f1" };
 
 const STATUS_META: Record<Task["status"], { color: string; bg: string }> = {
   "Not Started": { color: "#a1a1c7", bg: "rgba(161,161,199,0.12)" },
-  "In Progress": { color: "#f59e0b", bg: "rgba(245,158,11,0.12)"  },
-  "On Hold":     { color: "#6366f1", bg: "rgba(99,102,241,0.12)"  },
-  "Completed":   { color: "#10b981", bg: "rgba(16,185,129,0.12)"  },
-  "Assigned":    { color: "#06b6d4", bg: "rgba(6,182,212,0.12)"   },
-  "Delayed":     { color: "#f43f5e", bg: "rgba(244,63,94,0.12)"   },
+  "In Progress": { color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  "On Hold":     { color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
+  "Completed":   { color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+  "Assigned":    { color: "#06b6d4", bg: "rgba(6,182,212,0.12)"  },
+  "Delayed":     { color: "#f43f5e", bg: "rgba(244,63,94,0.12)"  },
 };
 
 const ADMIN_COLUMNS: { statuses: Task["status"][]; label: string; icon: any; color: string }[] = [
-  { statuses: ["Not Started", "Assigned"], label: "Not Started",        icon: AlertCircle, color: "#6366f1" },
-  { statuses: ["In Progress"],             label: "In Progress",        icon: Clock,       color: "#f59e0b" },
-  { statuses: ["On Hold", "Delayed"],      label: "On Hold / Delayed",  icon: AlertCircle, color: "#f43f5e" },
-  { statuses: ["Completed"],               label: "Completed",          icon: CheckCircle, color: "#10b981" },
+  { statuses: ["Not Started", "Assigned"], label: "Not Started",       icon: AlertCircle, color: "#6366f1" },
+  { statuses: ["In Progress"],             label: "In Progress",       icon: Clock,       color: "#f59e0b" },
+  { statuses: ["On Hold", "Delayed"],      label: "On Hold / Delayed", icon: AlertCircle, color: "#f43f5e" },
+  { statuses: ["Completed"],               label: "Completed",         icon: CheckCircle, color: "#10b981" },
 ];
+
+function mapDBTask(t: any): Task {
+  const priority = PRIORITY_MAP[t.priority?.toUpperCase()] || "Medium";
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description,
+    assignee: t.assignedTo?.name || "Unassigned",
+    assigneeId: t.assignedTo?.id,
+    initials: (t.assignedTo?.name || "?").split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2),
+    status: STATUS_MAP[t.status] || "Not Started",
+    priority,
+    due: t.dueDate || "TBD",
+    color: TASK_COLORS[priority],
+  };
+}
 
 export default function TaskManagement() {
   const { user } = useRole();
   const isAdmin = user.role === "admin";
 
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [teamMembers, setTeamMembers] = useState<DBUser[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<{
-    title: string; description: string; assignee: string;
+    title: string; description: string; assigneeId: string;
     priority: Task["priority"]; due: string; status: Task["status"];
-  }>({ title: "", description: "", assignee: "", priority: "Medium", due: "", status: "Assigned" });
+  }>({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned" });
 
-  const visibleTasks = isAdmin ? tasks : tasks.filter(t => t.assignee === user.name);
+  const fetchTasks = useCallback(async () => {
+    setLoadingTasks(true);
+    try {
+      const url = isAdmin ? '/api/tasks' : `/api/tasks?userId=${user.id}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) setTasks(data.data.map(mapDBTask));
+    } catch {}
+    setLoadingTasks(false);
+  }, [isAdmin, user.id]);
 
-  const handleCreate = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchTasks();
+    // Fetch team members for the assign dropdown
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => { if (data.success) setTeamMembers(data.data); })
+      .catch(() => {});
+  }, [fetchTasks]);
+
+  const visibleTasks = tasks;
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const assigneeName = form.assignee || "Unassigned";
-    const initials = assigneeName === "Unassigned"
-      ? "?" : assigneeName.split(" ").map(w => w[0]).join("").toUpperCase();
-    setTasks(prev => [{
-      id: Date.now(), title: form.title, description: form.description,
-      assignee: assigneeName, initials, status: form.status,
-      priority: form.priority, due: form.due || "TBD", color: TASK_COLORS[form.priority],
-    }, ...prev]);
-    setShowModal(false);
-    setForm({ title: "", description: "", assignee: "", priority: "Medium", due: "", status: "Assigned" });
+    setSaving(true);
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          assignedToId: form.assigneeId || null,
+          createdById: user.id,
+          priority: form.priority.toUpperCase(),
+          dueDate: form.due || null,
+          status: STATUS_MAP_REVERSE[form.status] || 'PENDING',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTasks(prev => [mapDBTask(data.data), ...prev]);
+        setShowModal(false);
+        setForm({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned" });
+      }
+    } catch {}
+    setSaving(false);
   };
 
-  const updateStatus = (id: number, newStatus: Task["status"]) => {
+  const updateStatus = async (id: string, newStatus: Task["status"]) => {
+    // Optimistic update
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    try {
+      await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: STATUS_MAP_REVERSE[newStatus] || newStatus }),
+      });
+    } catch {}
   };
 
   return (
@@ -86,12 +164,11 @@ export default function TaskManagement() {
             {isAdmin ? "Task Board" : "My Tasks"}
           </h1>
           <p className="text-muted text-sm">
-            {isAdmin
+            {loadingTasks ? "Loading..." : isAdmin
               ? `${tasks.length} total · ${tasks.filter(t => t.status === "In Progress").length} in progress`
               : `${visibleTasks.length} assigned to you · ${visibleTasks.filter(t => t.status === "In Progress").length} in progress`}
           </p>
         </div>
-        {/* Only Admin creates tasks */}
         {isAdmin && (
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             <Plus size={16} /> Create Task
@@ -99,8 +176,15 @@ export default function TaskManagement() {
         )}
       </div>
 
+      {loadingTasks && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem', gap: '0.75rem', color: 'var(--muted)' }}>
+          <Loader2 size={22} style={{ animation: 'spin 1s linear infinite' }} />
+          <span>Loading tasks...</span>
+        </div>
+      )}
+
       {/* ── EDITOR / MARKETING VIEW: flat list with status dropdown ── */}
-      {!isAdmin && (
+      {!isAdmin && !loadingTasks && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {visibleTasks.length === 0 && (
             <div className="glass-card" style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--secondary-foreground)' }}>
@@ -129,8 +213,6 @@ export default function TaskManagement() {
                   <p className="font-semibold text-sm">{task.title}</p>
                   {task.description && <p className="text-xs text-muted" style={{ marginTop: '0.2rem', lineHeight: 1.5 }}>{task.description}</p>}
                 </div>
-
-                {/* Status updater */}
                 <div style={{ flexShrink: 0, minWidth: '145px' }}>
                   <p className="text-xs text-muted font-semibold" style={{ marginBottom: '0.35rem' }}>Update Status</p>
                   <select
@@ -153,7 +235,7 @@ export default function TaskManagement() {
       )}
 
       {/* ── ADMIN VIEW: Kanban board ── */}
-      {isAdmin && (
+      {isAdmin && !loadingTasks && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.1rem', alignItems: 'start' }}>
           {ADMIN_COLUMNS.map(col => {
             const Icon = col.icon;
@@ -167,8 +249,10 @@ export default function TaskManagement() {
                     {colTasks.length}
                   </div>
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {colTasks.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--muted)', fontSize: '0.78rem' }}>No tasks</div>
+                  )}
                   {colTasks.map(task => {
                     const pc = PRIORITY_COLORS[task.priority];
                     const sm = STATUS_META[task.status];
@@ -182,22 +266,18 @@ export default function TaskManagement() {
                             <Calendar size={10} />{task.due}
                           </span>
                         </div>
-
                         <p className="font-semibold" style={{ fontSize: '0.8rem', marginBottom: '0.45rem', textDecoration: task.status === "Completed" ? 'line-through' : 'none', lineHeight: 1.4 }}>
                           {task.title}
                         </p>
-
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
                           <div style={{ width: '19px', height: '19px', borderRadius: '5px', background: `linear-gradient(135deg, ${task.color}, ${task.color}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', fontWeight: 700, color: '#fff' }}>
                             {task.initials}
                           </div>
                           <span className="text-xs text-muted">{task.assignee}</span>
                         </div>
-
                         <span style={{ display: 'inline-block', background: sm.bg, color: sm.color, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.67rem', fontWeight: 700, border: `1px solid ${sm.color}40`, marginBottom: '0.5rem' }}>
                           {task.status}
                         </span>
-
                         <select
                           value={task.status}
                           onChange={e => updateStatus(task.id, e.target.value as Task["status"])}
@@ -222,28 +302,25 @@ export default function TaskManagement() {
               <h2 className="font-bold" style={{ fontSize: '1.2rem' }}>Create & Assign Task</h2>
               <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => setShowModal(false)}><X size={18} /></button>
             </div>
-
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <label className="text-sm font-semibold">Task Title *</label>
                 <input className="input" placeholder="e.g. Edit product video for TechCorp" required
                   value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 <label className="text-sm font-semibold">Description</label>
                 <textarea className="input" rows={3} placeholder="What needs to be done..."
                   value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   style={{ resize: 'none', lineHeight: 1.5 }} />
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <label className="text-sm font-semibold">Assign To *</label>
-                  <select className="input" required value={form.assignee} onChange={e => setForm(p => ({ ...p, assignee: e.target.value }))}
+                  <select className="input" required value={form.assigneeId} onChange={e => setForm(p => ({ ...p, assigneeId: e.target.value }))}
                     style={{ background: 'var(--overlay-bg)', color: 'var(--foreground)' }}>
                     <option value="">Select team member</option>
-                    {TEAM_MEMBERS.map(m => <option key={m} value={m}>{m}</option>)}
+                    {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name} ({m.role.charAt(0) + m.role.slice(1).toLowerCase()})</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -254,7 +331,6 @@ export default function TaskManagement() {
                   </select>
                 </div>
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <label className="text-sm font-semibold">Priority</label>
@@ -269,10 +345,11 @@ export default function TaskManagement() {
                     style={{ background: 'var(--overlay-bg)', colorScheme: 'dark' }} />
                 </div>
               </div>
-
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Assign Task</button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={saving}>
+                  {saving ? 'Assigning...' : 'Assign Task'}
+                </button>
               </div>
             </form>
           </div>

@@ -24,9 +24,20 @@ export default function AttendancePage() {
     if (!isCheckedIn) {
       setCheckInTime(timeNow);
       setIsCheckedIn(true);
+      // POST check-in to DB
+      if (user && user.id && !user.id.startsWith('mock-')) {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        await fetch('/api/attendance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source: 'system' })
+        });
+        fetchPersonalAttendance();
+      }
     } else {
       setIsCheckedIn(false);
-      // Hit API to record checkout time
+      // POST checkout to DB
       if (user && user.id && !user.id.startsWith('mock-')) {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
         const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -67,11 +78,11 @@ export default function AttendancePage() {
     if (!user || !user.id || user.id.startsWith('mock-')) return;
     setLoadingPersonal(true);
     try {
-      // Fetch last 30 days of personal attendance
-      const start = new Date();
-      start.setDate(start.getDate() - 30);
-      const startStr = start.toISOString().split('T')[0];
-      const res = await fetch(`/api/attendance?start=${startStr}&end=${endDate}&email=${encodeURIComponent(user.email)}`);
+      // Fetch last 30 days of personal attendance using IST date
+      const startIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+      startIST.setDate(startIST.getDate() - 30);
+      const startStr = `${startIST.getFullYear()}-${String(startIST.getMonth() + 1).padStart(2, '0')}-${String(startIST.getDate()).padStart(2, '0')}`;
+      const res = await fetch(`/api/attendance?start=${startStr}&end=${getISTDate()}&email=${encodeURIComponent(user.email)}`);
       const data = await res.json();
       if (data.success) {
         const calculateHours = (inStr: string, outStr: string) => {

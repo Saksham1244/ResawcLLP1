@@ -52,8 +52,17 @@ export default function LiveMonitorPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {activities.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)', background: 'var(--overlay-bg)', borderRadius: 'var(--radius-lg)' }}>
-              No active PC tracking sessions found.
+            <div className="glass-card" style={{ gridColumn: '1/-1', padding: '4rem 2rem', textAlign: 'center' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                <Monitor size={28} color="#818cf8" />
+              </div>
+              <h3 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '0.5rem' }}>No Desktop Agents Connected</h3>
+              <p className="text-muted text-sm" style={{ maxWidth: '420px', margin: '0 auto 1.5rem', lineHeight: 1.7 }}>
+                The Live PC Monitor requires the <strong>Resawc Desktop Agent</strong> to be installed and running on each team member's PC. Once connected, you will see real-time app usage, idle detection, and productivity scores here.
+              </p>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-full)', padding: '0.5rem 1.25rem', color: '#f59e0b', fontSize: '0.8rem', fontWeight: 600 }}>
+                <AlertTriangle size={14} /> Waiting for desktop agent connections...
+              </div>
             </div>
           ) : activities.map(act => (
             <div key={act.id} className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

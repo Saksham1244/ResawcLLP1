@@ -190,13 +190,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logout */}
         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-          <Link href="/" style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-sm)',
-            color: 'var(--destructive)', fontWeight: 500, fontSize: '0.875rem',
-          }}>
+          <button
+            onClick={() => {
+              localStorage.removeItem('resawc_user');
+              localStorage.removeItem('resawc_token');
+              router.replace('/');
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-sm)',
+              color: 'var(--destructive)', fontWeight: 500, fontSize: '0.875rem',
+              background: 'none', border: 'none', cursor: 'pointer', width: '100%',
+            }}
+          >
             <LogOut size={17} /> Logout
-          </Link>
+          </button>
         </div>
       </aside>
 

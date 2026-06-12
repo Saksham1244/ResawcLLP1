@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import {
   UploadCloud, CheckCircle, Phone, FileText, Shuffle, X,
@@ -9,7 +9,7 @@ import {
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 
-const MARKETING_TEAM: string[] = []; // Populated from real team members in DB
+const AVATAR_COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#a78bfa", "#06b6d4"];
 
 type Interaction = {
   id: number;
@@ -75,6 +75,7 @@ function LeadsContent() {
   const isMarketing = user.role === "marketing";
 
   const [activeLeads, setActiveLeads] = useState<Lead[]>(DEMO_LEADS);
+  const [marketingTeam, setMarketingTeam] = useState<string[]>([]);
   const [distributed, setDistributed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -84,6 +85,21 @@ function LeadsContent() {
   const [callStatus, setCallStatus] = useState<LeadStatus>("CONTACTED");
   const [previewLeads, setPreviewLeads] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch marketing team from DB
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          const mktTeam = data.data
+            .filter((u: any) => u.role === 'MARKETING' || u.role === 'marketing')
+            .map((u: any) => u.name);
+          setMarketingTeam(mktTeam);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const parseFile = (file: File) => {
     const reader = new FileReader();
@@ -102,10 +118,14 @@ function LeadsContent() {
   };
 
   const handleDistribute = () => {
+    if (marketingTeam.length === 0) {
+      alert('No marketing team members found. Please add team members first.');
+      return;
+    }
     const newLeads: Lead[] = previewLeads.map((row, i) => ({
       ...row,
       _id: Date.now() + i,
-      _assignee: MARKETING_TEAM[i % MARKETING_TEAM.length],
+      _assignee: marketingTeam[i % marketingTeam.length],
       _interactions: [],
       _status: "NEW" as LeadStatus,
     }));
