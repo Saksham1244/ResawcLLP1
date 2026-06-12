@@ -81,7 +81,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch {}
   };
 
-  if (!isHydrated || !user) return null;
+  if (!isHydrated) return null;
+  if (!user) {
+    if (typeof window !== "undefined") router.replace("/");
+    return null;
+  }
+  
   const navItems = NAV_BY_ROLE[user.role];
 
   // Guard: if editor tries to access leads, redirect to tasks

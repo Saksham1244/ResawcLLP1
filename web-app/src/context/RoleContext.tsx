@@ -21,19 +21,19 @@ export const MASTER_USERS: Record<string, { password: string; user: CurrentUser 
 };
 
 type RoleContextType = {
-  user: CurrentUser;
+  user: CurrentUser | null;
   setRole: (role: UserRole) => void;
   isHydrated: boolean;
 };
 
 const RoleContext = createContext<RoleContextType>({
-  user: MASTER_USERS["mukul@resawc.com"].user,
+  user: null,
   setRole: () => {},
   isHydrated: false,
 });
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser>(MASTER_USERS["mukul@resawc.com"].user);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -51,14 +51,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         name: storedName,
         initials: storedName.substring(0, 2).toUpperCase()
       });
-    } else if (storedEmail && MASTER_USERS[storedEmail]) {
-      // Fallback to hardcoded mock users
-      setUser(MASTER_USERS[storedEmail].user);
     } else {
-      // Default to admin
-      const u = MASTER_USERS["mukul@resawc.com"].user;
-      u.id = "mock-id-admin";
-      setUser(u);
+      setUser(null);
     }
     setIsHydrated(true);
   }, []);
