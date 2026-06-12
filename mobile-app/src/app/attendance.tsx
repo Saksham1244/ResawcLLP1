@@ -116,6 +116,11 @@ export default function AttendanceScreen() {
           <View style={styles.statusBox}>
             {geofence?.error ? (
               <Text style={{ color: '#ef4444', textAlign: 'center', marginBottom: 10 }}>{geofence.error}</Text>
+            ) : globalUser?.role?.toUpperCase() === 'ADMIN' ? (
+              <View style={[styles.allowedBox, { backgroundColor: 'rgba(99,102,241,0.12)' }]}>
+                <CheckCircle2 size={16} color="#6366f1" />
+                <Text style={[styles.allowedText, { color: '#6366f1' }]}>Admin Geofence Bypass Active</Text>
+              </View>
             ) : geofence?.isAllowed ? (
               <View style={styles.allowedBox}>
                 <CheckCircle2 size={16} color="#10b981" />
@@ -146,9 +151,9 @@ export default function AttendanceScreen() {
           </View>
         ) : (
           <TouchableOpacity 
-            style={[styles.checkInButton, (!geofence?.isAllowed || loading) && styles.disabledButton]} 
+            style={[styles.checkInButton, (!geofence?.isAllowed && globalUser?.role?.toUpperCase() !== 'ADMIN' || loading) && styles.disabledButton]} 
             onPress={handleToggle}
-            disabled={!geofence?.isAllowed || loading}
+            disabled={(!geofence?.isAllowed && globalUser?.role?.toUpperCase() !== 'ADMIN') || loading}
           >
             <Text style={styles.buttonText}>Mark Check In</Text>
           </TouchableOpacity>
