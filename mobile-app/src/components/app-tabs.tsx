@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+import { globalUser } from '@/utils/api';
 
 export default function AppTabs() {
   const scheme = useColorScheme();
@@ -18,21 +19,23 @@ export default function AppTabs() {
         name="index" 
         options={{ 
           title: 'Home',
-          tabBarIcon: () => null // Add specific icons here if needed
+          tabBarIcon: () => null
         }} 
       />
       <Tabs.Screen 
         name="leads" 
         options={{ 
           title: 'Leads',
-          tabBarIcon: () => null
+          tabBarIcon: () => null,
+          href: (globalUser?.role?.toLowerCase() === 'admin' || globalUser?.role?.toLowerCase() === 'editor') ? null : '/leads',
         }} 
       />
       <Tabs.Screen 
         name="tasks" 
         options={{ 
           title: 'Tasks',
-          tabBarIcon: () => null
+          tabBarIcon: () => null,
+          href: globalUser?.role?.toLowerCase() === 'admin' ? null : '/tasks',
         }} 
       />
       <Tabs.Screen 
