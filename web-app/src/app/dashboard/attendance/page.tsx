@@ -433,15 +433,35 @@ export default function AttendancePage() {
               </div>
             ) : (
               <div style={{ width: '100%' }}>
-                <a 
-                  href={`resawc-agent://login?userId=${user.id}`}
+                <button 
+                  onClick={() => {
+                    window.location.href = `resawc-agent://login?userId=${user.id}`;
+                    
+                    let blurred = false;
+                    const onBlur = () => { blurred = true; };
+                    window.addEventListener('blur', onBlur);
+                    
+                    setTimeout(() => {
+                      window.removeEventListener('blur', onBlur);
+                      if (!blurred) {
+                        if (confirm("It looks like the PC Tracker is not installed. Would you like to download it now?")) {
+                          const link = document.createElement('a');
+                          link.href = '/agent.exe';
+                          link.download = 'Resawc_PC_Tracker.exe';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }
+                      }
+                    }, 2500);
+                  }}
                   style={{
                     display: 'block', width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary)', cursor: 'pointer',
                     background: 'rgba(99,102,241,0.05)', color: 'var(--primary)', fontWeight: 700, fontSize: '1rem', textDecoration: 'none',
                     marginBottom: '1rem', transition: 'all 0.2s',
                   }}>
                   1. Launch PC Tracker
-                </a>
+                </button>
                 <button onClick={handleToggle} style={{
                   width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
                   background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem',
