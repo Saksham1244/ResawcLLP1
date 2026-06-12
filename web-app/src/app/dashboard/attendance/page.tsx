@@ -111,21 +111,11 @@ export default function AttendancePage() {
           
           const isOpen = !checkOutStr || checkOutStr === '--' || checkOutStr === '';
 
-          let shiftMins = 0;
-          if (!isOpen) {
-            const inMins = parseTime(checkInStr);
-            const outMins = parseTime(checkOutStr);
-            if (outMins >= inMins) {
-              shiftMins = outMins - inMins;
-            }
-          }
-
           if (!groupedByDate[date]) {
             groupedByDate[date] = {
               date: date,
               checkIn: checkInStr,
               checkOut: isOpen ? '--' : checkOutStr,
-              totalMins: shiftMins,
               status: record.status,
               hasOpenShift: isOpen
             };
@@ -144,20 +134,27 @@ export default function AttendancePage() {
                   groupedByDate[date].checkOut = checkOutStr;
                }
             }
-
-            // Add the hours for this specific shift to the total
-            groupedByDate[date].totalMins += shiftMins;
           }
         });
 
         // Convert back to array, sorted by date desc
-        const history = Object.values(groupedByDate).sort((a: any, b: any) => b.date.localeCompare(a.date)).map((r: any) => ({
-          date: r.date,
-          checkIn: r.checkIn,
-          checkOut: r.checkOut,
-          hours: formatDuration(r.totalMins),
-          status: r.status
-        }));
+        const history = Object.values(groupedByDate).sort((a: any, b: any) => b.date.localeCompare(a.date)).map((r: any) => {
+          let totalMins = 0;
+          if (r.checkIn && r.checkOut !== '--') {
+            const inMins = parseTime(r.checkIn);
+            const outMins = parseTime(r.checkOut);
+            if (outMins >= inMins) {
+              totalMins = outMins - inMins;
+            }
+          }
+          return {
+            date: r.date,
+            checkIn: r.checkIn,
+            checkOut: r.checkOut,
+            hours: formatDuration(totalMins),
+            status: r.status
+          };
+        });
         
         setAttendanceHistory(history);
 
