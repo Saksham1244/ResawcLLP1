@@ -40,11 +40,12 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const storedEmail = localStorage.getItem("userEmail");
     const storedRole = localStorage.getItem("userRole") as UserRole;
     const storedName = localStorage.getItem("userName");
+    const storedId = localStorage.getItem("userId");
     
     if (storedEmail && storedRole && storedName) {
       // Hydrate from localStorage for users created via the UI (e.g. Rahul)
       setUser({
-        id: `db-user-${storedEmail}`,
+        id: storedId || `db-user-${storedEmail}`,
         email: storedEmail,
         role: storedRole,
         name: storedName,

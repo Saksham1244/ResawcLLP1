@@ -30,6 +30,7 @@ export default function LoginPage() {
         localStorage.setItem("userRole", data.user.role);
         localStorage.setItem("userEmail", data.user.email);
         localStorage.setItem("userName", data.user.name);
+        localStorage.setItem("userId", data.user.id);  // ✅ store real DB id
         router.push("/dashboard");
       } else {
         setError(data.error || 'Invalid email or password');
