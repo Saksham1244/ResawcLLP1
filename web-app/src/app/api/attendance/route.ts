@@ -65,6 +65,21 @@ export async function POST(req: Request) {
     }
 
     // No open record — create a fresh one
+    // ENFORCE MOBILE-FIRST RULE: System cannot create a fresh record.
+    if (source === 'system') {
+      // Check if they've checked in via mobile at all today
+      const mobileToday = await prisma.attendance.findFirst({
+        where: { userId, date, mobileLoginTime: { not: null } }
+      });
+
+      if (!mobileToday) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Access Denied: You must check in from the Mobile App first today before using the PC check-in.' 
+        }, { status: 403 });
+      }
+    }
+
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
