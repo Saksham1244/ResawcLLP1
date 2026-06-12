@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, date, timeIn, source } = body;
+    const { userId, date, timeIn, source, isAdminBypass, requestorRole } = body;
 
     if (!userId || !date || !timeIn || !source) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -82,6 +82,27 @@ export async function POST(req: Request) {
           success: false, 
           error: 'Access Denied: You must check in from the Mobile App first today before using the PC check-in.' 
         }, { status: 403 });
+      }
+
+      // ENFORCE PC TRACKER RULE: Check if PC tracker is active
+      if (!isAdminBypass || requestorRole !== 'admin') {
+        const pcActivity = await prisma.pCActivity.findUnique({ where: { userId } });
+        if (!pcActivity) {
+          return NextResponse.json({ 
+            success: false, 
+            error: 'PC Tracker not found. Please click "Launch PC Tracker" first.' 
+          }, { status: 403 });
+        }
+        
+        const now = new Date();
+        const diffSeconds = (now.getTime() - new Date(pcActivity.lastSync).getTime()) / 1000;
+        
+        if (diffSeconds > 90) {
+          return NextResponse.json({ 
+            success: false, 
+            error: `PC Tracker is offline (last seen ${Math.round(diffSeconds)}s ago). Please launch the tracker first.` 
+          }, { status: 403 });
+        }
       }
     }
 

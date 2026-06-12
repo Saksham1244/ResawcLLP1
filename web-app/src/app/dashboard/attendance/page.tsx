@@ -40,7 +40,13 @@ export default function AttendancePage() {
       const res = await fetch('/api/attendance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, date: todayStr, timeIn: timeNow, source })
+        body: JSON.stringify({ 
+          userId: user.id, 
+          date: todayStr, 
+          timeIn: timeNow, 
+          source,
+          requestorRole: user.role 
+        })
       });
       const result = await res.json();
       if (!result.success) {
@@ -49,9 +55,8 @@ export default function AttendancePage() {
       }
 
       // If successfully checked in (not checking out), launch the PC activity tracker seamlessly
-      if (!isCheckedIn) {
-        window.location.href = `resawc-agent://login?userId=${user.id}`;
-      }
+      // Removed automatic redirect per user request
+
 
       // Let the DB be the single source of truth — fetch fresh state
       await fetchPersonalAttendance();
@@ -76,6 +81,32 @@ export default function AttendancePage() {
     } catch {}
     setLoadingTeam(false);
   }, [startDate, endDate]);
+
+  const handleAdminForceCheckIn = async (employeeId: string) => {
+    if (!confirm('Are you sure you want to force check-in this employee without tracker validation?')) return;
+    try {
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          userId: employeeId, 
+          date: getISTDate(), 
+          timeIn: getISTTime(), 
+          source: 'system',
+          isAdminBypass: true,
+          requestorRole: user?.role
+        })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Failed to force check in');
+        return;
+      }
+      fetchTeamAttendance();
+    } catch (e) {
+      alert('Network error');
+    }
+  };
 
   const [attendanceHistory, setAttendanceHistory] = useState<any[]>([]);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
@@ -252,6 +283,7 @@ export default function AttendancePage() {
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>📱 Mobile Login</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>💻 System Login</th>
                 <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
+                {user?.role === 'admin' && <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -287,6 +319,18 @@ export default function AttendancePage() {
                     <td style={{ padding: '0.875rem 0' }}>
                       <span style={{ padding: '0.3rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700, background: bg, color }}>{record.status}</span>
                     </td>
+                    {user?.role === 'admin' && (
+                      <td style={{ padding: '0.875rem 0' }}>
+                        {(!mobile && !system && record.status !== 'Absent') && (
+                          <button 
+                            onClick={() => handleAdminForceCheckIn(record.userId || record.user?.id)}
+                            style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          >
+                            Force Check-In
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -388,13 +432,24 @@ export default function AttendancePage() {
                 </button>
               </div>
             ) : (
-              <button onClick={handleToggle} style={{
-                width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
-                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem',
-                boxShadow: '0 4px 14px var(--primary-glow)', transition: 'all 0.2s',
-              }}>
-                Mark Check In
-              </button>
+              <div style={{ width: '100%' }}>
+                <a 
+                  href={`resawc-agent://login?userId=${user.id}`}
+                  style={{
+                    display: 'block', width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--primary)', cursor: 'pointer',
+                    background: 'rgba(99,102,241,0.05)', color: 'var(--primary)', fontWeight: 700, fontSize: '1rem', textDecoration: 'none',
+                    marginBottom: '1rem', transition: 'all 0.2s',
+                  }}>
+                  1. Launch PC Tracker
+                </a>
+                <button onClick={handleToggle} style={{
+                  width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem',
+                  boxShadow: '0 4px 14px var(--primary-glow)', transition: 'all 0.2s',
+                }}>
+                  2. Mark Check In
+                </button>
+              </div>
             )}
 
             <p className="text-xs text-muted" style={{ marginTop: '1.5rem', lineHeight: 1.5 }}>
