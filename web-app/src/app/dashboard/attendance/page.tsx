@@ -145,7 +145,7 @@ export default function AttendancePage() {
             {viewMode === "team" ? "Team Attendance" : viewMode === "leaves" ? "Leave Management" : "Attendance"}
           </h1>
           <p className="text-muted text-sm">
-            {viewMode === "team" ? "Monitor real-time team check-ins." : viewMode === "leaves" ? "Manage time off requests." : "Mark your daily attendance using the mobile app at our South Extension, New Delhi office."}
+            {viewMode === "team" ? "Monitor real-time team check-ins." : viewMode === "leaves" ? "Manage time off requests." : "Manually mark your attendance for the day. Check In when you start work and Check Out when you're done — this is separate from logging in."}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--overlay-bg)', padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
@@ -322,7 +322,7 @@ export default function AttendancePage() {
             )}
 
             <p className="text-xs text-muted" style={{ marginTop: '1.5rem', lineHeight: 1.5 }}>
-              Attendance is recorded with your current system time and IP address for verification.
+              Check In and Check Out are manual actions — they are not affected by logging in or out of the website.
             </p>
           </div>
         </div>
