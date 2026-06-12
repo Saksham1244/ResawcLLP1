@@ -147,12 +147,20 @@ export default function AttendancePage() {
               totalMins = outMins - inMins;
             }
           }
+
+          let displayStatus = r.status;
+          if (r.checkOut === '--') {
+            displayStatus = "In Progress";
+          } else if (totalMins < 510) { // 8.5 hours
+            displayStatus = "Short Day";
+          }
+
           return {
             date: r.date,
             checkIn: r.checkIn,
             checkOut: r.checkOut,
             hours: formatDuration(totalMins),
-            status: r.status
+            status: displayStatus
           };
         });
         
@@ -316,8 +324,16 @@ export default function AttendancePage() {
                     <td style={{ padding: '1rem 0' }}>
                       <span style={{
                         padding: '0.35rem 0.6rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700,
-                        background: record.status === "Present" ? 'rgba(16,185,129,0.12)' : record.status === "Late" ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)',
-                        color: record.status === "Present" ? '#10b981' : record.status === "Late" ? '#f59e0b' : '#ef4444'
+                        background: record.status === "Present" ? 'rgba(16,185,129,0.12)' 
+                                  : record.status === "Late" ? 'rgba(245,158,11,0.12)' 
+                                  : record.status === "Short Day" ? 'rgba(249,115,22,0.12)'
+                                  : record.status === "In Progress" ? 'rgba(59,130,246,0.12)'
+                                  : 'rgba(239,68,68,0.12)',
+                        color: record.status === "Present" ? '#10b981' 
+                             : record.status === "Late" ? '#f59e0b' 
+                             : record.status === "Short Day" ? '#f97316'
+                             : record.status === "In Progress" ? '#3b82f6'
+                             : '#ef4444'
                       }}>
                         {record.status}
                       </span>
