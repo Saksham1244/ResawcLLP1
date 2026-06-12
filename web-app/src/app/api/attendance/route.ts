@@ -15,14 +15,18 @@ export async function POST(req: Request) {
 
     // ── CHECKOUT ──────────────────────────────────────────────────────────────
     if (source === 'checkout') {
-      // Find the latest open (no timeOut) record for today
+      // Find the latest record for today that has no real checkout time
+      // (handles null AND empty string from previous broken attempts)
       const openRecord = await prisma.attendance.findFirst({
-        where: { userId, date, timeOut: null },
+        where: {
+          userId,
+          date,
+          OR: [{ timeOut: null }, { timeOut: '' }],
+        },
         orderBy: { createdAt: 'desc' },
       });
 
       if (!openRecord) {
-        // No open check-in found — maybe already checked out or never checked in
         return NextResponse.json({ success: false, error: 'No active check-in found for today.' }, { status: 404 });
       }
 
@@ -36,7 +40,11 @@ export async function POST(req: Request) {
 
     // ── CHECK-IN (mobile or system) ───────────────────────────────────────────
     const existing = await prisma.attendance.findFirst({
-      where: { userId, date, timeOut: null }, // find an OPEN record (no checkout yet)
+      where: {
+        userId,
+        date,
+        OR: [{ timeOut: null }, { timeOut: '' }], // find an OPEN record
+      },
       orderBy: { createdAt: 'desc' },
     });
 
