@@ -71,6 +71,11 @@ export default function AttendancePage() {
   const [endDate, setEndDate] = useState(getISTDate());
   const [teamRecords, setTeamRecords] = useState<any[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredTeamRecords = teamRecords.filter(r => 
+    !searchTerm || r.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const fetchTeamAttendance = useCallback(async () => {
     setLoadingTeam(true);
@@ -220,7 +225,7 @@ export default function AttendancePage() {
       }
     } catch {}
     setLoadingPersonal(false);
-  }, [user, endDate]);
+  }, [user]);
 
   useEffect(() => {
     if (viewMode === 'team') fetchTeamAttendance();
@@ -259,7 +264,7 @@ export default function AttendancePage() {
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <div style={{ position: 'relative', width: '220px' }}>
                 <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
-                <input type="text" placeholder="Search team member..." className="input" style={{ paddingLeft: '2.5rem', background: 'var(--overlay-bg)' }} />
+                <input type="text" placeholder="Search team member..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input" style={{ paddingLeft: '2.5rem', background: 'var(--overlay-bg)' }} />
               </div>
               <input type="date" className="input" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ background: 'var(--overlay-bg)', padding: '0.4rem 0.75rem', width: 'auto' }} />
               <span className="text-muted text-sm font-semibold">to</span>
@@ -288,10 +293,10 @@ export default function AttendancePage() {
             </thead>
             <tbody>
               {loadingTeam ? (
-                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>Loading...</td></tr>
-              ) : teamRecords.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No attendance records for this period.</td></tr>
-              ) : teamRecords.map((record, idx) => {
+                <tr><td colSpan={user?.role === 'admin' ? 7 : 6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>Loading...</td></tr>
+              ) : filteredTeamRecords.length === 0 ? (
+                <tr><td colSpan={user?.role === 'admin' ? 7 : 6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No attendance records found.</td></tr>
+              ) : filteredTeamRecords.map((record, idx) => {
                 let bg = 'rgba(16,185,129,0.12)'; let color = '#10b981';
                 if (record.status === "Absent") { bg = 'rgba(239,68,68,0.12)'; color = '#ef4444'; }
                 if (record.status === "Late")   { bg = 'rgba(245,158,11,0.12)'; color = '#f59e0b'; }

@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       }
 
       // ENFORCE PC TRACKER RULE: Check if PC tracker is active
-      if (!isAdminBypass || requestorRole !== 'admin') {
+      if (!isAdminBypass && requestorRole !== 'admin') {
         const pcActivity = await prisma.pCActivity.findUnique({ where: { userId } });
         if (!pcActivity) {
           return NextResponse.json({ 
@@ -156,7 +156,7 @@ export async function GET(req: Request) {
         ...(userId ? { userId } : {}),
         ...(email ? { user: { email: { equals: email, mode: 'insensitive' } } } : {}),
       },
-      include: { user: { select: { name: true, role: true, email: true } } },
+      include: { user: { select: { id: true, name: true, role: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     });
 

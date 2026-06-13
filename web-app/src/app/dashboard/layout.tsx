@@ -102,7 +102,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: 'var(--background-2)', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', width: '100%', maxWidth: '1440px', backgroundColor: 'var(--background)', boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
 
       {/* Sidebar */}
       <aside style={{
@@ -276,6 +277,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ padding: '2rem', flex: 1, overflowY: 'auto' }}>
           {children}
         </div>
+      </div>
       </div>
     </div>
   );
