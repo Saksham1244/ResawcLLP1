@@ -11,6 +11,7 @@ export default function AttendancePage() {
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [attendanceBusy, setAttendanceBusy] = useState(false); // prevent double-click
   const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves">("personal");
+  const [isTrackerActive, setIsTrackerActive] = useState(false);
 
   useEffect(() => {
     setCurrentTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -230,7 +231,33 @@ export default function AttendancePage() {
   useEffect(() => {
     if (viewMode === 'team') fetchTeamAttendance();
     if (viewMode === 'personal') fetchPersonalAttendance();
-  }, [viewMode, fetchTeamAttendance, fetchPersonalAttendance]);
+
+    // Check if PC Tracker is active for the current user
+    const checkTracker = async () => {
+      try {
+        if (!user || !user.id) return;
+        const res = await fetch('/api/monitor/sync');
+        const data = await res.json();
+        if (data.success && data.data) {
+          const myActivity = data.data.find((act: any) => act.id === user.id || act.name === user.name);
+          if (myActivity && myActivity.lastSync) {
+            const lastSyncDate = new Date(myActivity.lastSync).getTime();
+            const now = new Date().getTime();
+            const diffSeconds = (now - lastSyncDate) / 1000;
+            // If synced within the last 5 minutes, consider it active
+            setIsTrackerActive(diffSeconds < 300);
+          } else {
+            setIsTrackerActive(false);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to check tracker status", e);
+      }
+    };
+    checkTracker();
+    const interval = setInterval(checkTracker, 15000); // Check every 15s
+    return () => clearInterval(interval);
+  }, [viewMode, fetchTeamAttendance, fetchPersonalAttendance, user]);
 
   if (!user) return null;
 
@@ -469,17 +496,27 @@ export default function AttendancePage() {
                   }}>
                   1. Launch PC Tracker
                 </button>
-                <button onClick={handleToggle} style={{
-                  width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: '#fff', fontWeight: 700, fontSize: '1rem',
-                  boxShadow: '0 4px 14px var(--primary-glow)', transition: 'all 0.2s',
-                }}>
-                  2. Mark Check In
+                <button 
+                  onClick={handleToggle} 
+                  disabled={!isTrackerActive}
+                  style={{
+                    width: '100%', padding: '1rem', borderRadius: 'var(--radius-md)', border: 'none', cursor: isTrackerActive ? 'pointer' : 'not-allowed',
+                    background: isTrackerActive ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'var(--surface-border)', 
+                    color: isTrackerActive ? '#fff' : 'var(--muted)', fontWeight: 700, fontSize: '1rem',
+                    boxShadow: isTrackerActive ? '0 4px 14px var(--primary-glow)' : 'none', transition: 'all 0.2s',
+                  }}>
+                  {isTrackerActive ? '2. Mark Check In' : 'Waiting for PC Tracker...'}
                 </button>
               </div>
             )}
 
-            <p className="text-xs text-muted" style={{ marginTop: '1.5rem', lineHeight: 1.5 }}>
+            {!isTrackerActive && !isCheckedIn && (
+              <p className="text-xs" style={{ marginTop: '1rem', color: 'var(--destructive)', fontWeight: 600 }}>
+                You must launch the PC Tracker before you can mark your Check In.
+              </p>
+            )}
+
+            <p className="text-xs text-muted" style={{ marginTop: '1rem', lineHeight: 1.5 }}>
               Check In and Check Out are manual actions — they are not affected by logging in or out of the website.
             </p>
           </div>
