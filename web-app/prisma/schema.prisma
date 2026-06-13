@@ -124,6 +124,15 @@ model PCActivity {
   currentApp   String?
   appTitle     String?
   appHistory   String   @default("[]") // stores JSON array of last 10 apps
+  dailyAppUsage String  @default("{}") // stores JSON map { "app.exe": seconds_used }
+  trackedSeconds Int    @default(0)
+  productiveSeconds Int @default(0)
   productivity Int      @default(0)
   lastSync     DateTime @default(now())
+}
+
+model GlobalSettings {
+  id             String   @id @default("default")
+  breakStartTime String   @default("13:00")
+  breakEndTime   String   @default("13:30")
 }

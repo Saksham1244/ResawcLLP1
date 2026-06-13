@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       currentApp: act.currentApp || "Desktop",
       appTitle: act.appTitle || "Unknown",
       appHistory: JSON.parse(act.appHistory || "[]"),
+      dailyAppUsage: JSON.parse(act.dailyAppUsage || "{}"),
       productivity: act.productivity,
       lastSync: act.lastSync
     }));
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const { userId, status, currentApp, appTitle, idleTime } = data;
+    let { userId, status, currentApp, appTitle, idleTime } = data;
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
@@ -62,21 +63,73 @@ export async function POST(request: Request) {
       where: { userId }
     });
 
-    let history: { app: string; title: string; time: string }[] = [];
-    if (existingActivity && existingActivity.appHistory) {
-      try {
-        history = JSON.parse(existingActivity.appHistory);
-      } catch (e) {}
+    const settings = await prisma.globalSettings.findUnique({
+      where: { id: "default" }
+    });
+
+    // Check if currently inside break time
+    let isBreak = false;
+    if (settings && settings.breakStartTime && settings.breakEndTime) {
+      const nowStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+      if (nowStr >= settings.breakStartTime && nowStr <= settings.breakEndTime) {
+        isBreak = true;
+      }
     }
 
-    if (currentApp && status === 'Active') {
+    if (isBreak) {
+      status = "On Break";
+    }
+
+    let history: { app: string; title: string; time: string }[] = [];
+    let dailyUsage: Record<string, number> = {};
+    let trackedSeconds = existingActivity?.trackedSeconds || 0;
+    let productiveSeconds = existingActivity?.productiveSeconds || 0;
+
+    if (existingActivity) {
+      try { history = JSON.parse(existingActivity.appHistory || "[]"); } catch (e) {}
+      try { dailyUsage = JSON.parse(existingActivity.dailyAppUsage || "{}"); } catch (e) {}
+    }
+
+    // Reset daily counters at midnight logic (simplified: if lastSync was yesterday in IST)
+    if (existingActivity) {
+      const lastSyncDate = new Date(existingActivity.lastSync).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', day: 'numeric' });
+      const currentDate = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', day: 'numeric' });
+      if (lastSyncDate !== currentDate) {
+        dailyUsage = {};
+        trackedSeconds = 0;
+        productiveSeconds = 0;
+      }
+    }
+
+    if (currentApp && status === 'Active' && !isBreak) {
       const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-      // Avoid duplicate consecutive entries
       if (history.length === 0 || history[0].app !== currentApp || history[0].title !== appTitle) {
         history.unshift({ app: currentApp, title: appTitle || "Unknown", time: timeStr });
         if (history.length > 10) history.pop();
       }
+
+      // Calculate elapsed seconds since last sync (cap at 60s to prevent large jumps if PC sleeps)
+      let elapsedSeconds = 10; // Default if no existing activity
+      if (existingActivity) {
+        elapsedSeconds = Math.round((new Date().getTime() - existingActivity.lastSync.getTime()) / 1000);
+        if (elapsedSeconds > 60 || elapsedSeconds < 0) elapsedSeconds = 10;
+      }
+
+      trackedSeconds += elapsedSeconds;
+      
+      const appKey = (currentApp || "Desktop").toLowerCase();
+      dailyUsage[appKey] = (dailyUsage[appKey] || 0) + elapsedSeconds;
+
+      // Add to productive seconds if app is productive
+      if (appKey.includes("code") || appKey.includes("chrome") || appKey.includes("word") || appKey.includes("excel") || appKey.includes("edge")) {
+        productiveSeconds += elapsedSeconds;
+      } else if (!appKey.includes("spotify") && !appKey.includes("discord")) {
+        // default 75% productive weight for unknown active apps
+        productiveSeconds += Math.round(elapsedSeconds * 0.75);
+      }
     }
+
+    const dailyProductivity = trackedSeconds > 0 ? Math.round((productiveSeconds / trackedSeconds) * 100) : 0;
 
     const updated = await prisma.pCActivity.upsert({
       where: { userId },
@@ -85,8 +138,11 @@ export async function POST(request: Request) {
         currentApp,
         appTitle,
         appHistory: JSON.stringify(history),
+        dailyAppUsage: JSON.stringify(dailyUsage),
+        trackedSeconds,
+        productiveSeconds,
         idleTime,
-        productivity,
+        productivity: dailyProductivity,
         lastSync: new Date()
       },
       create: {
@@ -95,8 +151,11 @@ export async function POST(request: Request) {
         currentApp,
         appTitle,
         appHistory: JSON.stringify(history),
+        dailyAppUsage: JSON.stringify(dailyUsage),
+        trackedSeconds,
+        productiveSeconds,
         idleTime,
-        productivity,
+        productivity: dailyProductivity,
       }
     });
 

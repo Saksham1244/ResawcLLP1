@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, User, Calendar, Bell, Shield, Palette, Database, Check, Eye, EyeOff } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
+import { useRole } from "@/context/RoleContext";
 
 type Tab = "profile" | "schedule" | "notifications" | "appearance" | "security" | "database";
 
@@ -60,6 +61,8 @@ function SectionCard({ title, children }: { title: string; children: React.React
 }
 
 function SettingsContent() {
+  const { user } = useRole();
+  const isAdmin = user?.role === "admin";
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [saved, setSaved] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -75,8 +78,26 @@ function SettingsContent() {
     end: "18:00",
     breakMinutes: 30,
     graceMinutes: 15,
-    lateHalfDayThreshold: 3
+    lateHalfDayThreshold: 3,
+    globalBreakStart: "13:00",
+    globalBreakEnd: "13:30"
   });
+
+  // Fetch Global Settings
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setSchedule(prev => ({
+            ...prev,
+            globalBreakStart: data.data.breakStartTime || "13:00",
+            globalBreakEnd: data.data.breakEndTime || "13:30"
+          }));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const toggleDay = (day: string) => {
     setSchedule(prev => ({
@@ -112,8 +133,24 @@ function SettingsContent() {
   // Database
   const [db, setDb] = useState({ host: "localhost", port: "5432", name: "resawc_db", user: "postgres", ssl: true, backupFreq: "daily" });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaved(true);
+    
+    if (isAdmin && activeTab === "schedule") {
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            breakStartTime: schedule.globalBreakStart,
+            breakEndTime: schedule.globalBreakEnd
+          })
+        });
+      } catch (e) {
+        console.error("Failed to save global settings", e);
+      }
+    }
+
     setTimeout(() => setSaved(false), 2500);
   };
 
@@ -221,6 +258,25 @@ function SettingsContent() {
           {/* ── SCHEDULE ── */}
           {activeTab === "schedule" && (
             <>
+              {/* Global Break Settings (Admin Only) */}
+              {isAdmin && (
+                <SectionCard title="Global PC Tracker Settings">
+                  <SettingRow label="Automated Break Schedule" description="During this time, productivity metrics are paused and team members are marked as 'On Break'.">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <span className="text-xs text-muted">Start</span>
+                        <input type="time" value={schedule.globalBreakStart} onChange={e => setSchedule({ ...schedule, globalBreakStart: e.target.value })} className="input" style={{ width: '110px' }} />
+                      </div>
+                      <span className="text-muted" style={{ marginTop: '1rem' }}>-</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <span className="text-xs text-muted">End</span>
+                        <input type="time" value={schedule.globalBreakEnd} onChange={e => setSchedule({ ...schedule, globalBreakEnd: e.target.value })} className="input" style={{ width: '110px' }} />
+                      </div>
+                    </div>
+                  </SettingRow>
+                </SectionCard>
+              )}
+
               <SectionCard title="Working Schedule">
                 {/* Working Days */}
                 <div style={{ paddingTop: '1rem', marginBottom: '1.25rem' }}>

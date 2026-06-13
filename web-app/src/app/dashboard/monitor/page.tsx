@@ -15,6 +15,8 @@ type PCActivity = {
   appTitle: string;
   productivity: number;
   lastScreenshot: string;
+  appHistory?: any[];
+  dailyAppUsage?: Record<string, number>;
 };
 
 const MOCK_DATA: PCActivity[] = [];
@@ -115,7 +117,7 @@ export default function LiveMonitorPage() {
                 {/* Productivity Bar */}
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-                    <span className="text-muted">Productivity Score</span>
+                    <span className="text-muted">Daily Average Productivity</span>
                     <span style={{ color: act.productivity > 70 ? '#10b981' : act.productivity > 40 ? '#f59e0b' : '#ef4444' }}>{act.productivity}%</span>
                   </div>
                   <div style={{ width: '100%', height: 6, background: 'var(--surface-border)', borderRadius: 3, overflow: 'hidden' }}>
@@ -143,6 +145,33 @@ export default function LiveMonitorPage() {
                         <span className="text-muted" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{historyItem.time}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top 5 Apps Today */}
+              {act.dailyAppUsage && Object.keys(act.dailyAppUsage).length > 0 && (
+                <div style={{ padding: '1rem 1.5rem', background: 'var(--background-2)', borderTop: '1px solid var(--surface-border)' }}>
+                  <p className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.5rem' }}>TOP 5 APPS TODAY</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {Object.entries(act.dailyAppUsage)
+                      .sort(([, a], [, b]) => (b as number) - (a as number))
+                      .slice(0, 5)
+                      .map(([appName, seconds]: [string, any], idx: number) => {
+                        const m = Math.floor(seconds / 60);
+                        const h = Math.floor(m / 60);
+                        const mins = m % 60;
+                        const timeStr = h > 0 ? `${h}h ${mins}m` : `${mins}m`;
+                        return (
+                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                              <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{idx + 1}.</span>
+                              <span style={{ fontWeight: 500, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{appName}</span>
+                            </div>
+                            <span className="text-muted" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{timeStr}</span>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               )}
