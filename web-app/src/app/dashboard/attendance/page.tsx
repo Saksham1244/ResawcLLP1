@@ -244,8 +244,8 @@ export default function AttendancePage() {
             const lastSyncDate = new Date(myActivity.lastSync).getTime();
             const now = new Date().getTime();
             const diffSeconds = (now - lastSyncDate) / 1000;
-            // If synced within the last 5 minutes, consider it active
-            setIsTrackerActive(diffSeconds < 300);
+            // If synced within the last 30 seconds, consider it active
+            setIsTrackerActive(diffSeconds < 30);
           } else {
             setIsTrackerActive(false);
           }
