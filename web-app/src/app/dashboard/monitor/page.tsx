@@ -128,6 +128,25 @@ export default function LiveMonitorPage() {
                 </div>
               </div>
 
+              {/* App History */}
+              {act.appHistory && act.appHistory.length > 0 && (
+                <div style={{ padding: '1rem 1.5rem', background: 'var(--background)', borderTop: '1px solid var(--surface-border)' }}>
+                  <p className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.5rem' }}>RECENT ACTIVITY (LAST 10)</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {act.appHistory.map((historyItem: any, idx: number) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                          <span style={{ color: 'var(--primary)', fontWeight: 600 }}>•</span>
+                          <span style={{ fontWeight: 500, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{historyItem.app}</span>
+                          <span className="text-muted" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>- {historyItem.title}</span>
+                        </div>
+                        <span className="text-muted" style={{ fontSize: '0.7rem', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>{historyItem.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           ))}
         </div>

@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       idleTime: act.idleTime || undefined,
       currentApp: act.currentApp || "Desktop",
       appTitle: act.appTitle || "Unknown",
+      appHistory: JSON.parse(act.appHistory || "[]"),
       productivity: act.productivity,
       lastSync: act.lastSync
     }));
@@ -57,12 +58,33 @@ export async function POST(request: Request) {
       }
     }
 
+    const existingActivity = await prisma.pCActivity.findUnique({
+      where: { userId }
+    });
+
+    let history: { app: string; title: string; time: string }[] = [];
+    if (existingActivity && existingActivity.appHistory) {
+      try {
+        history = JSON.parse(existingActivity.appHistory);
+      } catch (e) {}
+    }
+
+    if (currentApp && status === 'Active') {
+      const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+      // Avoid duplicate consecutive entries
+      if (history.length === 0 || history[0].app !== currentApp || history[0].title !== appTitle) {
+        history.unshift({ app: currentApp, title: appTitle || "Unknown", time: timeStr });
+        if (history.length > 10) history.pop();
+      }
+    }
+
     const updated = await prisma.pCActivity.upsert({
       where: { userId },
       update: {
         status,
         currentApp,
         appTitle,
+        appHistory: JSON.stringify(history),
         idleTime,
         productivity,
         lastSync: new Date()
@@ -72,6 +94,7 @@ export async function POST(request: Request) {
         status,
         currentApp,
         appTitle,
+        appHistory: JSON.stringify(history),
         idleTime,
         productivity,
       }

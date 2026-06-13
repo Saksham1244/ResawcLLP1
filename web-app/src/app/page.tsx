@@ -45,9 +45,6 @@ export default function Home() {
           <Link href="/login" className="btn btn-primary" style={{ padding: '0.85rem 2.25rem', fontSize: '1rem', borderRadius: 'var(--radius-md)' }}>
             Login to Workspace →
           </Link>
-          <button className="btn btn-secondary" style={{ padding: '0.85rem 2.25rem', fontSize: '1rem' }}>
-            Request Access
-          </button>
         </div>
       </div>
     </main>

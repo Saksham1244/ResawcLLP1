@@ -123,6 +123,7 @@ model PCActivity {
   idleTime     String?
   currentApp   String?
   appTitle     String?
+  appHistory   String   @default("[]") // stores JSON array of last 10 apps
   productivity Int      @default(0)
   lastSync     DateTime @default(now())
 }
