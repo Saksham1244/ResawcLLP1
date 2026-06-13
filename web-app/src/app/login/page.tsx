@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useRole } from "@/context/RoleContext";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useRole();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,10 +29,13 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem("userRole", data.user.role);
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userName", data.user.name);
-        localStorage.setItem("userId", data.user.id);  // ✅ store real DB id
+        login({
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role,
+          initials: data.user.name.substring(0, 2).toUpperCase()
+        });
         router.push("/dashboard");
       } else {
         setError(data.error || 'Invalid email or password');

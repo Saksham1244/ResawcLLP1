@@ -16,11 +16,13 @@ export type CurrentUser = {
 
 type RoleContextType = {
   user: CurrentUser | null;
+  login: (user: CurrentUser) => void;
   isHydrated: boolean;
 };
 
 const RoleContext = createContext<RoleContextType>({
   user: null,
+  login: () => {},
   isHydrated: false,
 });
 
@@ -49,8 +51,16 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     setIsHydrated(true);
   }, []);
 
+  const login = (userData: CurrentUser) => {
+    setUser(userData);
+    localStorage.setItem("userEmail", userData.email);
+    localStorage.setItem("userRole", userData.role);
+    localStorage.setItem("userName", userData.name);
+    if (userData.id) localStorage.setItem("userId", userData.id);
+  };
+
   return (
-    <RoleContext.Provider value={{ user, isHydrated }}>
+    <RoleContext.Provider value={{ user, login, isHydrated }}>
       {children}
     </RoleContext.Provider>
   );
