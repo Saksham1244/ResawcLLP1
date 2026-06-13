@@ -232,6 +232,8 @@ export default function AttendancePage() {
     if (viewMode === 'personal') fetchPersonalAttendance();
   }, [viewMode, fetchTeamAttendance, fetchPersonalAttendance]);
 
+  if (!user) return null;
+
   return (
     <div className="animate-fadeIn">
       <div className="flex-between" style={{ marginBottom: '2rem' }}>

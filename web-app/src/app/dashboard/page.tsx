@@ -14,6 +14,7 @@ function getGreeting() {
 
 export default function DashboardOverview() {
   const { user } = useRole();
+  if (!user) return null;
   const greeting = getGreeting();
   // Editor-specific simplified view
   if (user.role === "editor") {

@@ -14,6 +14,7 @@ type Props = {
 export function RoleGuard({ allowedRoles, redirectTo, children }: Props) {
   const { user } = useRole();
   const router = useRouter();
+  if (!user) return null;
   const allowed = allowedRoles.includes(user.role);
 
   useEffect(() => {

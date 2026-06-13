@@ -21,6 +21,7 @@ const MOCK_DATA: PCActivity[] = [];
 
 export default function LiveMonitorPage() {
   const { user } = useRole();
+  if (!user) return null;
   const [activities, setActivities] = useState<PCActivity[]>([]);
   const [lastSync, setLastSync] = useState("Never");
 

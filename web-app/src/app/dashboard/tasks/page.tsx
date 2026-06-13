@@ -82,6 +82,7 @@ function mapDBTask(t: any): Task {
 
 export default function TaskManagement() {
   const { user } = useRole();
+  if (!user) return null;
   const isAdmin = user.role === "admin";
 
   const [tasks, setTasks] = useState<Task[]>([]);

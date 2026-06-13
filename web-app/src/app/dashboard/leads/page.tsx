@@ -71,6 +71,7 @@ const DEMO_LEADS: Lead[] = [
 
 function LeadsContent() {
   const { user } = useRole();
+  if (!user) return null;
   const isAdmin = user.role === "admin";
   const isMarketing = user.role === "marketing";
 
