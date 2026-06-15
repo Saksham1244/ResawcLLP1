@@ -158,7 +158,7 @@ function TeamContent() {
   const handleAdd = (member: Member) => setTeam(t => [...t, member]);
 
   return (
-    <div className="animate-fadeIn">
+    <>
       {showModal && <AddMemberModal onClose={() => setShowModal(false)} onAdd={handleAdd} />}
 
       {/* Delete Confirm Modal */}
@@ -178,8 +178,9 @@ function TeamContent() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
+      <div className="animate-fadeIn">
+        {/* Header */}
+        <div className="flex-between" style={{ marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Team & Members</h1>
           <p className="text-muted text-sm">{team.length} members · {team.filter(m => m.status === "online").length} online</p>
