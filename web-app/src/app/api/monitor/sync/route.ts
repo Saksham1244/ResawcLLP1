@@ -46,18 +46,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
-    // Calculate a basic productivity score
-    let productivity = 0;
-    if (status === 'Active') {
-      const activeApp = (currentApp || "").toLowerCase();
-      if (activeApp.includes("code") || activeApp.includes("chrome") || activeApp.includes("word") || activeApp.includes("excel") || activeApp.includes("edge")) {
-        productivity = 95;
-      } else if (activeApp.includes("spotify") || activeApp.includes("discord")) {
-        productivity = 30;
-      } else {
-        productivity = 75; // Default active productivity
-      }
-    }
+    // Basic productivity calculation is now done at the end.
 
     const existingActivity = await prisma.pCActivity.findUnique({
       where: { userId }
@@ -101,13 +90,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (currentApp && status === 'Active' && !isBreak) {
-      const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
-      if (history.length === 0 || history[0].app !== currentApp || history[0].title !== appTitle) {
-        history.unshift({ app: currentApp, title: appTitle || "Unknown", time: timeStr });
-        if (history.length > 10) history.pop();
-      }
-
+    if (!isBreak) {
       // Calculate elapsed seconds since last sync (cap at 60s to prevent large jumps if PC sleeps)
       let elapsedSeconds = 10; // Default if no existing activity
       if (existingActivity) {
@@ -117,15 +100,31 @@ export async function POST(request: Request) {
 
       trackedSeconds += elapsedSeconds;
       
-      const appKey = (currentApp || "Desktop").toLowerCase();
-      dailyUsage[appKey] = (dailyUsage[appKey] || 0) + elapsedSeconds;
+      if (currentApp && status === 'Active') {
+        const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+        if (history.length === 0 || history[0].app !== currentApp || history[0].title !== appTitle) {
+          history.unshift({ app: currentApp, title: appTitle || "Unknown", time: timeStr });
+          if (history.length > 10) history.pop();
+        }
+        
+        const appKey = (currentApp || "Desktop").toLowerCase();
+        const appTitleKey = (appTitle || "").toLowerCase();
+        dailyUsage[appKey] = (dailyUsage[appKey] || 0) + elapsedSeconds;
 
-      // Add to productive seconds if app is productive
-      if (appKey.includes("code") || appKey.includes("chrome") || appKey.includes("word") || appKey.includes("excel") || appKey.includes("edge")) {
-        productiveSeconds += elapsedSeconds;
-      } else if (!appKey.includes("spotify") && !appKey.includes("discord")) {
-        // default 75% productive weight for unknown active apps
-        productiveSeconds += Math.round(elapsedSeconds * 0.75);
+        // Add to productive seconds ONLY if app is explicitly productive
+        const isBrowser = appKey.includes("chrome") || appKey.includes("edge") || appKey.includes("brave") || appKey.includes("firefox");
+        const isProductiveBrowserTab = isBrowser && (
+          appTitleKey.includes("whatsapp") || 
+          appTitleKey.includes("skype") || 
+          appTitleKey.includes("wetransfer") || 
+          appTitleKey.includes("resawc") || 
+          appTitleKey.includes("localhost")
+        );
+        const isProductiveApp = appKey.includes("photoshop") || appKey.includes("premiere") || appKey.includes("skype");
+
+        if (isProductiveBrowserTab || isProductiveApp) {
+          productiveSeconds += elapsedSeconds;
+        }
       }
     }
 
