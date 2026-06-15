@@ -25,6 +25,7 @@ model User {
   notifications     Notification[]
   interactions      LeadInteraction[]
   attendance        Attendance[]
+  leaveRequests     LeaveRequest[]
   pcActivity        PCActivity?
 }
 
@@ -167,4 +168,17 @@ model GlobalSettings {
   breakDuration  Int      @default(30)
   lateGrace      Int      @default(15)
   latePenalty    Int      @default(3)
+}
+
+model LeaveRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  startDate String
+  endDate   String
+  type      String   // "Full Day", "Half Day", "Short Leave (2hrs Late)", "Short Leave (2hrs Early)"
+  reason    String
+  status    String   @default("Pending") // "Pending", "Approved", "Rejected", "Cancelled"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

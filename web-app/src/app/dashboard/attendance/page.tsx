@@ -78,6 +78,13 @@ export default function AttendancePage() {
   const [monthlyRecords, setMonthlyRecords] = useState<any[]>([]);
   const [loadingMonthly, setLoadingMonthly] = useState(false);
 
+  // Leave Management State
+  const [leaveData, setLeaveData] = useState<any[]>([]);
+  const [loadingLeaves, setLoadingLeaves] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({ startDate: '', endDate: '', type: 'Full Day', reason: '' });
+  const [editLeaveModal, setEditLeaveModal] = useState<any>(null);
+
   const filteredTeamRecords = teamRecords.filter(r => 
     !searchTerm || r.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -102,6 +109,21 @@ export default function AttendancePage() {
     setLoadingMonthly(false);
   }, [monthlyMonth]);
 
+  const fetchLeaves = useCallback(async () => {
+    setLoadingLeaves(true);
+    try {
+      const url = user?.role === 'admin' ? `/api/leaves` : `/api/leaves?userId=${user?.id}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        setLeaveData(data.data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setLoadingLeaves(false);
+  }, [user?.id, user?.role]);
+
   const handleAdminForceCheckIn = async (employeeId: string) => {
     if (!confirm('Are you sure you want to force check-in this employee without tracker validation?')) return;
     try {
@@ -123,6 +145,46 @@ export default function AttendancePage() {
         return;
       }
       fetchTeamAttendance();
+    } catch (e) {
+      alert('Network error');
+    }
+  };
+
+  const handleLeaveSubmit = async () => {
+    if (!leaveForm.startDate || !leaveForm.endDate || !leaveForm.reason) return alert('Please fill all fields');
+    try {
+      const res = await fetch('/api/leaves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, ...leaveForm })
+      });
+      if (res.ok) {
+        setShowLeaveModal(false);
+        fetchLeaves();
+        setLeaveForm({ startDate: '', endDate: '', type: 'Full Day', reason: '' });
+      } else {
+        alert('Failed to submit leave request');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
+  };
+
+  const handleAdminLeaveUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editLeaveModal) return;
+    try {
+      const res = await fetch('/api/leaves/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: user?.id, leaveId: editLeaveModal.id, ...editLeaveModal })
+      });
+      if (res.ok) {
+        setEditLeaveModal(null);
+        fetchLeaves();
+      } else {
+        alert('Failed to update leave');
+      }
     } catch (e) {
       alert('Network error');
     }
@@ -246,6 +308,7 @@ export default function AttendancePage() {
     if (viewMode === 'team') fetchTeamAttendance();
     if (viewMode === 'personal') fetchPersonalAttendance();
     if (viewMode === 'monthly') fetchMonthlyAttendance();
+    if (viewMode === 'leaves') fetchLeaves();
 
     // Check if PC Tracker is active for the current user
     const checkTracker = async () => {
@@ -610,36 +673,181 @@ export default function AttendancePage() {
       )}
 
       {viewMode === "leaves" && (
-        <div className="glass-card animate-fadeIn">
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={18} /> {user.role === "admin" ? "Pending Leave Requests" : "My Leave Requests"}
-            </h2>
-            {user.role !== "admin" && (
-              <button className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
-                Apply for Leave
-              </button>
-            )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* Leave Balances Widget */}
+          {user.role !== "admin" && leaveData.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div className="glass-card" style={{ padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Remaining Full Leaves</h3>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)' }}>
+                  {leaveData[0].balances.remainingFull} <span style={{ fontSize: '1rem', color: 'var(--muted)' }}>/ 12</span>
+                </div>
+                {leaveData[0].balances.penaltyDeductions > 0 && (
+                  <p style={{ color: 'var(--destructive)', fontSize: '0.75rem', marginTop: '0.5rem', fontWeight: 600 }}>
+                    -{leaveData[0].balances.penaltyDeductions} Penalty (Unapproved Absences)
+                  </p>
+                )}
+              </div>
+              <div className="glass-card" style={{ padding: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Remaining Short Leaves</h3>
+                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f97316' }}>
+                  {leaveData[0].balances.remainingShort} <span style={{ fontSize: '1rem', color: 'var(--muted)' }}>/ 6</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="glass-card animate-fadeIn">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} /> {user.role === "admin" ? "Leave Approvals" : "My Leave Requests"}
+              </h2>
+              {user.role !== "admin" && (
+                <button onClick={() => setShowLeaveModal(true)} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 1rem' }}>
+                  Apply for Leave
+                </button>
+              )}
+            </div>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--surface-border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
+                  {user.role === "admin" && <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Employee</th>}
+                  <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Date(s)</th>
+                  <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Type</th>
+                  <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Reason</th>
+                  <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
+                  {user.role === "admin" && <th style={{ paddingBottom: '0.75rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {loadingLeaves ? (
+                  <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>Loading...</td></tr>
+                ) : leaveData.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No records found.</td></tr>
+                ) : (
+                  leaveData.map(userData => (
+                    userData.requests.map((req: any) => {
+                      let statusColor = '#f59e0b';
+                      let statusBg = 'rgba(245,158,11,0.1)';
+                      if (req.status === 'Approved') { statusColor = '#10b981'; statusBg = 'rgba(16,185,129,0.1)'; }
+                      else if (req.status === 'Rejected' || req.status === 'Cancelled') { statusColor = '#ef4444'; statusBg = 'rgba(239,68,68,0.1)'; }
+
+                      return (
+                        <tr key={req.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                          {user.role === "admin" && <td style={{ padding: '0.875rem 0', fontWeight: 700 }}>{userData.user.name}</td>}
+                          <td style={{ padding: '0.875rem 0', fontWeight: 500 }}>{req.startDate} {req.startDate !== req.endDate && `to ${req.endDate}`}</td>
+                          <td style={{ padding: '0.875rem 0', fontWeight: 600, color: 'var(--primary)' }}>{req.type}</td>
+                          <td style={{ padding: '0.875rem 0', color: 'var(--muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{req.reason}</td>
+                          <td style={{ padding: '0.875rem 0' }}>
+                            <span style={{ background: statusBg, color: statusColor, padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}>
+                              {req.status}
+                            </span>
+                          </td>
+                          {user.role === "admin" && (
+                            <td style={{ padding: '0.875rem 0', textAlign: 'right' }}>
+                              <button onClick={() => setEditLeaveModal({ ...req, userName: userData.user.name })} className="btn btn-secondary" style={{ fontSize: '0.7rem', padding: '0.3rem 0.6rem' }}>
+                                Edit
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      )
+                    })
+                  )).flat()
+                )}
+                {/* Fallback empty state if flat array is empty */}
+                {!loadingLeaves && leaveData.reduce((acc, u) => acc + u.requests.length, 0) === 0 && (
+                  <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No leave requests found.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--surface-border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
-                {user.role === "admin" && <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Employee</th>}
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Date(s)</th>
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Type</th>
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Reason</th>
-                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Status</th>
-                {user.role === "admin" && <th style={{ paddingBottom: '0.75rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={user.role === "admin" ? 6 : 4} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>
-                  No leave requests found.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        </div>
+      )}
+
+      {/* Apply Leave Modal */}
+      {showLeaveModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass-card animate-scaleIn" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Apply for Leave</h3>
+              <button onClick={() => setShowLeaveModal(false)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><X size={20}/></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Leave Type</label>
+                <select className="input" value={leaveForm.type} onChange={e => setLeaveForm({...leaveForm, type: e.target.value})}>
+                  <option value="Full Day">Full Day</option>
+                  <option value="Half Day">Half Day</option>
+                  <option value="Short Leave (2hrs Late)">Short Leave (2hrs Late)</option>
+                  <option value="Short Leave (2hrs Early)">Short Leave (2hrs Early)</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Start Date</label>
+                  <input type="date" className="input" value={leaveForm.startDate} onChange={e => setLeaveForm({...leaveForm, startDate: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>End Date</label>
+                  <input type="date" className="input" value={leaveForm.endDate} onChange={e => setLeaveForm({...leaveForm, endDate: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Reason</label>
+                <textarea className="input" rows={3} value={leaveForm.reason} onChange={e => setLeaveForm({...leaveForm, reason: e.target.value})} placeholder="Reason for leave..."></textarea>
+              </div>
+              <button onClick={handleLeaveSubmit} className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }}>Submit Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Edit Leave Modal */}
+      {editLeaveModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass-card animate-scaleIn" style={{ width: '100%', maxWidth: '400px', padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Edit Leave Request</h3>
+              <button onClick={() => setEditLeaveModal(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><X size={20}/></button>
+            </div>
+            
+            <p className="text-sm text-muted" style={{ marginBottom: '1.5rem' }}>Employee: <strong style={{ color: '#fff' }}>{editLeaveModal.userName}</strong></p>
+
+            <form onSubmit={handleAdminLeaveUpdate} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Status</label>
+                <select className="input" value={editLeaveModal.status} onChange={e => setEditLeaveModal({...editLeaveModal, status: e.target.value})}>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Leave Type</label>
+                <select className="input" value={editLeaveModal.type} onChange={e => setEditLeaveModal({...editLeaveModal, type: e.target.value})}>
+                  <option value="Full Day">Full Day</option>
+                  <option value="Half Day">Half Day</option>
+                  <option value="Short Leave (2hrs Late)">Short Leave (2hrs Late)</option>
+                  <option value="Short Leave (2hrs Early)">Short Leave (2hrs Early)</option>
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>Start Date</label>
+                  <input type="date" className="input" value={editLeaveModal.startDate} onChange={e => setEditLeaveModal({...editLeaveModal, startDate: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted" style={{ fontWeight: 600, marginBottom: '0.3rem', display: 'block' }}>End Date</label>
+                  <input type="date" className="input" value={editLeaveModal.endDate} onChange={e => setEditLeaveModal({...editLeaveModal, endDate: e.target.value})} />
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem' }}>Save Changes</button>
+            </form>
+          </div>
         </div>
       )}
     </div>
