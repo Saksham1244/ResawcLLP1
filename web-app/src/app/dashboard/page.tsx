@@ -171,6 +171,20 @@ export default function DashboardOverview() {
     );
   }
 
+  // Admin full view
+  return (
+    <div className="animate-fadeIn">
+      {/* Header */}
+      <div className="flex-between" style={{ marginBottom: '2rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+            {greeting}, {user.name} 👋
+          </h1>
+          <p className="text-muted text-sm">Here's what's happening at Resawc LLP today.</p>
+        </div>
+        <span className="badge badge-success" style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}>🟢 All Systems Operational</span>
+      </div>
+
       {/* Stats Grid */}
       {renderStatsAndActivity()}
 
