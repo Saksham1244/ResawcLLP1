@@ -1,14 +1,25 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CheckSquare, Circle, Play, MoreVertical } from 'lucide-react-native';
-
-const TASKS = [
-  { id: 1, title: 'Edit Corporate Video', client: 'TechCorp', status: 'In Progress', priority: 'High', date: 'Due Today' },
-  { id: 2, title: 'Social Media Posts Q3', client: 'DesignCo', status: 'Pending', priority: 'Medium', date: 'Due Tomorrow' },
-  { id: 3, title: 'Review Scripts', client: 'Internal', status: 'Done', priority: 'Low', date: 'Completed' },
-];
+import { useState, useEffect } from 'react';
+import { fetchAPI, globalUser } from '@/utils/api';
 
 export default function TasksScreen() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!globalUser) return;
+    const fetchTasks = async () => {
+      setLoading(true);
+      const res = await fetchAPI(`/tasks?userId=${globalUser.id}&role=${globalUser.role}`);
+      if (res.success) {
+        setTasks(res.data);
+      }
+      setLoading(false);
+    };
+    fetchTasks();
+  }, []);
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -19,34 +30,36 @@ export default function TasksScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {TASKS.map(task => (
+        {loading ? (
+          <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 50 }} />
+        ) : tasks.map((task: any) => (
           <View key={task.id} style={styles.taskCard}>
             <View style={styles.taskLeft}>
-              {task.status === 'Done' ? (
+              {task.status === 'COMPLETED' ? (
                 <CheckSquare color="#10b981" size={24} />
-              ) : task.status === 'In Progress' ? (
+              ) : task.status === 'IN_PROGRESS' ? (
                 <Play color="#6366f1" size={24} />
               ) : (
                 <Circle color="#cbd5e1" size={24} />
               )}
             </View>
             <View style={styles.taskMiddle}>
-              <Text style={[styles.taskTitle, task.status === 'Done' && styles.taskDone]}>
+              <Text style={[styles.taskTitle, task.status === 'COMPLETED' && styles.taskDone]}>
                 {task.title}
               </Text>
               <Text style={styles.taskSub}>
-                {task.client} • {task.date}
+                {task.dueDate ? `Due ${task.dueDate}` : 'TBD'}
               </Text>
               <View style={[
                 styles.badge, 
-                task.priority === 'High' ? styles.badgeHigh : 
-                task.priority === 'Medium' ? styles.badgeMedium : styles.badgeLow
+                task.priority?.toUpperCase() === 'HIGH' ? styles.badgeHigh : 
+                task.priority?.toUpperCase() === 'MEDIUM' ? styles.badgeMedium : styles.badgeLow
               ]}>
                 <Text style={[
                   styles.badgeText,
-                  task.priority === 'High' ? styles.badgeTextHigh : 
-                  task.priority === 'Medium' ? styles.badgeTextMedium : styles.badgeTextLow
-                ]}>{task.priority}</Text>
+                  task.priority?.toUpperCase() === 'HIGH' ? styles.badgeTextHigh : 
+                  task.priority?.toUpperCase() === 'MEDIUM' ? styles.badgeTextMedium : styles.badgeTextLow
+                ]}>{task.priority || 'Medium'}</Text>
               </View>
             </View>
             <TouchableOpacity style={styles.taskRight}>

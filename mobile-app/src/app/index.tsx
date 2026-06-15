@@ -1,19 +1,36 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CheckSquare, TrendingUp, Users, ArrowRight, ShieldAlert, LogOut } from 'lucide-react-native';
-import { globalUser, logout } from '@/utils/api';
-
-const RECENT_LEADS = [
-  { id: 1, name: "John Doe", service: "Video Editing", date: "Today" },
-  { id: 2, name: "TechCorp India", service: "Social Media", date: "Yesterday" }
-];
-
-const MY_TASKS = [
-  { id: 1, title: "Edit Client X Video", status: "In Progress" },
-  { id: 2, title: "Review ad copies", status: "Pending" }
-];
+import { CheckSquare, TrendingUp, Users, ArrowRight, ShieldAlert, LogOut, Play, Circle } from 'lucide-react-native';
+import { globalUser, logout, fetchAPI } from '@/utils/api';
+import { useState, useEffect } from 'react';
 
 export default function HomeScreen() {
+  const [stats, setStats] = useState({ activeLeads: 0, pendingTasks: 0 });
+  const [recentLeads, setRecentLeads] = useState<any[]>([]);
+  const [myTasks, setMyTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!globalUser) return;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [overviewRes, leadsRes, tasksRes] = await Promise.all([
+          fetchAPI(`/overview?userId=${globalUser.id}&role=${globalUser.role}`),
+          globalUser.role.toLowerCase() !== 'editor' ? fetchAPI(`/leads?userId=${globalUser.id}&role=${globalUser.role}`) : Promise.resolve({ success: true, data: [] }),
+          globalUser.role.toLowerCase() !== 'admin' ? fetchAPI(`/tasks?userId=${globalUser.id}&role=${globalUser.role}`) : Promise.resolve({ success: true, data: [] })
+        ]);
+
+        if (overviewRes.success) setStats(overviewRes.data);
+        if (leadsRes.success) setRecentLeads(leadsRes.data.slice(0, 3));
+        if (tasksRes.success) setMyTasks(tasksRes.data.slice(0, 3));
+      } catch (e) {
+        console.error(e);
+      }
+      setLoading(false);
+    };
+    loadData();
+  }, []);
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -39,20 +56,24 @@ export default function HomeScreen() {
 
         {/* Quick Stats Grid */}
         <View style={styles.statsGrid}>
-          <View style={[styles.statCard, { backgroundColor: '#e0e7ff' }]}>
-            <View style={[styles.iconBox, { backgroundColor: '#6366f1' }]}>
-              <TrendingUp color="#fff" size={20} />
+          {globalUser?.role?.toLowerCase() !== 'editor' && (
+            <View style={[styles.statCard, { backgroundColor: '#e0e7ff' }]}>
+              <View style={[styles.iconBox, { backgroundColor: '#6366f1' }]}>
+                <TrendingUp color="#fff" size={20} />
+              </View>
+              <Text style={styles.statValue}>{loading ? '-' : stats.activeLeads}</Text>
+              <Text style={styles.statLabel}>Active Leads</Text>
             </View>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>New Leads</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: '#dcfce7' }]}>
-            <View style={[styles.iconBox, { backgroundColor: '#10b981' }]}>
-              <CheckSquare color="#fff" size={20} />
+          )}
+          {globalUser?.role?.toLowerCase() !== 'marketing' && (
+            <View style={[styles.statCard, { backgroundColor: '#dcfce7' }]}>
+              <View style={[styles.iconBox, { backgroundColor: '#10b981' }]}>
+                <CheckSquare color="#fff" size={20} />
+              </View>
+              <Text style={styles.statValue}>{loading ? '-' : stats.pendingTasks}</Text>
+              <Text style={styles.statLabel}>Pending Tasks</Text>
             </View>
-            <Text style={styles.statValue}>5</Text>
-            <Text style={styles.statLabel}>Pending Tasks</Text>
-          </View>
+          )}
         </View>
 
         {/* Leads Section (Admin and Marketing Only) */}
@@ -65,17 +86,17 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             
-            {RECENT_LEADS.map(lead => (
-              <TouchableOpacity key={lead.id} style={styles.listItem}>
+            {loading ? <ActivityIndicator size="small" color="#6366f1" style={{ marginVertical: 20 }} /> : recentLeads.map(lead => (
+              <TouchableOpacity key={lead._id || lead.id} style={styles.listItem}>
                 <View style={styles.listIcon}>
                   <Users color="#6366f1" size={20} />
                 </View>
                 <View style={styles.listContent}>
-                  <Text style={styles.listTitle}>{lead.name}</Text>
-                  <Text style={styles.listSub}>{lead.service}</Text>
+                  <Text style={styles.listTitle}>{lead.Name || lead.name}</Text>
+                  <Text style={styles.listSub}>{lead.Company || lead.company}</Text>
                 </View>
                 <View style={styles.listRight}>
-                  <Text style={styles.listDate}>{lead.date}</Text>
+                  <Text style={styles.listDate}>{lead._status || lead.status}</Text>
                   <ArrowRight color="#cbd5e1" size={16} />
                 </View>
               </TouchableOpacity>
@@ -95,18 +116,26 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {MY_TASKS.map(task => (
+            {loading ? <ActivityIndicator size="small" color="#10b981" style={{ marginVertical: 20 }} /> : myTasks.map(task => (
             <TouchableOpacity key={task.id} style={styles.listItem}>
               <View style={[styles.listIcon, { backgroundColor: 'rgba(16,185,129,0.1)' }]}>
-                <CheckSquare color="#10b981" size={20} />
+                {task.status === 'COMPLETED' ? (
+                  <CheckSquare color="#10b981" size={20} />
+                ) : task.status === 'IN_PROGRESS' ? (
+                  <Play color="#10b981" size={20} />
+                ) : (
+                  <Circle color="#10b981" size={20} />
+                )}
               </View>
               <View style={styles.listContent}>
                 <Text style={styles.listTitle}>{task.title}</Text>
                 <Text style={styles.listSub}>{task.status}</Text>
               </View>
-              <ArrowRight color="#cbd5e1" size={16} />
+              <View style={styles.listRight}>
+                <ArrowRight color="#cbd5e1" size={16} />
+              </View>
             </TouchableOpacity>
-          ))}
+            ))}
         </View>
         ) : (
           <View style={styles.section}>

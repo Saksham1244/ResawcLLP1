@@ -1,15 +1,25 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Phone, Mail, MoreVertical, ArrowRight } from 'lucide-react-native';
-
-const LEADS = [
-  { id: 1, name: 'John Doe', company: 'TechCorp India', status: 'New', phone: '+91 9876543210' },
-  { id: 2, name: 'Jane Smith', company: 'DesignCo', status: 'Contacted', phone: '+91 9123456789' },
-  { id: 3, name: 'Mike Ross', company: 'LegalFirm', status: 'Qualified', phone: '+91 8888888888' },
-  { id: 4, name: 'Sarah Williams', company: 'AdAgency', status: 'Lost', phone: '+91 7777777777' },
-];
+import { useState, useEffect } from 'react';
+import { fetchAPI, globalUser } from '@/utils/api';
 
 export default function LeadsScreen() {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!globalUser) return;
+    const fetchLeads = async () => {
+      setLoading(true);
+      const res = await fetchAPI(`/leads?userId=${globalUser.id}&role=${globalUser.role}`);
+      if (res.success) {
+        setLeads(res.data);
+      }
+      setLoading(false);
+    };
+    fetchLeads();
+  }, []);
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -26,25 +36,27 @@ export default function LeadsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {LEADS.map(lead => (
-          <View key={lead.id} style={styles.leadCard}>
+        {loading ? (
+          <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 50 }} />
+        ) : leads.map((lead: any) => (
+          <View key={lead._id || lead.id} style={styles.leadCard}>
             <View style={styles.leadHeader}>
               <View>
-                <Text style={styles.leadName}>{lead.name}</Text>
-                <Text style={styles.leadCompany}>{lead.company}</Text>
+                <Text style={styles.leadName}>{lead.Name || lead.name}</Text>
+                <Text style={styles.leadCompany}>{lead.Company || lead.company}</Text>
               </View>
               <View style={[
                 styles.badge,
-                lead.status === 'New' ? styles.badgeNew :
-                lead.status === 'Contacted' ? styles.badgeContacted :
-                lead.status === 'Qualified' ? styles.badgeQualified : styles.badgeLost
+                lead._status === 'NEW' ? styles.badgeNew :
+                lead._status === 'CONTACTED' ? styles.badgeContacted :
+                lead._status === 'CONVERTED' ? styles.badgeQualified : styles.badgeLost
               ]}>
                 <Text style={[
                   styles.badgeText,
-                  lead.status === 'New' ? styles.badgeTextNew :
-                  lead.status === 'Contacted' ? styles.badgeTextContacted :
-                  lead.status === 'Qualified' ? styles.badgeTextQualified : styles.badgeTextLost
-                ]}>{lead.status}</Text>
+                  lead._status === 'NEW' ? styles.badgeTextNew :
+                  lead._status === 'CONTACTED' ? styles.badgeTextContacted :
+                  lead._status === 'CONVERTED' ? styles.badgeTextQualified : styles.badgeTextLost
+                ]}>{lead._status || lead.status}</Text>
               </View>
             </View>
 
