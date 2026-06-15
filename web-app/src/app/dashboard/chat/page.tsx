@@ -302,6 +302,61 @@ export default function ChatSystem() {
       )}
 
       {/* New Conversation Modal */}
+      {showNewModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowNewModal(false)}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '420px', padding: '1.75rem' }} onClick={e => e.stopPropagation()}>
+            <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+              <h2 className="font-bold">New Conversation</h2>
+              <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => setShowNewModal(false)}><X size={18} /></button>
+            </div>
+            
+            {/* Type Toggle */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'var(--secondary)', borderRadius: 'var(--radius-sm)', padding: '0.25rem' }}>
+              {(["direct", "group"] as const).map(t => (
+                <button key={t} onClick={() => { setNewType(t); setSelectedMembers([]); }}
+                  className={newType === t ? "btn btn-primary" : "btn btn-ghost"}
+                  style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', textTransform: 'capitalize', gap: '0.4rem' }}>
+                  {t === 'direct' ? <><Users size={14} /> Direct Message</> : <><Users size={14} /> Group Chat</>}
+                </button>
+              ))}
+            </div>
+
+            {newType === 'group' && (
+              <input className="input" placeholder="Group name (optional)" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '1rem' }} />
+            )}
+
+            <p className="text-xs text-muted font-semibold" style={{ marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {newType === 'direct' ? 'Select a person' : 'Select members'}
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem', maxHeight: '200px', overflowY: 'auto' }}>
+              {allUsers.length === 0 && <p className="text-xs text-muted">Loading team members...</p>}
+              {allUsers.map(m => {
+                const selected = selectedMembers.includes(m.id);
+                return (
+                  <div key={m.id} onClick={() => toggleMember(m.id)} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    background: selected ? 'var(--primary-glow)' : 'var(--secondary)',
+                    border: `1px solid ${selected ? 'var(--primary)' : 'transparent'}`,
+                    transition: 'all var(--transition-fast)',
+                  }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `linear-gradient(135deg, ${getAvatarColor(m.name)}, ${getAvatarColor(m.name)}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#fff' }}>
+                      {getInitials(m.name)}
+                    </div>
+                    <span className="text-sm font-medium" style={{ flex: 1, color: selected ? 'var(--primary-2)' : 'var(--foreground)' }}>{m.name}</span>
+                    {selected && <Check size={16} color="var(--primary-2)" />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={createConversation} disabled={selectedMembers.length === 0} className="btn btn-primary" style={{ width: '100%', opacity: selectedMembers.length === 0 ? 0.5 : 1 }}>
+              {newType === 'direct' ? 'Start Direct Message' : `Create Group (${selectedMembers.length})`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
