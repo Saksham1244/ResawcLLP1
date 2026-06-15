@@ -45,38 +45,15 @@ const STATUS_META: Record<LeadStatus, { color: string; bg: string; label: string
   CONVERTED: { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", label: "Converted ⭐" },
 };
 
-const DEMO_LEADS: Lead[] = [
-  {
-    _id: 1, _assignee: "Sarah Connor", _status: "INTERESTED",
-    Name: "John Doe", Company: "TechCorp India", Phone: "9876543210", Email: "john@techcorp.in",
-    _interactions: [
-      { id: 1, outcome: "PICKED_UP", loggedBy: "Sarah Connor", date: "10 Jun 2026", time: "11:30 AM", notes: "John was very interested in our social media video editing package. He said they need 8-10 reels per month and also a product demo video. Budget seems good. He asked us to send a detailed proposal. Follow up on 12th June." },
-      { id: 2, outcome: "PICKED_UP", loggedBy: "Sarah Connor", date: "11 Jun 2026", time: "03:00 PM", notes: "Sent the proposal. He reviewed it and had questions about turnaround time. Confirmed we can deliver within 48 hours. He said he will discuss with his partner and revert by tomorrow." },
-    ],
-  },
-  {
-    _id: 2, _assignee: "Priya Sharma", _status: "CONTACTED",
-    Name: "Jane Smith", Company: "DesignCo", Phone: "9123456789", Email: "jane@designco.com",
-    _interactions: [
-      { id: 1, outcome: "NO_ANSWER", loggedBy: "Priya Sharma", date: "10 Jun 2026", time: "10:00 AM", notes: "Called twice, no response. Left a brief message." },
-      { id: 2, outcome: "LEFT_VOICEMAIL", loggedBy: "Priya Sharma", date: "10 Jun 2026", time: "04:00 PM", notes: "Left voicemail mentioning our offer — 3 free sample edits for new clients. Asked her to call back." },
-    ],
-  },
-  {
-    _id: 3, _assignee: "Raj Mehta", _status: "NEW",
-    Name: "Arvind Kumar", Company: "Startup Labs", Phone: "9988776655", Email: "arvind@startuplabs.io",
-    _interactions: [],
-  },
-];
-
 function LeadsContent() {
   const { user } = useRole();
   if (!user) return null;
   const isAdmin = user.role === "admin";
   const isMarketing = user.role === "marketing";
 
-  const [activeLeads, setActiveLeads] = useState<Lead[]>(DEMO_LEADS);
-  const [marketingTeam, setMarketingTeam] = useState<string[]>([]);
+  const [activeLeads, setActiveLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [marketingTeam, setMarketingTeam] = useState<any[]>([]);
   const [distributed, setDistributed] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -87,15 +64,30 @@ function LeadsContent() {
   const [previewLeads, setPreviewLeads] = useState<any[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const fetchLeads = () => {
+    setLoading(true);
+    fetch(`/api/leads?userId=${user.id}&role=${user.role}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setActiveLeads(data.data);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, [user.id, user.role]);
+
   // Fetch marketing team from DB
   useEffect(() => {
     fetch('/api/users')
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          const mktTeam = data.data
-            .filter((u: any) => u.role === 'MARKETING' || u.role === 'marketing')
-            .map((u: any) => u.name);
+          const mktTeam = data.data.filter((u: any) => u.role === 'MARKETING' || u.role === 'marketing');
           setMarketingTeam(mktTeam);
         }
       })
@@ -118,49 +110,67 @@ function LeadsContent() {
     reader.readAsBinaryString(file);
   };
 
-  const handleDistribute = () => {
+  const handleDistribute = async () => {
     if (marketingTeam.length === 0) {
       alert('No marketing team members found. Please add team members first.');
       return;
     }
-    const newLeads: Lead[] = previewLeads.map((row, i) => ({
-      ...row,
-      _id: Date.now() + i,
-      _assignee: marketingTeam[i % marketingTeam.length],
-      _interactions: [],
-      _status: "NEW" as LeadStatus,
-    }));
-    setActiveLeads(prev => [...newLeads, ...prev]);
-    setPreviewLeads([]);
-    setDistributed(true);
+    
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leads: previewLeads,
+          teamIds: marketingTeam.map(t => t.id)
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPreviewLeads([]);
+        setDistributed(true);
+        fetchLeads();
+      } else {
+        alert(data.error || 'Failed to distribute leads');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
-  const handleLogCall = (e: React.FormEvent) => {
+  const handleLogCall = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!logTarget) return;
-    const newInt: Interaction = {
-      id: Date.now(),
-      outcome: callOutcome,
-      notes: callNotes,
-      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      loggedBy: user.name,
-    };
-    setActiveLeads(prev => prev.map(l =>
-      l._id === logTarget._id
-        ? { ...l, _interactions: [...l._interactions, newInt], _status: callStatus }
-        : l
-    ));
-    setLogTarget(null);
-    setCallNotes("");
-    setCallOutcome("PICKED_UP");
-    setCallStatus("CONTACTED");
+
+    try {
+      const res = await fetch('/api/leads/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: logTarget._id,
+          userId: user.id,
+          outcome: callOutcome,
+          notes: callNotes,
+          status: callStatus
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchLeads(); // Refresh leads data
+        setLogTarget(null);
+        setCallNotes("");
+        setCallOutcome("PICKED_UP");
+        setCallStatus("CONTACTED");
+      } else {
+        alert(data.error || 'Failed to log call');
+      }
+    } catch (e) {
+      alert('Network error');
+    }
   };
 
-  // Marketing only sees their own leads
-  const visibleLeads = isMarketing
-    ? activeLeads.filter(l => l._assignee === user.name)
-    : activeLeads;
+  // Backend already filters by role so we just use activeLeads
+  const visibleLeads = activeLeads;
 
   return (
     <div className="animate-fadeIn">
