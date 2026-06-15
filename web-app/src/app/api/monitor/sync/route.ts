@@ -118,6 +118,8 @@ export async function POST(request: Request) {
           appTitleKey.includes("skype") || 
           appTitleKey.includes("wetransfer") || 
           appTitleKey.includes("resawc") || 
+          appTitleKey.includes("crm & team") ||
+          appTitleKey.includes("vercel") ||
           appTitleKey.includes("localhost")
         );
         const isProductiveApp = appKey.includes("photoshop") || appKey.includes("premiere") || appKey.includes("skype");
