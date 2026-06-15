@@ -1,8 +1,8 @@
 import * as Location from 'expo-location';
 
 // Office Coordinates
-const OFFICE_LAT = 28.5755;
-const OFFICE_LON = 77.2274;
+const OFFICE_LAT = 28.5705247;
+const OFFICE_LON = 77.2221451;
 const ALLOWED_RADIUS_METERS = 100;
 
 // Haversine formula to calculate the distance between two lat/lon points in meters

@@ -74,6 +74,10 @@ export default function AttendancePage() {
   const [loadingTeam, setLoadingTeam] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [monthlyMonth, setMonthlyMonth] = useState(getISTDate().substring(0, 7)); // YYYY-MM
+  const [monthlyRecords, setMonthlyRecords] = useState<any[]>([]);
+  const [loadingMonthly, setLoadingMonthly] = useState(false);
+
   const filteredTeamRecords = teamRecords.filter(r => 
     !searchTerm || r.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -87,6 +91,16 @@ export default function AttendancePage() {
     } catch {}
     setLoadingTeam(false);
   }, [startDate, endDate]);
+
+  const fetchMonthlyAttendance = useCallback(async () => {
+    setLoadingMonthly(true);
+    try {
+      const res = await fetch(`/api/attendance/monthly?month=${monthlyMonth}`);
+      const data = await res.json();
+      if (data.success) setMonthlyRecords(data.data);
+    } catch {}
+    setLoadingMonthly(false);
+  }, [monthlyMonth]);
 
   const handleAdminForceCheckIn = async (employeeId: string) => {
     if (!confirm('Are you sure you want to force check-in this employee without tracker validation?')) return;
@@ -231,6 +245,7 @@ export default function AttendancePage() {
   useEffect(() => {
     if (viewMode === 'team') fetchTeamAttendance();
     if (viewMode === 'personal') fetchPersonalAttendance();
+    if (viewMode === 'monthly') fetchMonthlyAttendance();
 
     // Check if PC Tracker is active for the current user
     const checkTracker = async () => {
@@ -277,9 +292,14 @@ export default function AttendancePage() {
             My Attendance
           </button>
           {user.role === "admin" && (
-            <button onClick={() => setViewMode("team")} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, borderRadius: 'var(--radius-sm)', background: viewMode === "team" ? 'var(--primary-glow)' : 'transparent', color: viewMode === "team" ? 'var(--primary)' : 'var(--muted)', transition: 'all 0.2s', border: 'none', cursor: 'pointer' }}>
-              Team View
-            </button>
+            <>
+              <button onClick={() => setViewMode("team")} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, borderRadius: 'var(--radius-sm)', background: viewMode === "team" ? 'var(--primary-glow)' : 'transparent', color: viewMode === "team" ? 'var(--primary)' : 'var(--muted)', transition: 'all 0.2s', border: 'none', cursor: 'pointer' }}>
+                Team View
+              </button>
+              <button onClick={() => setViewMode("monthly")} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, borderRadius: 'var(--radius-sm)', background: viewMode === "monthly" ? 'var(--primary-glow)' : 'transparent', color: viewMode === "monthly" ? 'var(--primary)' : 'var(--muted)', transition: 'all 0.2s', border: 'none', cursor: 'pointer' }}>
+                Monthly Report
+              </button>
+            </>
           )}
           <button onClick={() => setViewMode("leaves")} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, borderRadius: 'var(--radius-sm)', background: viewMode === "leaves" ? 'var(--primary-glow)' : 'transparent', color: viewMode === "leaves" ? 'var(--primary)' : 'var(--muted)', transition: 'all 0.2s', border: 'none', cursor: 'pointer' }}>
             {user.role === "admin" ? "Leave Approvals" : "My Leaves"}
@@ -355,14 +375,36 @@ export default function AttendancePage() {
                     </td>
                     {user?.role === 'admin' && (
                       <td style={{ padding: '0.875rem 0' }}>
-                        {(!mobile && !system && record.status !== 'Absent') && (
-                          <button 
-                            onClick={() => handleAdminForceCheckIn(record.userId || record.user?.id)}
-                            style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer' }}
-                          >
-                            Force Check-In
-                          </button>
-                        )}
+                        <select 
+                          className="input" 
+                          style={{ width: '130px', padding: '0.25rem 0.5rem', fontSize: '0.75rem', height: 'auto', background: 'var(--overlay-bg)' }}
+                          value={record.status}
+                          onChange={async (e) => {
+                            if (!confirm(`Change ${record.user?.name}'s status to ${e.target.value}?`)) return;
+                            try {
+                              const res = await fetch('/api/attendance/update', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  adminId: user.id,
+                                  recordId: record.id,
+                                  userId: record.user?.id,
+                                  date: record.date,
+                                  status: e.target.value,
+                                  checkIn: e.target.value === 'Present' && !mobile && !system ? '09:00 AM' : undefined
+                                })
+                              });
+                              if (res.ok) fetchTeamAttendance();
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }}
+                        >
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Late">Late</option>
+                          <option value="Half Day">Half Day</option>
+                        </select>
                       </td>
                     )}
                   </tr>
@@ -520,6 +562,50 @@ export default function AttendancePage() {
               Check In and Check Out are manual actions — they are not affected by logging in or out of the website.
             </p>
           </div>
+        </div>
+      )}
+
+      {viewMode === "monthly" && (
+        <div className="glass-card animate-fadeIn">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <CalendarDays size={18} /> Monthly Attendance Summary
+            </h2>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <input type="month" className="input" value={monthlyMonth} onChange={e => setMonthlyMonth(e.target.value)} style={{ background: 'var(--overlay-bg)', padding: '0.4rem 0.75rem', width: 'auto' }} />
+              <button onClick={fetchMonthlyAttendance} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', gap: '0.4rem', fontSize: '0.8rem' }}>
+                <RefreshCw size={14} /> Refresh
+              </button>
+            </div>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--surface-border)', textAlign: 'left', color: 'var(--secondary-foreground)' }}>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Employee</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Total Days</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Present</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Absent</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Late</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 600 }}>Half Days</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingMonthly ? (
+                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>Loading...</td></tr>
+              ) : monthlyRecords.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '2rem 0', textAlign: 'center', color: 'var(--muted)' }}>No records found for {monthlyMonth}.</td></tr>
+              ) : monthlyRecords.map((r: any) => (
+                <tr key={r.userId} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                  <td style={{ padding: '0.875rem 0', fontWeight: 700 }}>{r.userName}</td>
+                  <td style={{ padding: '0.875rem 0', fontWeight: 600 }}>{r.totalTracked}</td>
+                  <td style={{ padding: '0.875rem 0', color: '#10b981', fontWeight: 600 }}>{r.present}</td>
+                  <td style={{ padding: '0.875rem 0', color: '#ef4444', fontWeight: 600 }}>{r.absent}</td>
+                  <td style={{ padding: '0.875rem 0', color: '#f59e0b', fontWeight: 600 }}>{r.late}</td>
+                  <td style={{ padding: '0.875rem 0', color: '#f97316', fontWeight: 600 }}>{r.halfDay}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
