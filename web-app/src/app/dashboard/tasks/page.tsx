@@ -90,6 +90,7 @@ export default function TaskManagement() {
   const [teamMembers, setTeamMembers] = useState<DBUser[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<{
     title: string; description: string; assigneeId: string;
     priority: Task["priority"]; due: string; status: Task["status"];
@@ -259,7 +260,7 @@ export default function TaskManagement() {
                     const pc = PRIORITY_COLORS[task.priority];
                     const sm = STATUS_META[task.status];
                     return (
-                      <div key={task.id} className="glass-card" style={{ padding: '1rem', borderLeft: `3px solid ${task.color}`, opacity: task.status === "Completed" ? 0.65 : 1 }}>
+                      <div key={task.id} className="glass-card" onClick={() => setExpandedTasks(p => ({ ...p, [task.id]: !p[task.id] }))} style={{ padding: '1rem', borderLeft: `3px solid ${task.color}`, opacity: task.status === "Completed" ? 0.65 : 1, cursor: 'pointer', transition: 'all 0.2s' }}>
                         <div className="flex-between" style={{ marginBottom: '0.5rem' }}>
                           <span style={{ background: pc.bg, color: pc.text, border: `1px solid ${pc.border}`, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.67rem', fontWeight: 700 }}>
                             {task.priority}
@@ -280,8 +281,20 @@ export default function TaskManagement() {
                         <span style={{ display: 'inline-block', background: sm.bg, color: sm.color, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.67rem', fontWeight: 700, border: `1px solid ${sm.color}40`, marginBottom: '0.5rem' }}>
                           {task.status}
                         </span>
+
+                        {expandedTasks[task.id] && task.description && (
+                          <div style={{ marginTop: '0.75rem', marginBottom: '0.75rem', padding: '0.75rem', background: 'var(--overlay-bg)', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: 'var(--secondary-foreground)', whiteSpace: 'pre-wrap', lineHeight: 1.5, border: '1px solid var(--surface-border)' }}>
+                            {task.description.split(/(https?:\/\/[^\s]+)/g).map((part, i) => 
+                              part.match(/(https?:\/\/[^\s]+)/g) 
+                                ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }} onClick={e => e.stopPropagation()}>{part}</a> 
+                                : part
+                            )}
+                          </div>
+                        )}
+
                         <select
                           value={task.status}
+                          onClick={e => e.stopPropagation()}
                           onChange={e => updateStatus(task.id, e.target.value as Task["status"])}
                           style={{ display: 'block', width: '100%', padding: '0.3rem 0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--overlay-bg)', color: 'var(--foreground)', border: '1px solid var(--surface-border)', fontSize: '0.73rem', outline: 'none', cursor: 'pointer' }}>
                           {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
