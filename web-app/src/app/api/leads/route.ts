@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       Notes: l.notes || '',
       _interactions: l.interactions.map(i => ({
         id: i.id,
-        outcome: i.outcome,
+        outcome: i.status,
         notes: i.notes || '',
         date: new Date(i.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
         time: new Date(i.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),

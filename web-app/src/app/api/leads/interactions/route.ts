@@ -12,12 +12,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Create interaction
     await prisma.leadInteraction.create({
       data: {
         leadId,
         userId,
-        outcome,
+        status: outcome,
         notes: notes || null
       }
     });
