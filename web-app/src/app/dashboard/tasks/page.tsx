@@ -157,6 +157,7 @@ export default function TaskManagement() {
   };
 
   return (
+    <>
     <div className="animate-fadeIn">
       {/* Header */}
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
@@ -294,6 +295,7 @@ export default function TaskManagement() {
           })}
         </div>
       )}
+      </div>
 
       {/* ── Create Task Modal (Admin only) ── */}
       {showModal && (
@@ -356,6 +358,6 @@ export default function TaskManagement() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
