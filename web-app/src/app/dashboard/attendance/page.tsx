@@ -10,7 +10,7 @@ export default function AttendancePage() {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [attendanceBusy, setAttendanceBusy] = useState(false); // prevent double-click
-  const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves">("personal");
+  const [viewMode, setViewMode] = useState<"personal" | "team" | "leaves" | "monthly">("personal");
   const [isTrackerActive, setIsTrackerActive] = useState(false);
 
   useEffect(() => {
