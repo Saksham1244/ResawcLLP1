@@ -2,6 +2,7 @@
 
 import { Users, CheckSquare, TrendingUp, Activity, ArrowUpRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useRole } from "@/context/RoleContext";
 
 function getGreeting() {
@@ -14,8 +15,84 @@ function getGreeting() {
 
 export default function DashboardOverview() {
   const { user } = useRole();
+  const [data, setData] = useState({ activeLeads: 0, pendingTasks: 0, teamMembers: 0, recentActivity: [] });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    fetch(`/api/overview?userId=${user.id}&role=${user.role}`)
+      .then(r => r.json())
+      .then(res => {
+        if (res.success) setData(res.data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [user]);
+
   if (!user) return null;
   const greeting = getGreeting();
+  
+  const stats = [
+    { label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
+    { label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
+    { label: "Team Members", value: loading ? "..." : data.teamMembers.toString(), sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)", show: user.role === 'admin' },
+    { label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)", show: true },
+  ].filter(s => s.show);
+
+  const renderStatsAndActivity = () => (
+    <>
+      <div className="animate-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        {stats.map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <div key={i} className="stat-card">
+              <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+                <p className="text-sm font-medium text-muted">{stat.label}</p>
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: 'var(--radius-sm)',
+                  background: `${stat.glow}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: stat.color,
+                }}>
+                  <Icon size={20} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                <span style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</span>
+                {stat.sub && <span className="text-muted font-medium">{stat.sub}</span>}
+              </div>
+              {stat.delta && <p className="text-xs text-muted" style={{ marginTop: '0.5rem' }}>{stat.delta}</p>}
+            </div>
+          );
+        })}
+      </div>
+      <div className="glass-card" style={{ marginBottom: '2rem' }}>
+        <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
+          <h3 className="font-bold" style={{ fontSize: '1rem' }}>Recent Activity</h3>
+          <button className="btn btn-ghost text-xs" style={{ padding: '0.3rem 0.7rem' }}>View all</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+          {data.recentActivity.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
+              <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📭</p>
+              <p className="text-sm">No activity yet. Actions will appear here as you use the platform.</p>
+            </div>
+          ) : data.recentActivity.map((item: any, i: number) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
+              <p className="text-sm" style={{ flex: 1 }}>
+                {item.text}{' '}
+                <span style={{ color: item.color, fontWeight: 600 }}>{item.highlight}</span>
+              </p>
+              <span className="text-xs text-muted" style={{ flexShrink: 0 }}>{item.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
   // Editor-specific simplified view
   if (user.role === "editor") {
     return (
@@ -54,6 +131,11 @@ export default function DashboardOverview() {
             </div>
           </Link>
         </div>
+        
+        <div style={{ marginTop: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem' }}>Your Overview</h2>
+          {renderStatsAndActivity()}
+        </div>
       </div>
     );
   }
@@ -80,89 +162,20 @@ export default function DashboardOverview() {
             </Link>
           ))}
         </div>
+        
+        <div style={{ marginTop: '2.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem' }}>Your Overview</h2>
+          {renderStatsAndActivity()}
+        </div>
       </div>
     );
   }
 
-  // Admin full view
-  const stats = [
-    { label: "Active Leads", value: "0", delta: "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)" },
-    { label: "Pending Tasks", value: "0", delta: "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)" },
-    { label: "Team Members", value: "0", sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)" },
-    { label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)" },
-  ];
-
-  const recentActivity: { text: string; highlight: string; time: string; color: string }[] = [];
-
-
-  return (
-    <div className="animate-fadeIn">
-      {/* Header */}
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
-            {greeting}, {user.name} 👋
-          </h1>
-          <p className="text-muted text-sm">Here's what's happening at Resawc LLP today.</p>
-        </div>
-        <span className="badge badge-success" style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}>🟢 All Systems Operational</span>
-      </div>
-
       {/* Stats Grid */}
-      <div className="animate-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="stat-card">
-              <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-                <p className="text-sm font-medium text-muted">{stat.label}</p>
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: 'var(--radius-sm)',
-                  background: `${stat.glow}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: stat.color,
-                }}>
-                  <Icon size={20} />
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                <span style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</span>
-                {stat.sub && <span className="text-muted font-medium">{stat.sub}</span>}
-              </div>
-              {stat.delta && <p className="text-xs text-muted" style={{ marginTop: '0.5rem' }}>{stat.delta}</p>}
-            </div>
-          );
-        })}
-      </div>
+      {renderStatsAndActivity()}
 
       {/* Bottom Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '1.5rem' }}>
-
-        {/* Recent Activity */}
-        <div className="glass-card">
-          <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-            <h3 className="font-bold" style={{ fontSize: '1rem' }}>Recent Activity</h3>
-            <button className="btn btn-ghost text-xs" style={{ padding: '0.3rem 0.7rem' }}>View all</button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            {recentActivity.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
-                <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📭</p>
-                <p className="text-sm">No activity yet. Actions will appear here as you use the platform.</p>
-              </div>
-            ) : recentActivity.map((item, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
-                <p className="text-sm" style={{ flex: 1 }}>
-                  {item.text}{' '}
-                  <span style={{ color: item.color, fontWeight: 600 }}>{item.highlight}</span>
-                </p>
-                <span className="text-xs text-muted" style={{ flexShrink: 0 }}>{item.time}</span>
-              </div>
-            ))}
-          </div>
-
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
 
         {/* Quick Actions */}
         <div className="glass-card">
