@@ -98,9 +98,9 @@ function SettingsContent() {
             saturdayMode: s.saturdayMode || "All Saturdays",
             start: s.workStartTime || "09:00",
             end: s.workEndTime || "18:00",
-            breakMinutes: s.breakDuration || 30,
-            graceMinutes: s.lateGrace || 15,
-            lateHalfDayThreshold: s.latePenalty || 3
+            breakMinutes: s.breakDuration ?? 30,
+            graceMinutes: s.lateGrace ?? 15,
+            lateHalfDayThreshold: s.latePenalty ?? 3
           }));
         }
       })
