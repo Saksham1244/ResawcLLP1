@@ -21,7 +21,7 @@ model User {
   createdTasks  Task[]    @relation("CreatedTasks")
   
   sentMessages      Message[] @relation("SentMessages")
-  receivedMessages  Message[] @relation("ReceivedMessages")
+  conversations     ConversationParticipant[]
   notifications     Notification[]
   interactions      LeadInteraction[]
   attendance        Attendance[]
@@ -65,16 +65,41 @@ model Task {
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  text        String
+  id              String       @id @default(cuid())
+  text            String
   
-  senderId    String
-  sender      User     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId        String
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id])
   
-  receiverId  String
-  receiver    User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
-  createdAt   DateTime @default(now())
+  createdAt       DateTime     @default(now())
+}
+
+model Conversation {
+  id           String       @id @default(cuid())
+  name         String?      // Null for direct messages, set for groups/channels
+  type         String       @default("DIRECT") // DIRECT, GROUP, CHANNEL
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  lastReadAt     DateTime     @default(now())
+  joinedAt       DateTime     @default(now())
+
+  @@unique([conversationId, userId])
 }
 
 model Notification {
@@ -135,4 +160,11 @@ model GlobalSettings {
   id             String   @id @default("default")
   breakStartTime String   @default("13:00")
   breakEndTime   String   @default("13:30")
+  activeDays     String   @default("[\"Mon\",\"Tue\",\"Wed\",\"Thu\",\"Fri\"]")
+  saturdayMode   String   @default("All Saturdays")
+  workStartTime  String   @default("09:00")
+  workEndTime    String   @default("18:00")
+  breakDuration  Int      @default(30)
+  lateGrace      Int      @default(15)
+  latePenalty    Int      @default(3)
 }

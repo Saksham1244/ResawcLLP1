@@ -89,10 +89,18 @@ function SettingsContent() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
+          const s = data.data;
           setSchedule(prev => ({
             ...prev,
-            globalBreakStart: data.data.breakStartTime || "13:00",
-            globalBreakEnd: data.data.breakEndTime || "13:30"
+            globalBreakStart: s.breakStartTime || "13:00",
+            globalBreakEnd: s.breakEndTime || "13:30",
+            activeDays: s.activeDays ? JSON.parse(s.activeDays) : ["Mon", "Tue", "Wed", "Thu", "Fri"],
+            saturdayMode: s.saturdayMode || "All Saturdays",
+            start: s.workStartTime || "09:00",
+            end: s.workEndTime || "18:00",
+            breakMinutes: s.breakDuration || 30,
+            graceMinutes: s.lateGrace || 15,
+            lateHalfDayThreshold: s.latePenalty || 3
           }));
         }
       })
@@ -143,7 +151,14 @@ function SettingsContent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             breakStartTime: schedule.globalBreakStart,
-            breakEndTime: schedule.globalBreakEnd
+            breakEndTime: schedule.globalBreakEnd,
+            activeDays: JSON.stringify(schedule.activeDays),
+            saturdayMode: schedule.saturdayMode,
+            workStartTime: schedule.start,
+            workEndTime: schedule.end,
+            breakDuration: schedule.breakMinutes,
+            lateGrace: schedule.graceMinutes,
+            latePenalty: schedule.lateHalfDayThreshold
           })
         });
       } catch (e) {
