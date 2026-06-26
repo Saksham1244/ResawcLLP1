@@ -14,6 +14,7 @@ type Task = {
   status: "Not Started" | "In Progress" | "On Hold" | "Completed" | "Assigned" | "Delayed";
   priority: "High" | "Medium" | "Low";
   due: string;
+  completedDate?: string;
   color: string;
 };
 
@@ -66,6 +67,16 @@ const ADMIN_COLUMNS: { statuses: Task["status"][]; label: string; icon: any; col
 
 function mapDBTask(t: any): Task {
   const priority = PRIORITY_MAP[t.priority?.toUpperCase()] || "Medium";
+  
+  let completedDate: string | undefined = undefined;
+  if (t.status === "COMPLETED" && t.updatedAt) {
+    const d = new Date(t.updatedAt);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    completedDate = `${yyyy}-${mm}-${dd}`;
+  }
+
   return {
     id: t.id,
     title: t.title,
@@ -76,9 +87,17 @@ function mapDBTask(t: any): Task {
     status: STATUS_MAP[t.status] || "Not Started",
     priority,
     due: t.dueDate || "TBD",
+    completedDate,
     color: TASK_COLORS[priority],
   };
 }
+
+const getLocalDateString = (d: Date) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 export default function TaskManagement() {
   const { user } = useRole();
@@ -86,6 +105,7 @@ export default function TaskManagement() {
   const isAdmin = user.role === "admin";
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => getLocalDateString(new Date()));
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [teamMembers, setTeamMembers] = useState<DBUser[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -116,7 +136,30 @@ export default function TaskManagement() {
       .catch(() => {});
   }, [fetchTasks]);
 
-  const visibleTasks = tasks;
+  const visibleTasks = tasks.filter(task => {
+    const isNotStartedOrInProgress = 
+      task.status === "Not Started" || 
+      task.status === "Assigned" || 
+      task.status === "In Progress";
+      
+    const isCompleted = task.status === "Completed";
+    const isDelayed = task.status === "Delayed";
+    const isOnHold = task.status === "On Hold";
+
+    if (isNotStartedOrInProgress || isDelayed) {
+      // Carry forward if not completed: show if due on or before selectedDate, or if it is TBD
+      return !task.due || task.due === "TBD" || task.due <= selectedDate;
+    }
+    if (isCompleted) {
+      // Completed tasks show on the same day as selectedDate
+      return task.completedDate === selectedDate;
+    }
+    if (isOnHold) {
+      // On Hold tasks remain unfiltered by date
+      return true;
+    }
+    return true;
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,13 +190,27 @@ export default function TaskManagement() {
 
   const updateStatus = async (id: string, newStatus: Task["status"]) => {
     // Optimistic update
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+    setTasks(prev => prev.map(t => {
+      if (t.id === id) {
+        return { 
+          ...t, 
+          status: newStatus, 
+          completedDate: newStatus === "Completed" ? getLocalDateString(new Date()) : undefined 
+        };
+      }
+      return t;
+    }));
     try {
-      await fetch('/api/tasks', {
+      const res = await fetch('/api/tasks', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: STATUS_MAP_REVERSE[newStatus] || newStatus }),
       });
+      const data = await res.json();
+      if (data.success) {
+        const updatedMapped = mapDBTask(data.data);
+        setTasks(prev => prev.map(t => t.id === id ? updatedMapped : t));
+      }
     } catch {}
   };
 
@@ -161,22 +218,42 @@ export default function TaskManagement() {
     <>
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
+      <div className="flex-between" style={{ marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
             {isAdmin ? "Task Board" : "My Tasks"}
           </h1>
           <p className="text-muted text-sm">
             {loadingTasks ? "Loading..." : isAdmin
-              ? `${tasks.length} total · ${tasks.filter(t => t.status === "In Progress").length} in progress`
+              ? `${visibleTasks.length} visible · ${visibleTasks.filter(t => t.status === "In Progress").length} in progress`
               : `${visibleTasks.length} assigned to you · ${visibleTasks.filter(t => t.status === "In Progress").length} in progress`}
           </p>
         </div>
-        {isAdmin && (
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <Plus size={16} /> Create Task
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--overlay-bg)', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--surface-border)' }}>
+            <Calendar size={15} className="text-muted" />
+            <span className="text-xs font-semibold text-muted" style={{ marginRight: '0.25rem' }}>Track Date:</span>
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={e => setSelectedDate(e.target.value)} 
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                color: 'var(--foreground)', 
+                fontSize: '0.8rem', 
+                fontWeight: 600, 
+                outline: 'none',
+                colorScheme: 'dark'
+              }} 
+            />
+          </div>
+          {isAdmin && (
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <Plus size={16} /> Create Task
+            </button>
+          )}
+        </div>
       </div>
 
       {loadingTasks && (
