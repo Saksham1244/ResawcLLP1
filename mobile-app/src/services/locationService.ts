@@ -1,9 +1,9 @@
 import * as Location from 'expo-location';
 
-// Office Coordinates
-const OFFICE_LAT = 28.5705247;
-const OFFICE_LON = 77.2221451;
-const ALLOWED_RADIUS_METERS = 100;
+// Office Coordinates: The Christian Paradise, Bhaskar Bhawan, South Extension I
+const OFFICE_LAT = 28.5687;
+const OFFICE_LON = 77.2203;
+const ALLOWED_RADIUS_METERS = 200; // Increased radius to ensure coverage inside the building
 
 // Haversine formula to calculate the distance between two lat/lon points in meters
 function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
