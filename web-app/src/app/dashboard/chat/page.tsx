@@ -258,7 +258,9 @@ export default function ChatSystem() {
             {messages.map(m => {
               const isMe = m.sender.id === user.id;
               const color = getAvatarColor(m.sender.name);
-              const timeString = new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const dateObj = new Date(m.createdAt);
+              const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const dateString = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
               
               return (
                 <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: '0.3rem' }}>
@@ -269,7 +271,7 @@ export default function ChatSystem() {
                       </div>
                     )}
                     <span className="text-xs font-semibold">{isMe ? "You" : m.sender.name}</span>
-                    <span className="text-xs text-muted">{timeString}</span>
+                    <span className="text-xs text-muted">{dateString} at {timeString}</span>
                   </div>
                   <div style={{
                     background: isMe ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'var(--secondary)',
