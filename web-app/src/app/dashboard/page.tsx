@@ -35,8 +35,6 @@ export default function DashboardOverview() {
   const greeting = getGreeting();
   
   const stats = [
-    { label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
-    { label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
     { id: 'leads', label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
     { id: 'tasks', label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
     { id: 'team', label: "Team Members", value: loading ? "..." : data.teamMembers.toString(), sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)", show: user.role === 'admin' },
