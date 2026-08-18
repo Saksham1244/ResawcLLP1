@@ -102,7 +102,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <RoleContext.Provider value={{ user, login, isHydrated }}>
+    <RoleContext.Provider value={{ user, login, logout, isHydrated }}>
       {children}
     </RoleContext.Provider>
   );
