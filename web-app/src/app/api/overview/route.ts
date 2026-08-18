@@ -7,7 +7,11 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
-    const role = searchParams.get('role');
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    const role = decoded.role;
 
     if (!userId || !role) {
       return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });

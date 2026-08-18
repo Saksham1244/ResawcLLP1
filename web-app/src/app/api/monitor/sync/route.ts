@@ -37,9 +37,14 @@ export async function GET(request: Request) {
 }
 
 // POST activity from desktop agent
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const data = await request.json();
+    const agentToken = req.headers.get('Authorization');
+    if (agentToken !== `Bearer ${process.env.AGENT_SECRET}`) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const data = await req.json();
     let { userId, status, currentApp, appTitle, idleTime } = data;
 
     if (!userId) {

@@ -35,7 +35,8 @@ export default function LoginPage() {
           email: data.user.email,
           role: data.user.role,
           initials: data.user.name.substring(0, 2).toUpperCase()
-        });
+        }, data.token);
+        
         router.push("/dashboard");
       } else {
         setError(data.error || 'Invalid email or password');
