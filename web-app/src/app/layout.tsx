@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "./ThemeProvider";
 import { RoleProvider } from "@/context/RoleContext";
+import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <RoleProvider>
-            {children}
+            <SmoothScrollProvider>
+              {children}
+            </SmoothScrollProvider>
           </RoleProvider>
         </ThemeProvider>
       </body>

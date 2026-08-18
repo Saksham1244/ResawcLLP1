@@ -3,6 +3,7 @@
 import { Users, CheckSquare, TrendingUp, Activity, ArrowUpRight, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useRole } from "@/context/RoleContext";
 
 function getGreeting() {
@@ -36,17 +37,26 @@ export default function DashboardOverview() {
   const stats = [
     { label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
     { label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
-    { label: "Team Members", value: loading ? "..." : data.teamMembers.toString(), sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)", show: user.role === 'admin' },
-    { label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)", show: true },
+    { id: 'leads', label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
+    { id: 'tasks', label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
+    { id: 'team', label: "Team Members", value: loading ? "..." : data.teamMembers.toString(), sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)", show: user.role === 'admin' },
+    { id: 'status', label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)", show: true },
   ].filter(s => s.show);
 
   const renderStatsAndActivity = () => (
     <>
-      <div className="animate-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <div key={i} className="stat-card">
+            <motion.div 
+              key={stat.id} 
+              className="glass-card"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1, duration: 0.5, ease: "easeOut" }}
+              whileHover={{ y: -5, scale: 1.02 }}
+            >
               <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
                 <p className="text-sm font-medium text-muted">{stat.label}</p>
                 <div style={{
@@ -60,10 +70,10 @@ export default function DashboardOverview() {
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
                 <span style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</span>
-                {stat.sub && <span className="text-muted font-medium">{stat.sub}</span>}
+                {stat.sub !== undefined && <span className="text-muted font-medium">{stat.sub}</span>}
               </div>
               {stat.delta && <p className="text-xs text-muted" style={{ marginTop: '0.5rem' }}>{stat.delta}</p>}
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -74,19 +84,26 @@ export default function DashboardOverview() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
           {data.recentActivity.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
               <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📭</p>
               <p className="text-sm">No activity yet. Actions will appear here as you use the platform.</p>
-            </div>
+            </motion.div>
           ) : data.recentActivity.map((item: any, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <motion.div 
+              key={i} 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 + (i * 0.1), duration: 0.4 }}
+              whileHover={{ x: 5, backgroundColor: 'rgba(255,255,255,0.5)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem', borderRadius: '0.5rem', transition: 'background 0.2s' }}
+            >
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
               <p className="text-sm" style={{ flex: 1 }}>
                 {item.text}{' '}
                 <span style={{ color: item.color, fontWeight: 600 }}>{item.highlight}</span>
               </p>
               <span className="text-xs text-muted" style={{ flexShrink: 0 }}>{item.time}</span>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -98,38 +115,47 @@ export default function DashboardOverview() {
     return (
       <div className="animate-fadeIn">
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+          <motion.h1 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
+          >
             Welcome, {user.name} 🎬
-          </h1>
+          </motion.h1>
           <p className="text-muted text-sm">Here's your editor workspace for today.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', maxWidth: '600px' }}>
-          <Link href="/dashboard/tasks" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckSquare size={22} color="#f59e0b" />
-            </div>
-            <div>
-              <p className="font-bold">My Tasks</p>
-              <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>View and update your assigned tasks</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600 }}>
-              Go to Tasks <ArrowRight size={13} />
-            </div>
-          </Link>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+            <Link href="/dashboard/tasks" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckSquare size={22} color="#f59e0b" />
+              </div>
+              <div>
+                <p className="font-bold">My Tasks</p>
+                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>View and update your assigned tasks</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600, marginTop: 'auto' }}>
+                Go to Tasks <ArrowRight size={13} />
+              </div>
+            </Link>
+          </motion.div>
 
-          <Link href="/dashboard/chat" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Users size={22} color="#06b6d4" />
-            </div>
-            <div>
-              <p className="font-bold">Team Chat</p>
-              <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>Message teammates and stay in sync</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600 }}>
-              Open Chat <ArrowRight size={13} />
-            </div>
-          </Link>
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}>
+            <Link href="/dashboard/chat" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
+              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={22} color="#06b6d4" />
+              </div>
+              <div>
+                <p className="font-bold">Team Chat</p>
+                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>Message teammates and stay in sync</p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600, marginTop: 'auto' }}>
+                Open Chat <ArrowRight size={13} />
+              </div>
+            </Link>
+          </motion.div>
         </div>
         
         <div style={{ marginTop: '2.5rem' }}>
@@ -145,9 +171,14 @@ export default function DashboardOverview() {
     return (
       <div className="animate-fadeIn">
         <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+          <motion.h1 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
+          >
             {greeting}, {user.name} 📞
-          </h1>
+          </motion.h1>
           <p className="text-muted text-sm">Your leads and tasks for today.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', maxWidth: '400px' }}>
@@ -177,9 +208,14 @@ export default function DashboardOverview() {
       {/* Header */}
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}>
+          <motion.h1 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
+          >
             {greeting}, {user.name} 👋
-          </h1>
+          </motion.h1>
           <p className="text-muted text-sm">Here's what's happening at Resawc LLP today.</p>
         </div>
         <span className="badge badge-success" style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}>🟢 All Systems Operational</span>
