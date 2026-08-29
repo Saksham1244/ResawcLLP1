@@ -105,55 +105,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: 'var(--background-2)', minHeight: '100vh' }}>
       <div style={{ display: 'flex', width: '100%', maxWidth: '1440px', backgroundColor: 'var(--background)', boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
 
-      {/* Sidebar */}
+      {/* Redesigned Modern Sidebar */}
       <aside style={{
-        width: '240px', flexShrink: 0,
-        display: 'flex', flexDirection: 'column', padding: '1.5rem 1rem',
+        width: '260px', flexShrink: 0,
+        display: 'flex', flexDirection: 'column', padding: '1.25rem 0.85rem',
         borderRight: '1px solid var(--surface-border)',
-        background: 'var(--overlay-bg)',
-        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        background: 'var(--surface)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
         position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
       }}>
 
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.25rem 0.5rem', marginBottom: '2.5rem' }}>
+        {/* Brand Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.65rem', marginBottom: '1.5rem' }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)',
-            boxShadow: '0 4px 14px var(--primary-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem'
-          }}>⚡</div>
-          <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Resawc Core</span>
-        </div>
-
-        {/* Role Badge in sidebar */}
-        <div style={{
-          background: `${ROLE_COLORS[user.role]}15`,
-          border: `1px solid ${ROLE_COLORS[user.role]}40`,
-          borderRadius: 'var(--radius-sm)',
-          padding: '0.6rem 0.75rem',
-          marginBottom: '1.5rem',
-          display: 'flex', alignItems: 'center', gap: '0.6rem',
-        }}>
-          <div style={{
-            width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0,
-            background: `linear-gradient(135deg, ${ROLE_COLORS[user.role]}, ${ROLE_COLORS[user.role]}99)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.7rem', fontWeight: 700, color: '#fff',
-          }}>{user.initials}</div>
-          <div style={{ minWidth: 0 }}>
-            <p className="text-sm font-semibold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name}</p>
-            <p style={{ fontSize: '0.7rem', color: ROLE_COLORS[user.role], fontWeight: 600 }}>{ROLE_LABELS[user.role]}</p>
+            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800
+          }}>
+            ⚡
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'var(--foreground)' }}>Resawc</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--primary-2)', border: '1px solid rgba(99, 102, 241, 0.35)' }}>
+                HQ
+              </span>
+            </div>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600 }}>Enterprise CRM</span>
           </div>
         </div>
 
+        {/* Quick GPS Punch-In Action Widget */}
+        <a 
+          href="/attendance" 
+          target="_blank" 
+          rel="noreferrer" 
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            textDecoration: 'none', marginBottom: '1.5rem', transition: 'all var(--transition-fast)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
+            <div>
+              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10B981', margin: 0 }}>Web Punch-In</p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: 0 }}>GPS Radar Active</p>
+            </div>
+          </div>
+          <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>↗</span>
+        </a>
+
         {/* Nav section label */}
-        <p className="text-xs font-semibold text-muted" style={{ padding: '0 0.5rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {user.role === "editor" ? "My Workspace" : "Main"}
+        <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', padding: '0 0.75rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          {user.role === "editor" ? "Workspace" : "Navigation"}
         </p>
 
-          {/* Nav Items */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
+        {/* Navigation Items */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -161,45 +173,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link key={item.name} href={item.href} style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                 padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-                color: isActive ? '#fff' : 'var(--secondary-foreground)',
-                background: isActive ? `linear-gradient(135deg, var(--primary), var(--primary-hover))` : 'transparent',
-                boxShadow: isActive ? '0 4px 16px var(--primary-glow)' : 'none',
-                fontWeight: isActive ? 600 : 500, fontSize: '0.875rem',
-                border: isActive ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                color: isActive ? '#FFFFFF' : 'var(--secondary-foreground)',
+                background: isActive ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : 'transparent',
+                boxShadow: isActive ? '0 4px 16px rgba(99, 102, 241, 0.4)' : 'none',
+                fontWeight: isActive ? 700 : 500, fontSize: '0.875rem',
+                border: isActive ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
                 transition: 'all var(--transition-fast)',
               }}>
-                <Icon size={18} color={isActive ? '#fff' : 'var(--secondary-foreground)'} />
+                <Icon size={18} color={isActive ? '#FFFFFF' : 'var(--secondary-foreground)'} />
                 <span>{item.name}</span>
                 {isActive && (
-                  <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px #fff' }} />
+                  <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 0 6px #FFFFFF' }} />
                 )}
               </Link>
             );
           })}
 
-          {/* Quick link to standalone attendance */}
-          <a href="/attendance" target="_blank" rel="noreferrer" style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-            color: 'var(--primary-2)', background: 'rgba(99, 102, 241, 0.08)',
-            border: '1px solid rgba(99, 102, 241, 0.2)',
-            fontWeight: 600, fontSize: '0.85rem', marginTop: '0.5rem',
-            transition: 'all var(--transition-fast)',
-          }}>
-            <span>📱 Mobile Punch-in</span>
-          </a>
-
           {/* Settings — Admin only */}
           {user.role === "admin" && (
             <>
-              <div style={{ height: '1px', background: 'var(--surface-border)', margin: '1rem 0.5rem' }} />
-              <p className="text-xs font-semibold text-muted" style={{ padding: '0 0.5rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Account</p>
+              <div style={{ height: '1px', background: 'var(--surface-border)', margin: '0.75rem 0.5rem' }} />
+              <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', padding: '0 0.75rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferences</p>
               <Link href="/dashboard/settings" style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                 padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-                color: pathname === '/dashboard/settings' ? '#fff' : 'var(--secondary-foreground)',
-                background: pathname === '/dashboard/settings' ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'transparent',
-                fontWeight: 500, fontSize: '0.875rem', transition: 'all var(--transition-fast)',
+                color: pathname === '/dashboard/settings' ? '#FFFFFF' : 'var(--secondary-foreground)',
+                background: pathname === '/dashboard/settings' ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : 'transparent',
+                fontWeight: pathname === '/dashboard/settings' ? 700 : 500, fontSize: '0.875rem', transition: 'all var(--transition-fast)',
               }}>
                 <Settings size={18} /> Settings
               </Link>
@@ -207,25 +207,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         </nav>
 
-        {/* Logout */}
-        <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
-          <button
-            onClick={() => {
-              localStorage.removeItem('userId');
-              localStorage.removeItem('userEmail');
-              localStorage.removeItem('userName');
-              localStorage.removeItem('userRole');
-              router.replace('/');
-            }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
-              padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-sm)',
-              color: 'var(--destructive)', fontWeight: 500, fontSize: '0.875rem',
-              background: 'none', border: 'none', cursor: 'pointer', width: '100%',
-            }}
-          >
-            <LogOut size={17} /> Logout
-          </button>
+        {/* Bottom User Profile Card & Logout */}
+        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-md)',
+            background: 'var(--surface-solid)', border: '1px solid var(--surface-border)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: `linear-gradient(135deg, ${ROLE_COLORS[user.role]}, ${ROLE_COLORS[user.role]}99)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.75rem', fontWeight: 800, color: '#fff',
+                }}>
+                  {user.initials}
+                </div>
+                <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', border: '1.5px solid var(--surface-solid)' }} />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.name}
+                </p>
+                <p style={{ fontSize: '0.7rem', color: ROLE_COLORS[user.role], fontWeight: 700, margin: 0 }}>
+                  {ROLE_LABELS[user.role]}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userRole');
+                router.replace('/');
+              }}
+              title="Logout"
+              className="btn btn-ghost"
+              style={{ padding: '0.4rem', color: 'var(--muted)', borderRadius: '6px' }}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </aside>
 
