@@ -116,43 +116,51 @@ export default function DashboardOverview() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <a
             href="/attendance"
             target="_blank"
             rel="noreferrer"
-            className="btn btn-secondary"
             style={{
-              borderRadius: 'var(--radius-md)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.6rem',
               padding: '0.7rem 1.25rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--surface-solid)',
+              border: '1px solid var(--surface-border)',
+              color: 'var(--foreground)',
               fontWeight: 700,
               fontSize: '0.875rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: 'rgba(16, 185, 129, 0.1)',
-              borderColor: 'rgba(16, 185, 129, 0.3)',
-              color: '#10B981'
+              textDecoration: 'none',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all var(--transition-fast)',
             }}
           >
-            <Clock size={16} /> Web Punch-In
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981', display: 'inline-block' }} />
+            Mark Attendance
           </a>
 
           {user.role === 'admin' && (
             <Link
               href="/dashboard/monitor"
-              className="btn btn-primary"
               style={{
-                borderRadius: 'var(--radius-md)',
-                padding: '0.7rem 1.25rem',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
+                padding: '0.7rem 1.25rem',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
+                transition: 'all var(--transition-fast)',
               }}
             >
-              <Flame size={16} /> Live Team Radar
+              <Activity size={16} /> Live Radar
             </Link>
           )}
         </div>

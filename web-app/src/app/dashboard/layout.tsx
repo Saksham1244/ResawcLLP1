@@ -116,9 +116,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }}>
 
         {/* Brand Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.65rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.65rem', marginBottom: '1.75rem' }}>
           <div style={{
-            width: '36px', height: '36px', borderRadius: '10px', flexShrink: 0,
+            width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0,
             background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
             boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800
@@ -127,7 +127,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'var(--foreground)' }}>Resawc</span>
+              <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em', color: 'var(--foreground)' }}>Resawc</span>
               <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--primary-2)', border: '1px solid rgba(99, 102, 241, 0.35)' }}>
                 HQ
               </span>
@@ -135,29 +135,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600 }}>Enterprise CRM</span>
           </div>
         </div>
-
-        {/* Quick GPS Punch-In Action Widget */}
-        <a 
-          href="/attendance" 
-          target="_blank" 
-          rel="noreferrer" 
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.05) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            textDecoration: 'none', marginBottom: '1.5rem', transition: 'all var(--transition-fast)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
-            <div>
-              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10B981', margin: 0 }}>Web Punch-In</p>
-              <p style={{ fontSize: '0.68rem', color: 'var(--muted)', margin: 0 }}>GPS Radar Active</p>
-            </div>
-          </div>
-          <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>↗</span>
-        </a>
 
         {/* Nav section label */}
         <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', padding: '0 0.75rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
