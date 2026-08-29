@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       const updateData: any = {};
       if (source === 'mobile' && !existing.mobileLoginTime) {
         updateData.mobileLoginTime = timeIn;
-      } else if (source === 'system' && !existing.systemLoginTime) {
+      } else if ((source === 'system' || source === 'web') && !existing.systemLoginTime) {
         updateData.systemLoginTime = timeIn;
       }
 
@@ -70,49 +70,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // ENFORCE MOBILE-FIRST RULE: System cannot create a fresh record.
-    if (source === 'system') {
-      // Check if they've checked in via mobile at all today
-      const mobileToday = await prisma.attendance.findFirst({
-        where: { userId, date, mobileLoginTime: { not: null } }
-      });
-
-      if (!mobileToday) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Access Denied: You must check in from the Mobile App first today before using the PC check-in.' 
-        }, { status: 403 });
-      }
-
-      // ENFORCE PC TRACKER RULE: Check if PC tracker is active
-      if (!isAdminBypass && requestorRole !== 'admin') {
-        const pcActivity = await prisma.pCActivity.findUnique({ where: { userId } });
-        if (!pcActivity) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'PC Tracker not found. Please click "Launch PC Tracker" first.' 
-          }, { status: 403 });
-        }
-        
-        const now = new Date();
-        const diffSeconds = (now.getTime() - new Date(pcActivity.lastSync).getTime()) / 1000;
-        
-        if (diffSeconds > 90) {
-          return NextResponse.json({ 
-            success: false, 
-            error: `PC Tracker is offline (last seen ${Math.round(diffSeconds)}s ago). Please launch the tracker first.` 
-          }, { status: 403 });
-        }
-      }
-    }
-
     await prisma.attendance.create({
       data: {
         userId,
         date,
         timeIn,
         mobileLoginTime: source === 'mobile' ? timeIn : null,
-        systemLoginTime: source === 'system' ? timeIn : null,
+        systemLoginTime: (source === 'system' || source === 'web') ? timeIn : null,
         status: 'Present',
       },
     });
