@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import {
-  UploadCloud, CheckCircle, Phone, FileText, Shuffle, X,
-  ChevronDown, ChevronUp, MessageSquare, Clock, Eye
+  UploadCloud, CheckCircle2, Phone, FileText, Shuffle, X,
+  ChevronDown, ChevronUp, MessageSquare, Clock, Eye, Filter,
+  Search, Plus, Sparkles, User, Calendar, Check, Send, Award
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 
-const AVATAR_COLORS = ["#6366f1", "#f43f5e", "#10b981", "#f59e0b", "#a78bfa", "#06b6d4"];
+const AVATAR_COLORS = ["#6366F1", "#F43F5E", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4"];
 
 type Interaction = {
   id: number;
@@ -30,38 +31,38 @@ type Lead = {
   [key: string]: any;
 };
 
-const OUTCOME_META: Record<string, { color: string; label: string; icon: string }> = {
-  PICKED_UP: { color: "#10b981", label: "Picked Up", icon: "✅" },
-  NO_ANSWER: { color: "#f59e0b", label: "No Answer", icon: "📵" },
-  LEFT_VOICEMAIL: { color: "#6366f1", label: "Left Voicemail", icon: "📬" },
-  WRONG_NUMBER: { color: "#f43f5e", label: "Wrong Number", icon: "❌" },
+const OUTCOME_META: Record<string, { color: string; label: string; icon: any }> = {
+  PICKED_UP: { color: "#10B981", label: "Picked Up", icon: Phone },
+  NO_ANSWER: { color: "#F59E0B", label: "No Answer", icon: Phone },
+  LEFT_VOICEMAIL: { color: "#6366F1", label: "Left Voicemail", icon: MessageSquare },
+  WRONG_NUMBER: { color: "#F43F5E", label: "Wrong Number", icon: X },
 };
 
 const STATUS_META: Record<LeadStatus, { color: string; bg: string; label: string }> = {
-  NEW: { color: "#a1a1c7", bg: "rgba(161,161,199,0.1)", label: "New" },
-  CONTACTED: { color: "#6366f1", bg: "rgba(99,102,241,0.12)", label: "Contacted" },
-  INTERESTED: { color: "#10b981", bg: "rgba(16,185,129,0.12)", label: "Interested" },
-  NOT_INTERESTED: { color: "#f43f5e", bg: "rgba(244,63,94,0.12)", label: "Not Interested" },
-  CONVERTED: { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", label: "Converted ⭐" },
+  NEW: { color: "#94A3B8", bg: "rgba(148, 163, 184, 0.12)", label: "New Lead" },
+  CONTACTED: { color: "#6366F1", bg: "rgba(99, 102, 241, 0.15)", label: "Contacted" },
+  INTERESTED: { color: "#8B5CF6", bg: "rgba(139, 92, 246, 0.15)", label: "Interested" },
+  NOT_INTERESTED: { color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", label: "Not Interested" },
+  CONVERTED: { color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", label: "Converted ⭐" },
 };
 
 function LeadsContent() {
   const { user } = useRole();
   if (!user) return null;
   const isAdmin = user.role === "admin";
-  const isMarketing = user.role === "marketing";
 
   const [activeLeads, setActiveLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [marketingTeam, setMarketingTeam] = useState<any[]>([]);
-  const [distributed, setDistributed] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
   const [logTarget, setLogTarget] = useState<Lead | null>(null);
   const [callOutcome, setCallOutcome] = useState<Interaction["outcome"]>("PICKED_UP");
   const [callNotes, setCallNotes] = useState("");
   const [callStatus, setCallStatus] = useState<LeadStatus>("CONTACTED");
   const [previewLeads, setPreviewLeads] = useState<any[]>([]);
+  const [distributed, setDistributed] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchLeads = () => {
@@ -81,7 +82,6 @@ function LeadsContent() {
     fetchLeads();
   }, [user.id, user.role]);
 
-  // Fetch marketing team from DB
   useEffect(() => {
     fetch('/api/users')
       .then(r => r.json())
@@ -129,19 +129,18 @@ function LeadsContent() {
       if (data.success) {
         setPreviewLeads([]);
         setDistributed(true);
+        setShowUploadModal(false);
         fetchLeads();
       } else {
         alert(data.error || 'Failed to distribute leads');
       }
-    } catch (e) {
+    } catch {
       alert('Network error');
     }
   };
 
-  const handleLogCall = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveInteraction = async () => {
     if (!logTarget) return;
-
     try {
       const res = await fetch('/api/leads/interactions', {
         method: 'POST',
@@ -149,298 +148,365 @@ function LeadsContent() {
         body: JSON.stringify({
           leadId: logTarget._id,
           userId: user.id,
-          outcome: callOutcome,
+          type: 'CALL',
+          status: callOutcome,
           notes: callNotes,
-          status: callStatus
+          newLeadStatus: callStatus
         })
       });
       const data = await res.json();
       if (data.success) {
-        fetchLeads(); // Refresh leads data
         setLogTarget(null);
         setCallNotes("");
-        setCallOutcome("PICKED_UP");
-        setCallStatus("CONTACTED");
+        fetchLeads();
       } else {
         alert(data.error || 'Failed to log call');
       }
-    } catch (e) {
+    } catch {
       alert('Network error');
     }
   };
 
-  // Backend already filters by role so we just use activeLeads
-  const visibleLeads = activeLeads;
+  // Funnel Counts
+  const counts = {
+    all: activeLeads.length,
+    new: activeLeads.filter(l => l._status === 'NEW').length,
+    contacted: activeLeads.filter(l => l._status === 'CONTACTED').length,
+    interested: activeLeads.filter(l => l._status === 'INTERESTED').length,
+    converted: activeLeads.filter(l => l._status === 'CONVERTED').length,
+  };
+
+  const filteredLeads = activeLeads.filter(l => {
+    const matchesFilter = filterStatus === 'ALL' || l._status === filterStatus;
+    const matchesSearch = !searchQuery || 
+      (l.Name && l.Name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (l.Phone && String(l.Phone).includes(searchQuery)) ||
+      (l.Company && l.Company.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
 
   return (
-    <div className="animate-fadeIn">
-      {/* Header */}
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
+    <div className="animate-fadeIn" style={{ maxWidth: '1360px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      {/* Top Header */}
+      <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            {isMarketing ? "My Leads" : "Leads Management"}
+          <h1 style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 0.25rem 0' }}>
+            {isAdmin ? "Enterprise Leads & CRM Pipeline" : "My Assigned Leads"}
           </h1>
-          <p className="text-muted text-sm">
-            {isMarketing
-              ? `${visibleLeads.length} leads assigned to you · ${visibleLeads.filter(l => l._interactions.length > 0).length} contacted`
-              : `${activeLeads.length} total leads · ${activeLeads.filter(l => l._interactions.length > 0).length} contacted`}
+          <p className="text-muted text-sm" style={{ margin: 0 }}>
+            {isAdmin ? "Round-robin distribution, conversion tracking, and interaction analytics." : "Your personal pipeline queue and call outcome logger."}
           </p>
+        </div>
+
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button onClick={() => setShowUploadModal(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', padding: '0.7rem 1.25rem' }}>
+              <UploadCloud size={17} /> Bulk Ingest Leads
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Teamgate-Style Pipeline Funnel Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        {[
+          { key: 'ALL', label: 'TOTAL PIPELINE', count: counts.all, color: '#6366F1' },
+          { key: 'NEW', label: 'NEW LEADS', count: counts.new, color: '#94A3B8' },
+          { key: 'CONTACTED', label: 'IN PROGRESS', count: counts.contacted, color: '#6366F1' },
+          { key: 'INTERESTED', label: 'INTERESTED', count: counts.interested, color: '#8B5CF6' },
+          { key: 'CONVERTED', label: 'WON / CONVERTED', count: counts.converted, color: '#10B981' },
+        ].map((f) => (
+          <div 
+            key={f.key}
+            onClick={() => setFilterStatus(f.key)}
+            className="stat-card-radiant"
+            style={{
+              padding: '1.15rem 1.25rem',
+              cursor: 'pointer',
+              border: filterStatus === f.key ? `1.5px solid ${f.color}` : '1px solid var(--surface-border)',
+              background: filterStatus === f.key ? 'var(--surface-solid)' : 'var(--glass-bg)'
+            }}
+          >
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.08em' }}>{f.label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: f.color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{f.count}</span>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: f.color, boxShadow: `0 0 8px ${f.color}` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Search by name, company or phone..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input"
+            style={{ paddingLeft: '2.5rem', background: 'var(--surface-solid)' }}
+          />
+        </div>
+
+        <div className="pill-tabs-container">
+          {['ALL', 'NEW', 'CONTACTED', 'INTERESTED', 'CONVERTED'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setFilterStatus(st)}
+              className={`pill-tab ${filterStatus === st ? 'active' : ''}`}
+            >
+              {st === 'ALL' ? 'All Leads' : STATUS_META[st as LeadStatus]?.label || st}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Upload + Preview — Admin only */}
-      {isAdmin && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', marginBottom: '2.5rem' }}>
-          <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h2 className="font-bold" style={{ fontSize: '1rem' }}>Upload Excel Leads</h2>
-                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>Supports .xlsx and .csv</p>
-              </div>
-              <a href="/sample_leads.csv" download className="text-xs" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none', background: 'var(--primary-glow)', padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)' }}>
-                <FileText size={12} /> Sample File
-              </a>
-            </div>
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) parseFile(f); }}
-              onClick={() => fileRef.current?.click()}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                border: `2px dashed ${dragging ? 'var(--primary)' : 'var(--surface-border)'}`,
-                borderRadius: 'var(--radius-md)', padding: '2rem 1rem', cursor: 'pointer',
-                background: dragging ? 'var(--primary-glow)' : 'transparent',
-                transition: 'all var(--transition-fast)', minHeight: '130px',
-              }}>
-              <UploadCloud size={34} style={{ color: 'var(--primary-2)', marginBottom: '0.6rem' }} />
-              <p className="text-sm font-semibold">Click or drag & drop</p>
-              <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>.xlsx, .xls, .csv</p>
-            </div>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) parseFile(f); }} />
-            {previewLeads.length > 0 && (
-              <button className="btn btn-primary" onClick={handleDistribute}>
-                <Shuffle size={15} /> Distribute {previewLeads.length} Leads Randomly
-              </button>
-            )}
-            {distributed && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', fontWeight: 600, fontSize: '0.875rem' }}>
-                <CheckCircle size={16} /> Leads distributed!
-              </div>
-            )}
+      {/* Leads Table */}
+      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--muted)' }}>
+            <p style={{ fontSize: '0.95rem' }}>Loading pipeline data...</p>
           </div>
+        ) : filteredLeads.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: 'var(--secondary-foreground)' }}>
+            <p style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🎯</p>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.25rem 0' }}>No Leads Found</h3>
+            <p className="text-muted text-sm" style={{ margin: 0 }}>There are no leads matching your active filters.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-solid)', borderBottom: '1px solid var(--surface-border)', color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '1rem 1.25rem' }}>Lead Name & Company</th>
+                  <th style={{ padding: '1rem 1.25rem' }}>Contact</th>
+                  <th style={{ padding: '1rem 1.25rem' }}>Stage Status</th>
+                  <th style={{ padding: '1rem 1.25rem' }}>Assignee</th>
+                  <th style={{ padding: '1rem 1.25rem' }}>History</th>
+                  <th style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLeads.map((lead, idx) => {
+                  const statusInfo = STATUS_META[lead._status] || STATUS_META.NEW;
+                  const assigneeColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
 
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
-              <h2 className="font-bold" style={{ fontSize: '1rem' }}>
-                Data Preview {previewLeads.length > 0 && <span className="text-muted" style={{ fontWeight: 400, fontSize: '0.8rem' }}>({previewLeads.length} rows)</span>}
-              </h2>
-            </div>
-            <div style={{ overflowX: 'auto', maxHeight: '280px', overflowY: 'auto' }}>
-              {previewLeads.length > 0 ? (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                  <thead style={{ position: 'sticky', top: 0, background: 'var(--background)', zIndex: 5 }}>
-                    <tr>
-                      {Object.keys(previewLeads[0]).map(col => (
-                        <th key={col} style={{ padding: '0.7rem 1rem', textAlign: 'left', fontWeight: 600, color: 'var(--secondary-foreground)', borderBottom: '1px solid var(--surface-border)', whiteSpace: 'nowrap' }}>{col}</th>
-                      ))}
+                  return (
+                    <tr key={lead._id || idx} style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.2s' }}>
+                      <td style={{ padding: '1.1rem 1.25rem' }}>
+                        <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: 0, color: 'var(--foreground)' }}>
+                          {lead.Name || 'Unnamed Prospect'}
+                        </p>
+                        <p className="text-muted" style={{ fontSize: '0.78rem', margin: '0.15rem 0 0 0' }}>
+                          {lead.Company || 'Direct Client'}
+                        </p>
+                      </td>
+
+                      <td style={{ padding: '1.1rem 1.25rem' }}>
+                        <a href={`tel:${lead.Phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary-2)', fontWeight: 600, textDecoration: 'none' }}>
+                          <Phone size={14} /> {lead.Phone || '--'}
+                        </a>
+                      </td>
+
+                      <td style={{ padding: '1.1rem 1.25rem' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                          padding: '0.35rem 0.75rem', borderRadius: '999px',
+                          background: statusInfo.bg, color: statusInfo.color,
+                          fontSize: '0.78rem', fontWeight: 700,
+                          border: `1px solid ${statusInfo.color}30`
+                        }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusInfo.color }} />
+                          {statusInfo.label}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '1.1rem 1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: assigneeColor, color: '#fff', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {(lead._assignee || 'U')[0]}
+                          </div>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{lead._assignee || 'Unassigned'}</span>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '1.1rem 1.25rem' }}>
+                        <span className="text-muted" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Clock size={13} /> {lead._interactions?.length || 0} calls
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '1.1rem 1.25rem', textAlign: 'right' }}>
+                        <button
+                          onClick={() => {
+                            setLogTarget(lead);
+                            setCallStatus(lead._status);
+                          }}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            borderRadius: 'var(--radius-sm)',
+                            borderColor: 'var(--primary-glow)'
+                          }}
+                        >
+                          <Phone size={13} color="var(--primary)" /> Log Call
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {previewLeads.map((row, i) => (
-                      <tr key={i} className="table-row">
-                        {Object.values(row).map((v: any, j) => (
-                          <td key={j} style={{ padding: '0.6rem 1rem', whiteSpace: 'nowrap' }}>{String(v)}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--secondary-foreground)' }}>
-                  <UploadCloud size={28} style={{ margin: '0 auto 0.75rem', opacity: 0.3 }} />
-                  <p className="text-sm">Upload a file to see a preview here.</p>
-                </div>
-              )}
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Log Interaction Modal */}
+      {logTarget && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div className="glass-card animate-fadeIn" style={{ maxWidth: '520px', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="flex-between">
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Log Call / Interaction</h3>
+                <p className="text-muted text-xs" style={{ margin: '0.2rem 0 0 0' }}>Prospect: {logTarget.Name} ({logTarget.Phone})</p>
+              </div>
+              <button onClick={() => setLogTarget(null)} className="btn btn-ghost" style={{ padding: '0.4rem' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
+                Call Outcome
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                {Object.entries(OUTCOME_META).map(([k, v]) => (
+                  <button
+                    key={k}
+                    onClick={() => setCallOutcome(k as any)}
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: callOutcome === k ? `1.5px solid ${v.color}` : '1px solid var(--surface-border)',
+                      background: callOutcome === k ? 'var(--surface-solid)' : 'transparent',
+                      color: callOutcome === k ? v.color : 'var(--secondary-foreground)',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <v.icon size={15} /> {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
+                Update Pipeline Stage
+              </label>
+              <select 
+                value={callStatus} 
+                onChange={(e) => setCallStatus(e.target.value as any)}
+                className="input"
+                style={{ background: 'var(--surface-solid)', fontWeight: 600 }}
+              >
+                <option value="NEW">New Lead</option>
+                <option value="CONTACTED">Contacted (In Progress)</option>
+                <option value="INTERESTED">Interested (High Potential)</option>
+                <option value="NOT_INTERESTED">Not Interested (Closed)</option>
+                <option value="CONVERTED">Converted ⭐ (Won)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
+                Call Notes & Summary
+              </label>
+              <textarea
+                rows={3}
+                placeholder="What did the prospect say? Any scheduled follow-up?"
+                value={callNotes}
+                onChange={(e) => setCallNotes(e.target.value)}
+                className="input"
+                style={{ background: 'var(--surface-solid)', resize: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button onClick={() => setLogTarget(null)} className="btn btn-secondary" style={{ flex: 1, padding: '0.85rem' }}>
+                Cancel
+              </button>
+              <button onClick={handleSaveInteraction} className="btn btn-primary" style={{ flex: 1, padding: '0.85rem' }}>
+                Save & Update
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Section label */}
-      <div style={{ marginBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-          {isMarketing ? "📞 My Assigned Leads" : "📋 All Leads & Call History"}
-        </h2>
-        <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>
-          {isMarketing ? "Click any lead to see the full conversation history." : "Click any lead card to expand the full call log."}
-        </p>
-      </div>
-
-      {/* Lead Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        {visibleLeads.map((lead) => {
-          const nameKey = Object.keys(lead).find(k => k.toLowerCase() === 'name' && !k.startsWith('_')) ?? Object.keys(lead).filter(k => !k.startsWith('_'))[0];
-          const phoneKey = Object.keys(lead).find(k => k.toLowerCase().includes('phone') && !k.startsWith('_'));
-          const emailKey = Object.keys(lead).find(k => k.toLowerCase().includes('email') && !k.startsWith('_'));
-          const companyKey = Object.keys(lead).find(k => k.toLowerCase().includes('company') && !k.startsWith('_'));
-          const isExpanded = expandedId === lead._id;
-          const sm = STATUS_META[lead._status] ?? STATUS_META.NEW;
-
-          return (
-            <div key={lead._id} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-              {/* Lead Row — clickable to expand */}
-              <div
-                onClick={() => setExpandedId(isExpanded ? null : lead._id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.1rem 1.25rem', cursor: 'pointer' }}
-              >
-                <div style={{
-                  width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
-                  background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 700, color: '#fff', fontSize: '0.9rem',
-                }}>
-                  {String(lead[nameKey] ?? '?')[0].toUpperCase()}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                    <span className="font-bold text-sm">{String(lead[nameKey] ?? 'Unknown')}</span>
-                    {companyKey && <span className="text-xs text-muted">@ {String(lead[companyKey])}</span>}
-                    <span style={{ background: sm.bg, color: sm.color, padding: '0.1rem 0.6rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 700, border: `1px solid ${sm.color}50` }}>
-                      {sm.label}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                    {phoneKey && <span className="text-xs text-muted" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Phone size={11} />{String(lead[phoneKey])}</span>}
-                    {emailKey && <span className="text-xs text-muted">{String(lead[emailKey])}</span>}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                  {isAdmin && (
-                    <span style={{ background: 'var(--primary-glow)', color: 'var(--primary-2)', padding: '0.2rem 0.65rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 600 }}>
-                      {lead._assignee}
-                    </span>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--secondary-foreground)', fontSize: '0.75rem' }}>
-                    <MessageSquare size={13} /> {lead._interactions.length}
-                  </div>
-                  {isExpanded ? <ChevronUp size={16} color="var(--secondary-foreground)" /> : <ChevronDown size={16} color="var(--secondary-foreground)" />}
-                </div>
-              </div>
-
-              {/* Expanded — Full Interaction History */}
-              {isExpanded && (
-                <div style={{ borderTop: '1px solid var(--surface-border)', padding: '1.25rem' }}>
-                  <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <h4 className="font-semibold text-sm">Call & Interaction History</h4>
-                    {/* Marketing can log calls for their own leads; Admin can log for any */}
-                    {(isAdmin || (isMarketing && lead._assignee === user.name)) && (
-                      <button className="btn btn-primary" style={{ padding: '0.35rem 0.85rem', fontSize: '0.78rem', gap: '0.4rem' }}
-                        onClick={(e) => { e.stopPropagation(); setLogTarget(lead); }}>
-                        <FileText size={13} /> Log New Call
-                      </button>
-                    )}
-                  </div>
-
-                  {lead._interactions.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--secondary-foreground)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--surface-border)' }}>
-                      <Phone size={22} style={{ margin: '0 auto 0.5rem', opacity: 0.3 }} />
-                      <p className="text-sm">No calls logged yet.</p>
-                      <p className="text-xs text-muted" style={{ marginTop: '0.25rem' }}>Click "Log New Call" to record the first interaction.</p>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {lead._interactions.map((interaction) => {
-                        const meta = OUTCOME_META[interaction.outcome] ?? { color: "#888", label: interaction.outcome, icon: "📞" };
-                        return (
-                          <div key={interaction.id} style={{
-                            background: 'var(--secondary)', borderRadius: 'var(--radius-md)',
-                            padding: '1rem 1.1rem', borderLeft: `3px solid ${meta.color}`,
-                          }}>
-                            {/* Header */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.625rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.8rem', color: meta.color }}>
-                                {meta.icon} {meta.label}
-                              </span>
-                              <span style={{ height: '1px', flex: 1, background: 'var(--surface-border)' }} />
-                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--secondary-foreground)' }}>
-                                <Clock size={11} /> {interaction.date} at {interaction.time}
-                              </span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--secondary-foreground)', background: 'var(--surface-border)', padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)' }}>
-                                by {interaction.loggedBy}
-                              </span>
-                            </div>
-                            {/* Full notes — never truncated */}
-                            <p style={{ fontSize: '0.875rem', lineHeight: 1.7, color: 'var(--foreground)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                              {interaction.notes}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Log Call Modal */}
-      {logTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-          onClick={() => setLogTarget(null)}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '480px', padding: '1.75rem' }} onClick={e => e.stopPropagation()}>
-            <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+      {/* Bulk Upload Modal */}
+      {showUploadModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
+          <div className="glass-card animate-fadeIn" style={{ maxWidth: '560px', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="flex-between">
               <div>
-                <h2 className="font-bold">Log Call Interaction</h2>
-                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>
-                  Lead: {String(logTarget[Object.keys(logTarget).find(k => k.toLowerCase() === 'name' && !k.startsWith('_')) ?? ''] ?? 'Unknown')}
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Bulk Import & Distribute Leads</h3>
+                <p className="text-muted text-xs" style={{ margin: '0.2rem 0 0 0' }}>Upload a .csv or .xlsx spreadsheet with Name, Phone, and Company.</p>
+              </div>
+              <button onClick={() => setShowUploadModal(false)} className="btn btn-ghost" style={{ padding: '0.4rem' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div 
+              onClick={() => fileRef.current?.click()}
+              style={{
+                border: '2px dashed var(--primary-glow)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '2.5rem 1.5rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: 'rgba(99, 102, 241, 0.04)'
+              }}
+            >
+              <UploadCloud size={36} color="var(--primary)" style={{ margin: '0 auto 0.75rem' }} />
+              <p style={{ fontWeight: 700, margin: '0 0 0.25rem 0' }}>Click to select spreadsheet</p>
+              <p className="text-muted text-xs" style={{ margin: 0 }}>Supports .xlsx and .csv files</p>
+              <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && parseFile(e.target.files[0])} />
+            </div>
+
+            {previewLeads.length > 0 && (
+              <div style={{ background: 'var(--surface-solid)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+                <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#10B981', margin: '0 0 0.25rem 0' }}>
+                  ✓ {previewLeads.length} leads parsed ready for round-robin allocation.
+                </p>
+                <p className="text-muted text-xs" style={{ margin: 0 }}>
+                  Will be distributed evenly across {marketingTeam.length} active marketing members.
                 </p>
               </div>
-              <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => setLogTarget(null)}><X size={18} /></button>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button onClick={() => setShowUploadModal(false)} className="btn btn-secondary" style={{ flex: 1, padding: '0.85rem' }}>
+                Cancel
+              </button>
+              <button 
+                onClick={handleDistribute} 
+                disabled={previewLeads.length === 0}
+                className="btn btn-primary" 
+                style={{ flex: 1, padding: '0.85rem', opacity: previewLeads.length === 0 ? 0.5 : 1 }}
+              >
+                Distribute Now
+              </button>
             </div>
-
-            <form onSubmit={handleLogCall} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label className="text-sm font-semibold">Call Outcome</label>
-                  <select className="input" value={callOutcome} onChange={e => setCallOutcome(e.target.value as any)}
-                    style={{ background: 'var(--overlay-bg)', color: 'var(--foreground)' }}>
-                    <option value="PICKED_UP">✅ Picked Up</option>
-                    <option value="NO_ANSWER">📵 No Answer</option>
-                    <option value="LEFT_VOICEMAIL">📬 Left Voicemail</option>
-                    <option value="WRONG_NUMBER">❌ Wrong Number</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <label className="text-sm font-semibold">Update Status</label>
-                  <select className="input" value={callStatus} onChange={e => setCallStatus(e.target.value as any)}
-                    style={{ background: 'var(--overlay-bg)', color: 'var(--foreground)' }}>
-                    <option value="CONTACTED">Contacted</option>
-                    <option value="INTERESTED">Interested</option>
-                    <option value="NOT_INTERESTED">Not Interested</option>
-                    <option value="CONVERTED">Converted ⭐</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label className="text-sm font-semibold">What happened? What did they say?</label>
-                <textarea className="input" rows={5} required value={callNotes} onChange={e => setCallNotes(e.target.value)}
-                  placeholder="Describe what was discussed in detail — interest level, questions they asked, follow-up needed…"
-                  style={{ resize: 'vertical', lineHeight: 1.65, fontSize: '0.875rem' }} />
-                <p className="text-xs text-muted">Be detailed — this log is visible to Admin and the rest of the marketing team.</p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setLogTarget(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Call Log</button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -448,9 +514,9 @@ function LeadsContent() {
   );
 }
 
-export default function LeadsManagement() {
+export default function LeadsPage() {
   return (
-    <RoleGuard allowedRoles={["admin", "marketing"]} redirectTo="/dashboard/tasks">
+    <RoleGuard allowedRoles={["admin", "marketing"]}>
       <LeadsContent />
     </RoleGuard>
   );

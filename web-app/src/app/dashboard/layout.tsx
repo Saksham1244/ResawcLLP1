@@ -152,26 +152,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {user.role === "editor" ? "My Workspace" : "Main"}
         </p>
 
-        {/* Nav Items */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
+          {/* Nav Items */}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
               <Link key={item.name} href={item.href} style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-sm)',
+                padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
                 color: isActive ? '#fff' : 'var(--secondary-foreground)',
                 background: isActive ? `linear-gradient(135deg, var(--primary), var(--primary-hover))` : 'transparent',
-                boxShadow: isActive ? '0 4px 14px var(--primary-glow)' : 'none',
+                boxShadow: isActive ? '0 4px 16px var(--primary-glow)' : 'none',
                 fontWeight: isActive ? 600 : 500, fontSize: '0.875rem',
+                border: isActive ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
                 transition: 'all var(--transition-fast)',
               }}>
-                <Icon size={17} />
-                {item.name}
+                <Icon size={18} color={isActive ? '#fff' : 'var(--secondary-foreground)'} />
+                <span>{item.name}</span>
+                {isActive && (
+                  <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px #fff' }} />
+                )}
               </Link>
             );
           })}
+
+          {/* Quick link to standalone attendance */}
+          <a href="/attendance" target="_blank" rel="noreferrer" style={{
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
+            color: 'var(--primary-2)', background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+            fontWeight: 600, fontSize: '0.85rem', marginTop: '0.5rem',
+            transition: 'all var(--transition-fast)',
+          }}>
+            <span>📱 Mobile Punch-in</span>
+          </a>
 
           {/* Settings — Admin only */}
           {user.role === "admin" && (
@@ -180,12 +196,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p className="text-xs font-semibold text-muted" style={{ padding: '0 0.5rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Account</p>
               <Link href="/dashboard/settings" style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-sm)',
+                padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
                 color: pathname === '/dashboard/settings' ? '#fff' : 'var(--secondary-foreground)',
                 background: pathname === '/dashboard/settings' ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'transparent',
                 fontWeight: 500, fontSize: '0.875rem', transition: 'all var(--transition-fast)',
               }}>
-                <Settings size={17} /> Settings
+                <Settings size={18} /> Settings
               </Link>
             </>
           )}

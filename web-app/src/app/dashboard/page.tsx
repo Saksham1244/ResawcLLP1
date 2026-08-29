@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, CheckSquare, TrendingUp, Activity, ArrowUpRight, ArrowRight } from "lucide-react";
+import { Users, CheckSquare, TrendingUp, Activity, ArrowRight, Sparkles, Clock, Shield, Flame, Compass } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -33,217 +33,280 @@ export default function DashboardOverview() {
 
   if (!user) return null;
   const greeting = getGreeting();
-  
+
   const stats = [
-    { id: 'leads', label: "Active Leads", value: loading ? "..." : data.activeLeads.toString(), delta: data.activeLeads > 0 ? "" : "No leads yet", icon: TrendingUp, color: "#6366f1", glow: "rgba(99,102,241,0.3)", show: user.role !== 'editor' },
-    { id: 'tasks', label: "Pending Tasks", value: loading ? "..." : data.pendingTasks.toString(), delta: data.pendingTasks > 0 ? "" : "No tasks assigned", icon: CheckSquare, color: "#f59e0b", glow: "rgba(245,158,11,0.3)", show: true },
-    { id: 'team', label: "Team Members", value: loading ? "..." : data.teamMembers.toString(), sub: "", icon: Users, color: "#10b981", glow: "rgba(16,185,129,0.3)", show: user.role === 'admin' },
-    { id: 'status', label: "System Status", value: "Live", delta: "All systems operational", icon: Activity, color: "#a78bfa", glow: "rgba(167,139,250,0.3)", show: true },
+    {
+      id: 'leads',
+      label: "ACTIVE LEADS",
+      value: loading ? "--" : data.activeLeads.toString(),
+      trend: "+12% this month",
+      trendPositive: true,
+      icon: TrendingUp,
+      color: "#6366F1",
+      glow: "rgba(99, 102, 241, 0.25)",
+      href: "/dashboard/leads",
+      show: user.role !== 'editor'
+    },
+    {
+      id: 'tasks',
+      label: "PENDING TASKS",
+      value: loading ? "--" : data.pendingTasks.toString(),
+      trend: data.pendingTasks > 0 ? "Requires attention" : "All cleared",
+      trendPositive: data.pendingTasks === 0,
+      icon: CheckSquare,
+      color: "#F59E0B",
+      glow: "rgba(245, 158, 11, 0.25)",
+      href: "/dashboard/tasks",
+      show: true
+    },
+    {
+      id: 'team',
+      label: "ACTIVE TEAM MEMBERS",
+      value: loading ? "--" : data.teamMembers.toString(),
+      trend: "Operational",
+      trendPositive: true,
+      icon: Users,
+      color: "#10B981",
+      glow: "rgba(16, 185, 129, 0.25)",
+      href: "/dashboard/team",
+      show: user.role === 'admin'
+    },
+    {
+      id: 'status',
+      label: "SYSTEM RADAR",
+      value: "99.8%",
+      trend: "All systems online",
+      trendPositive: true,
+      icon: Activity,
+      color: "#8B5CF6",
+      glow: "rgba(139, 92, 246, 0.25)",
+      href: "/dashboard/monitor",
+      show: true
+    },
   ].filter(s => s.show);
 
-  const renderStatsAndActivity = () => (
-    <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
+  return (
+    <div className="animate-fadeIn" style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      {/* Leonar-Style Radiant Welcome Banner */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="glass-card"
+        style={{
+          padding: '2.25rem 2rem',
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(14, 15, 21, 0.8) 100%)',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1.5rem'
+        }}
+      >
+        <div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: '999px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: 'var(--primary-2)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+            <Sparkles size={13} /> RESAWC CORE WORKSPACE
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 0.5rem 0' }}>
+            {greeting}, {user.name} 👋
+          </h1>
+          <p className="text-muted text-sm" style={{ margin: 0, maxWidth: '520px' }}>
+            Here is your live team telemetry, task queue, and CRM performance overview for today.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <a
+            href="/attendance"
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-secondary"
+            style={{
+              borderRadius: 'var(--radius-md)',
+              padding: '0.7rem 1.25rem',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: 'rgba(16, 185, 129, 0.1)',
+              borderColor: 'rgba(16, 185, 129, 0.3)',
+              color: '#10B981'
+            }}
+          >
+            <Clock size={16} /> Web Punch-In
+          </a>
+
+          {user.role === 'admin' && (
+            <Link
+              href="/dashboard/monitor"
+              className="btn btn-primary"
+              style={{
+                borderRadius: 'var(--radius-md)',
+                padding: '0.7rem 1.25rem',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <Flame size={16} /> Live Team Radar
+            </Link>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Radiant Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
-            <motion.div 
-              key={stat.id} 
-              className="glass-card"
+            <motion.div
+              key={stat.id}
+              className="stat-card-radiant"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1, duration: 0.5, ease: "easeOut" }}
-              whileHover={{ y: -5, scale: 1.02 }}
+              transition={{ delay: i * 0.08, duration: 0.4 }}
             >
               <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-                <p className="text-sm font-medium text-muted">{stat.label}</p>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.08em' }}>
+                  {stat.label}
+                </span>
                 <div style={{
-                  width: '40px', height: '40px', borderRadius: 'var(--radius-sm)',
-                  background: `${stat.glow}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: stat.glow,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   color: stat.color,
+                  border: `1px solid ${stat.color}40`
                 }}>
-                  <Icon size={20} />
+                  <Icon size={19} />
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                <span style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{stat.value}</span>
-                {stat.sub !== undefined && <span className="text-muted font-medium">{stat.sub}</span>}
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.04em', fontFamily: 'var(--font-display)', lineHeight: 1 }}>
+                  {stat.value}
+                </span>
               </div>
-              {stat.delta && <p className="text-xs text-muted" style={{ marginTop: '0.5rem' }}>{stat.delta}</p>}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid var(--surface-border)' }}>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: stat.trendPositive ? '#10B981' : '#F59E0B'
+                }}>
+                  {stat.trend}
+                </span>
+                <Link href={stat.href} style={{ color: 'var(--primary-2)', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  View <ArrowRight size={12} />
+                </Link>
+              </div>
             </motion.div>
           );
         })}
       </div>
-      <div className="glass-card" style={{ marginBottom: '2rem' }}>
-        <div className="flex-between" style={{ marginBottom: '1.5rem' }}>
-          <h3 className="font-bold" style={{ fontSize: '1rem' }}>Recent Activity</h3>
-          <button className="btn btn-ghost text-xs" style={{ padding: '0.3rem 0.7rem' }}>View all</button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-          {data.recentActivity.length === 0 ? (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--secondary-foreground)' }}>
-              <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📭</p>
-              <p className="text-sm">No activity yet. Actions will appear here as you use the platform.</p>
-            </motion.div>
-          ) : data.recentActivity.map((item: any, i: number) => (
-            <motion.div 
-              key={i} 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 + (i * 0.1), duration: 0.4 }}
-              whileHover={{ x: 5, backgroundColor: 'rgba(255,255,255,0.5)' }}
-              style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.5rem', borderRadius: '0.5rem', transition: 'background 0.2s' }}
-            >
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, boxShadow: `0 0 6px ${item.color}` }} />
-              <p className="text-sm" style={{ flex: 1 }}>
-                {item.text}{' '}
-                <span style={{ color: item.color, fontWeight: 600 }}>{item.highlight}</span>
-              </p>
-              <span className="text-xs text-muted" style={{ flexShrink: 0 }}>{item.time}</span>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
 
-  // Editor-specific simplified view
-  if (user.role === "editor") {
-    return (
-      <div className="animate-fadeIn">
-        <div style={{ marginBottom: '2rem' }}>
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
-          >
-            Welcome, {user.name} 🎬
-          </motion.h1>
-          <p className="text-muted text-sm">Here's your editor workspace for today.</p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', maxWidth: '600px' }}>
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <Link href="/dashboard/tasks" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckSquare size={22} color="#f59e0b" />
-              </div>
-              <div>
-                <p className="font-bold">My Tasks</p>
-                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>View and update your assigned tasks</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600, marginTop: 'auto' }}>
-                Go to Tasks <ArrowRight size={13} />
-              </div>
-            </Link>
-          </motion.div>
-
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }}>
-            <Link href="/dashboard/chat" className="glass-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: '100%' }}>
-              <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(6,182,212,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Users size={22} color="#06b6d4" />
-              </div>
-              <div>
-                <p className="font-bold">Team Chat</p>
-                <p className="text-xs text-muted" style={{ marginTop: '0.2rem' }}>Message teammates and stay in sync</p>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-2)', fontSize: '0.8rem', fontWeight: 600, marginTop: 'auto' }}>
-                Open Chat <ArrowRight size={13} />
-              </div>
-            </Link>
-          </motion.div>
-        </div>
-        
-        <div style={{ marginTop: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem' }}>Your Overview</h2>
-          {renderStatsAndActivity()}
-        </div>
-      </div>
-    );
-  }
-
-  // Marketing-specific view (no team management or full stats)
-  if (user.role === "marketing") {
-    return (
-      <div className="animate-fadeIn">
-        <div style={{ marginBottom: '2rem' }}>
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
-          >
-            {greeting}, {user.name} 📞
-          </motion.h1>
-          <p className="text-muted text-sm">Your leads and tasks for today.</p>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', maxWidth: '400px' }}>
-          {[
-            { label: '📋 My Leads', href: '/dashboard/leads', primary: true },
-            { label: '✅ My Tasks', href: '/dashboard/tasks', primary: false },
-            { label: '💬 Team Chat', href: '/dashboard/chat', primary: false },
-          ].map((a, i) => (
-            <Link key={i} href={a.href} className={a.primary ? 'btn btn-primary' : 'btn btn-secondary'}
-              style={{ justifyContent: 'space-between', padding: '0.75rem 1rem' }}>
-              <span>{a.label}</span><ArrowRight size={15} />
-            </Link>
-          ))}
-        </div>
-        
-        <div style={{ marginTop: '2.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1.5rem' }}>Your Overview</h2>
-          {renderStatsAndActivity()}
-        </div>
-      </div>
-    );
-  }
-
-  // Admin full view
-  return (
-    <div className="animate-fadeIn">
-      {/* Header */}
-      <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.25rem' }}
-          >
-            {greeting}, {user.name} 👋
-          </motion.h1>
-          <p className="text-muted text-sm">Here's what's happening at Resawc LLP today.</p>
-        </div>
-        <span className="badge badge-success" style={{ fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}>🟢 All Systems Operational</span>
-      </div>
-
-      {/* Stats Grid */}
-      {renderStatsAndActivity()}
-
-      {/* Bottom Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-
-        {/* Quick Actions */}
+      {/* Split Widget Row: Quick Access & Live Activity Feed */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+        {/* Quick Hub Navigation Card */}
         <div className="glass-card">
-          <h3 className="font-bold" style={{ fontSize: '1rem', marginBottom: '1.25rem' }}>Quick Actions</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {[
-              { label: '📤 Upload Leads (Excel)', href: '/dashboard/leads', primary: true },
-              { label: '✅ Assign New Task', href: '/dashboard/tasks', primary: false },
-              { label: '👤 Add Team Member', href: '/dashboard/team', primary: false },
-              { label: '💬 Open Chat', href: '/dashboard/chat', primary: false },
-            ].map((a, i) => (
-              <Link
-                key={i}
-                href={a.href}
-                className={a.primary ? 'btn btn-primary' : 'btn btn-secondary'}
-                style={{ width: '100%', justifyContent: 'space-between', padding: '0.65rem 0.875rem' }}
-              >
-                <span>{a.label}</span>
-                <ArrowRight size={15} />
+          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Compass size={18} color="var(--primary-2)" /> Workspace Hub
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {user.role !== 'editor' && (
+              <Link href="/dashboard/leads" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TrendingUp size={18} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Lead Management & CRM</p>
+                    <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Round-robin leads & call outcome logs</p>
+                  </div>
+                </div>
+                <ArrowRight size={16} color="var(--muted)" />
               </Link>
+            )}
+
+            <Link href="/dashboard/tasks" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckSquare size={18} />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Production & Tasks</p>
+                  <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Active editor queues & deliverables</p>
+                </div>
+              </div>
+              <ArrowRight size={16} color="var(--muted)" />
+            </Link>
+
+            <Link href="/dashboard/attendance" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Attendance & Leaves</p>
+                  <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Monthly report, check-ins, and leave requests</p>
+                </div>
+              </div>
+              <ArrowRight size={16} color="var(--muted)" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Live Activity & Updates */}
+        <div className="glass-card">
+          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={18} color="var(--primary-2)" /> Live Activity Stream
+            </h3>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} /> Live
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {data.recentActivity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--secondary-foreground)' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--surface-solid)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                  <Shield size={22} color="var(--muted)" />
+                </div>
+                <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0' }}>All Caught Up</p>
+                <p className="text-muted" style={{ fontSize: '0.78rem', margin: 0 }}>System events and lead conversions will stream here automatically.</p>
+              </div>
+            ) : data.recentActivity.map((item: any, i: number) => (
+              <div 
+                key={i} 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.75rem 1rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--surface-solid)',
+                  border: '1px solid var(--surface-border)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color || 'var(--primary)', boxShadow: `0 0 8px ${item.color || 'var(--primary)'}` }} />
+                  <p style={{ fontSize: '0.85rem', margin: 0, fontWeight: 500 }}>
+                    {item.text} <span style={{ color: item.color || 'var(--primary)', fontWeight: 700 }}>{item.highlight}</span>
+                  </p>
+                </div>
+                <span className="text-muted" style={{ fontSize: '0.75rem' }}>{item.time}</span>
+              </div>
             ))}
           </div>
         </div>
