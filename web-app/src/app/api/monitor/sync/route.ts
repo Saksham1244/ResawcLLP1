@@ -16,12 +16,28 @@ export async function GET(request: Request) {
 
     const now = Date.now();
     const HEARTBEAT_TIMEOUT_MS = 60 * 1000; // Agent syncs every 10s; offline after 60s without ping
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const sevenDaysAgo = now - ONE_WEEK_MS;
 
-    // Map to expected format with dynamic online/offline detection
+    // Map to expected format with dynamic online/offline detection and 7-day history retention
     const mapped = activities.map(act => {
       const lastSyncTime = act.lastSync ? new Date(act.lastSync).getTime() : 0;
       const isOnline = (now - lastSyncTime) < HEARTBEAT_TIMEOUT_MS;
       const computedStatus = isOnline ? act.status : 'Offline';
+
+      let parsedHistory: any[] = [];
+      try {
+        parsedHistory = JSON.parse(act.appHistory || "[]");
+      } catch (e) {}
+
+      // Keep history of one week only
+      const prunedHistory = parsedHistory.filter(item => {
+        if (item.timestamp) {
+          const itemTime = new Date(item.timestamp).getTime();
+          return !isNaN(itemTime) && itemTime >= sevenDaysAgo;
+        }
+        return true;
+      });
 
       return {
         id: act.id,
@@ -31,7 +47,7 @@ export async function GET(request: Request) {
         idleTime: isOnline ? (act.idleTime || undefined) : undefined,
         currentApp: act.currentApp || "Desktop",
         appTitle: act.appTitle || "Unknown",
-        appHistory: JSON.parse(act.appHistory || "[]"),
+        appHistory: prunedHistory,
         dailyAppUsage: JSON.parse(act.dailyAppUsage || "{}"),
         productivity: act.productivity,
         lastSync: act.lastSync
@@ -101,7 +117,14 @@ export async function POST(req: Request) {
       status = "On Break";
     }
 
-    let history: { app: string; title: string; time: string }[] = [];
+    let history: {
+      app: string;
+      title: string;
+      time: string;
+      date?: string;
+      timestamp?: string;
+      durationSeconds?: number;
+    }[] = [];
     let dailyUsage: Record<string, number> = {};
     let trackedSeconds = existingActivity?.trackedSeconds || 0;
     let productiveSeconds = existingActivity?.productiveSeconds || 0;
@@ -133,10 +156,41 @@ export async function POST(req: Request) {
       trackedSeconds += elapsedSeconds;
       
       if (currentApp && status === 'Active') {
-        const timeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+        const nowObj = new Date();
+        const timeStr = nowObj.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        const dateStr = nowObj.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' });
+        const isoTimestamp = nowObj.toISOString();
+
         if (history.length === 0 || history[0].app !== currentApp || history[0].title !== appTitle) {
-          history.unshift({ app: currentApp, title: appTitle || "Unknown", time: timeStr });
-          if (history.length > 10) history.pop();
+          history.unshift({
+            app: currentApp,
+            title: appTitle || "Unknown",
+            time: timeStr,
+            date: dateStr,
+            timestamp: isoTimestamp,
+            durationSeconds: elapsedSeconds
+          });
+        } else {
+          // Accumulate active duration on the continuing application window
+          history[0].durationSeconds = (history[0].durationSeconds || 0) + elapsedSeconds;
+          history[0].time = timeStr;
+          history[0].timestamp = isoTimestamp;
+        }
+
+        // Keep history of one week only (7 days)
+        const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+        const cutoffMs = Date.now() - ONE_WEEK_MS;
+        history = history.filter(item => {
+          if (item.timestamp) {
+            const itemTime = new Date(item.timestamp).getTime();
+            return !isNaN(itemTime) && itemTime >= cutoffMs;
+          }
+          return true;
+        });
+
+        // Cap to 300 entries to prevent oversized records
+        if (history.length > 300) {
+          history = history.slice(0, 300);
         }
         
         const appKey = (currentApp || "Desktop").toLowerCase();

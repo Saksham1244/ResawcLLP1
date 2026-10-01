@@ -5,7 +5,8 @@ import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 import {
   Monitor, AppWindow, AlertTriangle, Clock,
-  Download, Laptop, Play, Copy, Check, X
+  Download, Laptop, Play, Copy, Check, X,
+  Maximize2, Calendar, Search, Layers, TrendingUp, BarChart2
 } from "lucide-react";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -22,8 +23,17 @@ const C = {
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type AppHistoryItem = {
+  app: string;
+  title: string;
+  time: string;
+  date?: string;
+  timestamp?: string;
+  durationSeconds?: number;
+};
+
 type PCActivity = {
-  id: number;
+  id: number | string;
   name: string;
   role: string;
   status: "Active" | "Idle" | "Offline";
@@ -33,9 +43,54 @@ type PCActivity = {
   productivity: number;
   lastScreenshot?: string;
   lastSync?: string;
-  appHistory?: any[];
+  appHistory?: AppHistoryItem[];
   dailyAppUsage?: Record<string, number>;
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function initials(name: string) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
+
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) return "< 1m";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+}
+
+function formatHistoryTimestamp(item: AppHistoryItem): string {
+  if (item.timestamp) {
+    try {
+      const d = new Date(item.timestamp);
+      if (!isNaN(d.getTime())) {
+        const dateStr = d.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+        const timeStr = d.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        });
+        return `${dateStr} • ${timeStr}`;
+      }
+    } catch {}
+  }
+  if (item.date && item.time) {
+    return `${item.date} • ${item.time}`;
+  }
+  return item.time || "Recent";
+}
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 function statusConfig(status: PCActivity["status"]) {
@@ -51,7 +106,13 @@ function productivityColor(score: number) {
 }
 
 // ─── Agent Card ───────────────────────────────────────────────────────────────
-function AgentCard({ act }: { act: PCActivity }) {
+function AgentCard({
+  act,
+  onExpand,
+}: {
+  act: PCActivity;
+  onExpand: (act: PCActivity) => void;
+}) {
   const sc = statusConfig(act.status);
   const pc = productivityColor(act.productivity);
 
@@ -254,6 +315,657 @@ function AgentCard({ act }: { act: PCActivity }) {
               }}
             />
           </div>
+        </div>
+
+        {/* Card Footer: Expand View button */}
+        <div
+          style={{
+            borderTop: `1px solid ${C.border}`,
+            padding: "0.75rem 1.25rem",
+            background: "#FAFAFA",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.725rem",
+              color: C.muted,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              fontWeight: 500,
+            }}
+          >
+            <Clock size={12} color={C.muted} />
+            {act.appHistory?.length || 0} events (7d)
+          </span>
+          <button
+            onClick={() => onExpand(act)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.4rem 0.8rem",
+              background: "#FFFFFF",
+              border: `1px solid ${C.border}`,
+              borderRadius: C.radiusSm,
+              color: C.primary,
+              fontSize: "0.775rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              transition: "background-color 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "#EFF6FF";
+              e.currentTarget.style.borderColor = "#BFDBFE";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "#FFFFFF";
+              e.currentTarget.style.borderColor = C.border;
+            }}
+          >
+            <Maximize2 size={12} />
+            <span>Expand View</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Expanded Activity Detail Modal (7-Day History) ──────────────────────────
+function ActivityDetailModal({
+  act,
+  onClose,
+}: {
+  act: PCActivity | null;
+  onClose: () => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<"timeline" | "apps">("timeline");
+
+  if (!act) return null;
+
+  const sc = statusConfig(act.status);
+  const pc = productivityColor(act.productivity);
+
+  const history = act.appHistory || [];
+  const dailyUsage = act.dailyAppUsage || {};
+
+  // Sort daily usage by total seconds descending
+  const sortedApps = Object.entries(dailyUsage).sort((a, b) => b[1] - a[1]);
+  const totalTrackedSeconds = sortedApps.reduce((acc, curr) => acc + curr[1], 0) || 1;
+
+  // Filter timeline history
+  const filteredHistory = history.filter((item) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      item.app.toLowerCase().includes(term) ||
+      item.title.toLowerCase().includes(term) ||
+      (item.date && item.date.toLowerCase().includes(term))
+    );
+  });
+
+  const formattedLastSync = act.lastSync
+    ? new Date(act.lastSync).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      })
+    : "Never";
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(17, 24, 39, 0.55)",
+        backdropFilter: "blur(4px)",
+        zIndex: 110,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: "#FFFFFF",
+          borderRadius: "14px",
+          width: "100%",
+          maxWidth: "880px",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          border: "1px solid #E5E7EB",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Header */}
+        <div
+          style={{
+            padding: "1.25rem 1.5rem",
+            borderBottom: "1px solid #E5E7EB",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "#FAFAFA",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #1A56DB, #3B82F6)",
+                color: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "1rem",
+                boxShadow: "0 2px 4px rgba(26,86,219,0.25)",
+              }}
+            >
+              {initials(act.name)}
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <h2 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "#111827" }}>
+                  {act.name}
+                </h2>
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    padding: "0.2rem 0.5rem",
+                    background: "#F1F5F9",
+                    color: "#475569",
+                    borderRadius: "4px",
+                  }}
+                >
+                  {act.role}
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    padding: "0.2rem 0.6rem",
+                    borderRadius: "999px",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    background: sc.bg,
+                    color: sc.color,
+                    border: `1px solid ${sc.border}`,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      background: sc.color,
+                    }}
+                  />
+                  {act.status}
+                </span>
+              </div>
+              <p style={{ fontSize: "0.8rem", color: "#6B7280", margin: "2px 0 0" }}>
+                Workstation activity timeline and application telemetry (7-day history)
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                padding: "0.35rem 0.75rem",
+                background: "#ECFDF5",
+                border: "1px solid #A7F3D0",
+                borderRadius: "999px",
+                color: "#059669",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+              }}
+            >
+              <Calendar size={13} />
+              <span>1-Week Retention Active</span>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#9CA3AF",
+                cursor: "pointer",
+                padding: "6px",
+                display: "flex",
+                borderRadius: "6px",
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Top Summary Cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "0.75rem",
+            padding: "1rem 1.5rem",
+            background: "#F8FAFC",
+            borderBottom: "1px solid #E5E7EB",
+          }}
+        >
+          {/* Active app */}
+          <div style={{ background: "#FFFFFF", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+              Focused App
+            </span>
+            <p style={{ margin: "4px 0 0", fontWeight: 700, fontSize: "0.925rem", color: "#0F172A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {act.currentApp || "Desktop"}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#64748B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {act.appTitle || "No window title"}
+            </p>
+          </div>
+
+          {/* Productivity */}
+          <div style={{ background: "#FFFFFF", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+              Productivity Score
+            </span>
+            <p style={{ margin: "4px 0 0", fontWeight: 800, fontSize: "1.1rem", color: pc.bar }}>
+              {act.productivity}%
+            </p>
+            <div style={{ width: "100%", height: 5, borderRadius: 999, background: pc.track, marginTop: 4, overflow: "hidden" }}>
+              <div style={{ width: `${act.productivity}%`, height: "100%", background: pc.bar }} />
+            </div>
+          </div>
+
+          {/* Tracked Active Duration */}
+          <div style={{ background: "#FFFFFF", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+              Time Tracked (7 Days)
+            </span>
+            <p style={{ margin: "4px 0 0", fontWeight: 700, fontSize: "0.925rem", color: "#0F172A" }}>
+              {formatDuration(totalTrackedSeconds)}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: "0.75rem", color: "#64748B" }}>
+              Idle: {act.idleTime || "0m 0s"}
+            </p>
+          </div>
+
+          {/* Last Synchronized */}
+          <div style={{ background: "#FFFFFF", padding: "0.75rem 1rem", borderRadius: "8px", border: "1px solid #E2E8F0" }}>
+            <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "#64748B", textTransform: "uppercase" }}>
+              Last Heartbeat
+            </span>
+            <p style={{ margin: "4px 0 0", fontWeight: 600, fontSize: "0.825rem", color: "#0F172A" }}>
+              {formattedLastSync}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: "0.725rem", color: act.status === "Active" ? "#059669" : "#64748B" }}>
+              {act.status === "Active" ? "● Streaming Live" : "Offline"}
+            </p>
+          </div>
+        </div>
+
+        {/* Tab Selection */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "0 1.5rem",
+            borderBottom: "1px solid #E5E7EB",
+            background: "#FFFFFF",
+          }}
+        >
+          <button
+            onClick={() => setActiveTab("timeline")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              padding: "0.85rem 1rem",
+              background: "none",
+              border: "none",
+              borderBottom: activeTab === "timeline" ? "2px solid #1A56DB" : "2px solid transparent",
+              color: activeTab === "timeline" ? "#1A56DB" : "#64748B",
+              fontSize: "0.85rem",
+              fontWeight: activeTab === "timeline" ? 700 : 500,
+              cursor: "pointer",
+            }}
+          >
+            <Clock size={15} />
+            <span>Activity Timeline ({history.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("apps")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.45rem",
+              padding: "0.85rem 1rem",
+              background: "none",
+              border: "none",
+              borderBottom: activeTab === "apps" ? "2px solid #1A56DB" : "2px solid transparent",
+              color: activeTab === "apps" ? "#1A56DB" : "#64748B",
+              fontSize: "0.85rem",
+              fontWeight: activeTab === "apps" ? 700 : 500,
+              cursor: "pointer",
+            }}
+          >
+            <BarChart2 size={15} />
+            <span>Application Breakdown ({sortedApps.length})</span>
+          </button>
+        </div>
+
+        {/* Tab 1: Timeline Body */}
+        {activeTab === "timeline" && (
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+            {/* Search Bar */}
+            <div
+              style={{
+                padding: "0.75rem 1.5rem",
+                borderBottom: "1px solid #F1F5F9",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: "6px",
+                  padding: "0.45rem 0.75rem",
+                  flex: 1,
+                  maxWidth: "380px",
+                }}
+              >
+                <Search size={14} color="#94A3B8" />
+                <input
+                  type="text"
+                  placeholder="Filter by app or window title..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    background: "transparent",
+                    fontSize: "0.825rem",
+                    width: "100%",
+                    color: "#0F172A",
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", padding: 0 }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+              <span style={{ fontSize: "0.75rem", color: "#64748B" }}>
+                Showing {filteredHistory.length} events from the last 7 days
+              </span>
+            </div>
+
+            {/* Timeline Rows */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "0.75rem 1.5rem" }}>
+              {filteredHistory.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#64748B" }}>
+                  <AppWindow size={32} color="#94A3B8" style={{ margin: "0 auto 0.75rem" }} />
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: "0.9rem" }}>No activity logs found</p>
+                  <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#94A3B8" }}>
+                    {searchTerm ? "Try clearing your search filter." : "The desktop agent will record activity events as the user works."}
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                  {filteredHistory.map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0.75rem 1rem",
+                        background: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                        gap: "1rem",
+                        transition: "background-color 0.15s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F8FAFC")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FFFFFF")}
+                    >
+                      {/* Left: App icon & Title */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: "6px",
+                            background: "#EEF2FF",
+                            color: "#1A56DB",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <AppWindow size={16} />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                fontSize: "0.85rem",
+                                color: "#0F172A",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {item.app}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: "2px 0 0",
+                              fontSize: "0.8rem",
+                              color: "#475569",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={item.title}
+                          >
+                            {item.title || "Unknown window title"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right: Timestamp & Duration */}
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.35rem",
+                            fontSize: "0.78rem",
+                            fontWeight: 600,
+                            color: "#1E293B",
+                          }}
+                        >
+                          <Clock size={12} color="#64748B" />
+                          <span>{formatHistoryTimestamp(item)}</span>
+                        </div>
+                        {item.durationSeconds && item.durationSeconds > 0 ? (
+                          <p
+                            style={{
+                              margin: "2px 0 0",
+                              fontSize: "0.72rem",
+                              color: "#059669",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Active: {formatDuration(item.durationSeconds)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: App Breakdown Body */}
+        {activeTab === "apps" && (
+          <div style={{ flex: 1, overflowY: "auto", padding: "1rem 1.5rem" }}>
+            {sortedApps.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#64748B" }}>
+                <BarChart2 size={32} color="#94A3B8" style={{ margin: "0 auto 0.75rem" }} />
+                <p style={{ margin: 0, fontWeight: 600, fontSize: "0.9rem" }}>No application usage data yet</p>
+                <p style={{ margin: "4px 0 0", fontSize: "0.8rem", color: "#94A3B8" }}>
+                  Usage seconds will accumulate as the workstation agent syncs with the server.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                {sortedApps.map(([app, seconds], idx) => {
+                  const pct = Math.min(100, Math.round((seconds / totalTrackedSeconds) * 100));
+                  const isProductive =
+                    app.includes("code") ||
+                    app.includes("photoshop") ||
+                    app.includes("premiere") ||
+                    app.includes("chrome") ||
+                    app.includes("edge") ||
+                    app.includes("brave");
+
+                  return (
+                    <div
+                      key={app}
+                      style={{
+                        padding: "0.85rem 1rem",
+                        background: "#FFFFFF",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              color: "#94A3B8",
+                              width: "20px",
+                            }}
+                          >
+                            #{idx + 1}
+                          </span>
+                          <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0F172A", fontFamily: "monospace" }}>
+                            {app}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "0.68rem",
+                              fontWeight: 700,
+                              padding: "0.15rem 0.45rem",
+                              borderRadius: "4px",
+                              background: isProductive ? "#ECFDF5" : "#F1F5F9",
+                              color: isProductive ? "#059669" : "#64748B",
+                            }}
+                          >
+                            {isProductive ? "Productive" : "General"}
+                          </span>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "#0F172A" }}>
+                            {formatDuration(seconds)}
+                          </span>
+                          <span style={{ fontSize: "0.75rem", color: "#64748B", marginLeft: "6px" }}>
+                            ({pct}%)
+                          </span>
+                        </div>
+                      </div>
+                      {/* Bar */}
+                      <div style={{ width: "100%", height: 6, borderRadius: 999, background: "#F1F5F9", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: "100%",
+                            background: isProductive ? "#059669" : "#6366F1",
+                            borderRadius: 999,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal Footer */}
+        <div
+          style={{
+            padding: "0.85rem 1.5rem",
+            borderTop: "1px solid #E5E7EB",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: "#FAFAFA",
+          }}
+        >
+          <span style={{ fontSize: "0.75rem", color: "#64748B" }}>
+            ℹ Activity history is automatically retained for 7 days (1 week) and pruned thereafter.
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "0.45rem 1.1rem",
+              background: "#FFFFFF",
+              border: "1px solid #D1D5DB",
+              borderRadius: "6px",
+              color: "#374151",
+              fontSize: "0.825rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -514,6 +1226,9 @@ function MonitorContent() {
   const [activities, setActivities] = useState<PCActivity[]>([]);
   const [lastSync, setLastSync] = useState<string>("");
   const [showAgentModal, setShowAgentModal] = useState(false);
+  const [selectedActivityId, setSelectedActivityId] = useState<number | string | null>(null);
+
+  const selectedActivity = activities.find((a) => a.id === selectedActivityId) || null;
 
   const fetchActivities = async () => {
     try {
@@ -749,10 +1464,20 @@ function MonitorContent() {
           }}
         >
           {activities.map((act) => (
-            <AgentCard key={act.id} act={act} />
+            <AgentCard
+              key={act.id}
+              act={act}
+              onExpand={(target) => setSelectedActivityId(target.id)}
+            />
           ))}
         </div>
       )}
+
+      {/* Expanded Activity Modal (7-Day History) */}
+      <ActivityDetailModal
+        act={selectedActivity}
+        onClose={() => setSelectedActivityId(null)}
+      />
 
       {/* Desktop Agent Modal */}
       <DesktopAgentModal
