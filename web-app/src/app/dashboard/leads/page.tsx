@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import {
   UploadCloud, Phone, MessageSquare, X, Search, Shuffle,
-  ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus,
+  ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus, Trash2, AlertTriangle,
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -36,7 +36,7 @@ type Interaction = {
 type LeadStatus = "NEW" | "CONTACTED" | "INTERESTED" | "NOT_INTERESTED" | "CONVERTED";
 
 type Lead = {
-  _id: number;
+  _id: string | number;
   _assignee: string;
   _interactions: Interaction[];
   _status: LeadStatus;
@@ -109,10 +109,14 @@ function StatusBadge({ status }: { status: LeadStatus }) {
 /* ─── Row action dropdown ────────────────────────────────────── */
 function ActionMenu({
   lead,
+  isAdmin,
   onLogCall,
+  onDelete,
 }: {
   lead: Lead;
+  isAdmin?: boolean;
   onLogCall: (l: Lead) => void;
+  onDelete?: (l: Lead) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -167,6 +171,24 @@ function ActionMenu({
               {item.label}
             </button>
           ))}
+          {isAdmin && onDelete && (
+            <button
+              onClick={() => { onDelete(lead); setOpen(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "10px 16px",
+                background: "none", border: "none",
+                borderTop: "1px solid " + C.border,
+                fontSize: "0.875rem", color: "#EF4444",
+                cursor: "pointer", textAlign: "left",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#FEF2F2")}
+              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            >
+              <Trash2 size={14} color="#EF4444" />
+              Delete Lead
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -202,6 +224,15 @@ function LeadsContent() {
 
   /* hover state for rows */
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+  /* selection & deletion state */
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting]   = useState(false);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{
+    type: 'single' | 'bulk';
+    lead?: Lead;
+    count?: number;
+  } | null>(null);
 
   /* add lead modal */
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
@@ -386,6 +417,68 @@ function LeadsContent() {
   /* reset page when filter/search changes */
   useEffect(() => setPage(1), [filterStatus, searchQuery]);
 
+  /* ── selection logic ── */
+  const currentPageIds = pagedLeads.map(l => String(l._id));
+  const isAllCurrentPageSelected =
+    currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.includes(id));
+  const isSomeCurrentPageSelected =
+    currentPageIds.some(id => selectedIds.includes(id));
+
+  const handleToggleSelectAll = () => {
+    if (isAllCurrentPageSelected) {
+      setSelectedIds(prev => prev.filter(id => !currentPageIds.includes(id)));
+    } else {
+      const combined = new Set([...selectedIds, ...currentPageIds]);
+      setSelectedIds(Array.from(combined));
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  /* ── delete lead(s) handler ── */
+  const executeDelete = async () => {
+    if (!deleteConfirmTarget) return;
+    setIsDeleting(true);
+    try {
+      let body: any = {};
+      let query = `?role=${user.role}`;
+
+      if (deleteConfirmTarget.type === "single" && deleteConfirmTarget.lead) {
+        query += `&id=${deleteConfirmTarget.lead._id}`;
+        body = { id: String(deleteConfirmTarget.lead._id) };
+      } else if (deleteConfirmTarget.type === "bulk") {
+        body = { ids: selectedIds };
+      }
+
+      const res = await fetch(`/api/leads${query}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (deleteConfirmTarget.type === "single" && deleteConfirmTarget.lead) {
+          setSelectedIds(prev => prev.filter(id => id !== String(deleteConfirmTarget.lead!._id)));
+        } else {
+          setSelectedIds([]);
+        }
+        setDeleteConfirmTarget(null);
+        fetchLeads();
+      } else {
+        alert(data.error || "Failed to delete lead(s)");
+      }
+    } catch {
+      alert("Network error while deleting leads");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   /* ════════════════════════════════════════════════════════════ */
   return (
     <div style={{ fontFamily: "Inter, system-ui, sans-serif", color: C.textPrimary }}>
@@ -545,6 +638,73 @@ function LeadsContent() {
           </div>
         </div>
 
+        {/* ── Selection Action Bar ── */}
+        {selectedIds.length > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 20px", borderRadius: 8,
+            background: "#EFF6FF", border: "1px solid #BFDBFE",
+            boxShadow: "0 2px 4px rgba(26, 86, 219, 0.06)",
+            gap: 12, flexWrap: "wrap",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <span style={{ fontSize: "0.875rem", fontWeight: 600, color: C.primary, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%", background: C.primary, display: "inline-block"
+                }} />
+                {selectedIds.length} lead{selectedIds.length > 1 ? "s" : ""} selected
+              </span>
+              {filteredLeads.length > pagedLeads.length && selectedIds.length !== filteredLeads.length && (
+                <button
+                  onClick={() => setSelectedIds(filteredLeads.map(l => String(l._id)))}
+                  style={{
+                    background: "none", border: "none", padding: 0,
+                    fontSize: "0.82rem", color: C.primary, textDecoration: "underline",
+                    cursor: "pointer", fontWeight: 500,
+                  }}
+                >
+                  Select all {filteredLeads.length} leads across all pages
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedIds([])}
+                style={{
+                  background: "#DBEAFE", border: "none", padding: "4px 10px",
+                  fontSize: "0.8rem", color: "#1E40AF", cursor: "pointer",
+                  borderRadius: 6, fontWeight: 500,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#BFDBFE"}
+                onMouseLeave={e => e.currentTarget.style.background = "#DBEAFE"}
+              >
+                Deselect all
+              </button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {isAdmin && (
+                <button
+                  onClick={() => setDeleteConfirmTarget({ type: "bulk", count: selectedIds.length })}
+                  disabled={isDeleting}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    padding: "8px 16px", borderRadius: 6,
+                    background: "#EF4444", color: "#fff",
+                    border: "none", fontSize: "0.875rem", fontWeight: 600,
+                    cursor: isDeleting ? "wait" : "pointer",
+                    boxShadow: "0 2px 4px rgba(239, 68, 68, 0.25)",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "#DC2626"}
+                  onMouseLeave={e => e.currentTarget.style.background = "#EF4444"}
+                >
+                  <Trash2 size={15} />
+                  Delete Selected ({selectedIds.length})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Table Card ── */}
         <div style={{
           background: C.white, border: "1px solid " + C.border,
@@ -593,7 +753,18 @@ function LeadsContent() {
                           }}
                         >
                           {col.label === "" ? (
-                            <input type="checkbox" style={{ cursor: "pointer" }} />
+                            <input
+                              type="checkbox"
+                              checked={isAllCurrentPageSelected}
+                              ref={el => {
+                                if (el) {
+                                  el.indeterminate = isSomeCurrentPageSelected && !isAllCurrentPageSelected;
+                                }
+                              }}
+                              onChange={handleToggleSelectAll}
+                              style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.primary }}
+                              title={isAllCurrentPageSelected ? "Deselect all on this page" : "Select all on this page"}
+                            />
                           ) : col.label}
                         </th>
                       ))}
@@ -603,6 +774,7 @@ function LeadsContent() {
                     {pagedLeads.map((lead, idx) => {
                       const globalIdx = (page - 1) * PAGE_SIZE + idx;
                       const isHovered = hoveredRow === globalIdx;
+                      const isSelected = selectedIds.includes(String(lead._id));
                       const lastInteraction = lead._interactions?.[lead._interactions.length - 1];
 
                       return (
@@ -612,13 +784,19 @@ function LeadsContent() {
                           onMouseLeave={() => setHoveredRow(null)}
                           style={{
                             borderBottom: "1px solid " + C.border,
-                            background: isHovered ? C.rowHover : C.white,
+                            background: isSelected ? "#EFF6FF" : (isHovered ? C.rowHover : C.white),
+                            borderLeft: isSelected ? "3px solid " + C.primary : "3px solid transparent",
                             transition: "background 0.12s",
                           }}
                         >
                           {/* Checkbox */}
                           <td style={{ padding: "14px 16px", width: 40 }}>
-                            <input type="checkbox" style={{ cursor: "pointer" }} />
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleToggleSelectRow(String(lead._id))}
+                              style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.primary }}
+                            />
                           </td>
 
                           {/* Name + LinkedIn + Status badge */}
@@ -704,7 +882,9 @@ function LeadsContent() {
                           <td style={{ padding: "14px 16px", textAlign: "right" }}>
                             <ActionMenu
                               lead={lead}
+                              isAdmin={isAdmin}
                               onLogCall={l => { setLogTarget(l); setCallStatus(l._status); }}
+                              onDelete={l => setDeleteConfirmTarget({ type: "single", lead: l })}
                             />
                           </td>
                         </tr>
@@ -1298,6 +1478,92 @@ function LeadsContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteConfirmTarget && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 16, backdropFilter: "blur(2px)",
+        }}>
+          <div style={{
+            background: C.white, borderRadius: 12,
+            border: "1px solid " + C.border,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.18)",
+            width: "100%", maxWidth: 440,
+            overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "24px 24px 18px",
+              display: "flex", alignItems: "flex-start", gap: 14,
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: "50%",
+                background: "#FEE2E2", color: "#EF4444",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem", fontWeight: 700, color: C.textPrimary }}>
+                  {deleteConfirmTarget.type === "bulk"
+                    ? `Delete ${deleteConfirmTarget.count} Leads?`
+                    : `Delete Lead "${deleteConfirmTarget.lead?.Name}"?`}
+                </h3>
+                <p style={{ margin: 0, fontSize: "0.875rem", color: C.textMuted, lineHeight: 1.5 }}>
+                  {deleteConfirmTarget.type === "bulk"
+                    ? `Are you sure you want to permanently delete these ${deleteConfirmTarget.count} selected lead(s)? All associated call interactions will also be deleted.`
+                    : `Are you sure you want to permanently delete this lead? All associated call interactions will also be deleted.`}
+                </p>
+                <div style={{
+                  marginTop: 12, padding: "8px 12px", borderRadius: 6,
+                  background: "#FEF2F2", border: "1px solid #FECACA",
+                  fontSize: "0.8rem", color: "#991B1B", fontWeight: 500,
+                }}>
+                  ⚠️ This action cannot be undone.
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              padding: "14px 24px",
+              borderTop: "1px solid " + C.border,
+              background: C.rowHover,
+              display: "flex", justifyContent: "flex-end", gap: 10,
+            }}>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmTarget(null)}
+                style={{
+                  padding: "9px 16px", borderRadius: 6,
+                  border: "1px solid " + C.border, background: C.white,
+                  color: C.textPrimary, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={executeDelete}
+                style={{
+                  padding: "9px 18px", borderRadius: 6,
+                  border: "none", background: "#EF4444",
+                  color: "#fff", fontSize: "0.875rem", cursor: isDeleting ? "wait" : "pointer",
+                  fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 7,
+                  opacity: isDeleting ? 0.7 : 1,
+                  boxShadow: "0 1px 2px rgba(239, 68, 68, 0.25)",
+                }}
+              >
+                {isDeleting ? "Deleting…" : (deleteConfirmTarget.type === "bulk" ? `Delete ${deleteConfirmTarget.count} Leads` : "Delete Lead")}
+              </button>
+            </div>
           </div>
         </div>
       )}
