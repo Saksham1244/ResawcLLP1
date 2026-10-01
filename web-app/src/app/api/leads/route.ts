@@ -61,6 +61,53 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    // 1. Single lead creation
+    if (body.name) {
+      const { name, company, phone, email, notes, assignedToId, status } = body;
+      const newLead = await prisma.lead.create({
+        data: {
+          name: name.trim(),
+          company: company?.trim() || null,
+          phone: phone ? String(phone).trim() : null,
+          email: email?.trim() || null,
+          notes: notes?.trim() || null,
+          status: status || 'NEW',
+          assignedToId: assignedToId || null,
+        },
+        include: {
+          assignedTo: { select: { name: true } },
+          interactions: true,
+        }
+      });
+
+      if (assignedToId) {
+        try {
+          await prisma.notification.create({
+            data: {
+              userId: assignedToId,
+              text: `A new lead (${name}) has been assigned to you.`
+            }
+          });
+        } catch (e) {}
+      }
+
+      const mappedLead = {
+        _id: newLead.id,
+        _assignee: newLead.assignedTo?.name || 'Unassigned',
+        _status: newLead.status,
+        Name: newLead.name,
+        Company: newLead.company || '',
+        Phone: newLead.phone || '',
+        Email: newLead.email || '',
+        Notes: newLead.notes || '',
+        _interactions: []
+      };
+
+      return NextResponse.json({ success: true, lead: mappedLead });
+    }
+
+    // 2. Bulk lead distribution
     const { leads, teamIds } = body; 
     // leads: array of { Name, Company, Phone, Email, Notes }
     // teamIds: array of marketing user IDs to distribute across

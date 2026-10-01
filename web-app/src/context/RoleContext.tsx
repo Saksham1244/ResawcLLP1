@@ -13,8 +13,6 @@ export type CurrentUser = {
   token?: string;
 };
 
-// Passwords and hardcoded users have been removed for security.
-
 type RoleContextType = {
   user: CurrentUser | null;
   login: (user: CurrentUser, token: string) => void;
@@ -29,9 +27,105 @@ const RoleContext = createContext<RoleContextType>({
   isHydrated: false,
 });
 
+// Extend Window interface for original fetch reference
+declare global {
+  interface Window {
+    __originalFetch?: typeof window.fetch;
+  }
+}
+
+/**
+ * Universal fetch with exponential backoff retry on HTTP 429 (Rate Limit) & network errors
+ */
+export async function fetchWithExponentialBackoff(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  token?: string | null,
+  maxRetries: number = 4
+): Promise<Response> {
+  const originalFetch =
+    typeof window !== "undefined" && window.__originalFetch
+      ? window.__originalFetch
+      : fetch;
+
+  let attempt = 0;
+  const baseDelayMs = 1000;
+
+  const config: RequestInit = { ...init };
+  if (
+    typeof input === "string" &&
+    input.startsWith("/api/") &&
+    !input.startsWith("/api/auth") &&
+    token
+  ) {
+    config.headers = {
+      ...config.headers,
+      Authorization: `Bearer ${token}`,
+    };
+  }
+
+  while (attempt <= maxRetries) {
+    try {
+      const response = await originalFetch(input, config);
+
+      // Handle HTTP 429 Too Many Requests with Exponential Backoff
+      if (response.status === 429) {
+        attempt++;
+        if (attempt > maxRetries) {
+          console.warn(`[RateLimit] Max retries (${maxRetries}) exceeded for ${String(input)}`);
+          return response;
+        }
+
+        const retryAfterHeader = response.headers.get("Retry-After");
+        const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null;
+        const jitter = Math.random() * 200;
+        const delayMs =
+          retryAfterSec && !isNaN(retryAfterSec)
+            ? retryAfterSec * 1000 + jitter
+            : baseDelayMs * Math.pow(2, attempt - 1) + jitter;
+
+        console.warn(
+          `[RateLimit] 429 received on ${String(input)}. Exponential backoff: waiting ${Math.round(
+            delayMs
+          )}ms (retry ${attempt}/${maxRetries})...`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      return response;
+    } catch (networkError) {
+      attempt++;
+      if (attempt > maxRetries) throw networkError;
+
+      const delayMs = baseDelayMs * Math.pow(2, attempt - 1) + Math.random() * 200;
+      console.warn(
+        `[Network] Request failed for ${String(input)}. Exponential backoff: retrying in ${Math.round(
+          delayMs
+        )}ms...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return originalFetch(input, config);
+}
+
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  const setupFetchInterceptor = (token: string | null) => {
+    if (typeof window === "undefined") return;
+    if (!window.__originalFetch) {
+      window.__originalFetch = window.fetch;
+    }
+
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+      return fetchWithExponentialBackoff(input, init, token);
+    };
+  };
 
   useEffect(() => {
     const storedEmail = localStorage.getItem("userEmail");
@@ -39,7 +133,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     const storedName = localStorage.getItem("userName");
     const storedId = localStorage.getItem("userId");
     const storedToken = localStorage.getItem("authToken");
-    
+
     if (storedEmail && storedRole && storedName && storedToken) {
       setUser({
         id: storedId || `db-user-${storedEmail}`,
@@ -47,24 +141,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         role: storedRole,
         name: storedName,
         initials: storedName.substring(0, 2).toUpperCase(),
-        token: storedToken
+        token: storedToken,
       });
-      
-      // Setup global fetch interceptor to automatically add the Authorization header
-      const originalFetch = window.fetch;
-      window.fetch = async (...args) => {
-        let [resource, config] = args;
-        if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.startsWith('/api/auth')) {
-          config = config || {};
-          config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${storedToken}`
-          };
-        }
-        return originalFetch(resource, config);
-      };
+
+      setupFetchInterceptor(storedToken);
     } else {
       setUser(null);
+      setupFetchInterceptor(null);
     }
     setIsHydrated(true);
   }, []);
@@ -78,18 +161,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("authToken", token);
     if (userData.id) localStorage.setItem("userId", userData.id);
 
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      let [resource, config] = args;
-      if (typeof resource === 'string' && resource.startsWith('/api/') && !resource.startsWith('/api/auth')) {
-        config = config || {};
-        config.headers = {
-          ...config.headers,
-          'Authorization': `Bearer ${token}`
-        };
-      }
-      return originalFetch(resource, config);
-    };
+    setupFetchInterceptor(token);
   };
 
   const logout = () => {
@@ -99,6 +171,8 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("userName");
     localStorage.removeItem("userId");
     localStorage.removeItem("authToken");
+
+    setupFetchInterceptor(null);
   };
 
   return (

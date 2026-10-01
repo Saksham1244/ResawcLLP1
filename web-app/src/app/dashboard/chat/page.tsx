@@ -114,7 +114,7 @@ export default function ChatSystem() {
 
   const sendMessage = async () => {
     if (!text.trim() || !activeId || !user?.id) return;
-    
+
     // Optimistic UI update
     const tempMsg: MessageType = { id: Date.now().toString(), sender: { id: user.id, name: user.name }, createdAt: new Date().toISOString(), text: text.trim() };
     setMessages(prev => [...prev, tempMsg]);
@@ -134,9 +134,9 @@ export default function ChatSystem() {
 
   const createConversation = async () => {
     if (selectedMembers.length === 0 || !user?.id) return;
-    
+
     const memberIds = [...selectedMembers, user.id];
-    
+
     try {
       const res = await fetch('/api/chat/conversations', {
         method: 'POST',
@@ -166,59 +166,82 @@ export default function ChatSystem() {
     );
   };
 
-  if (!user) return <div style={{ padding: '2rem' }}>Loading chat...</div>;
+  if (!user) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6B7280', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      Loading chat...
+    </div>
+  );
 
   return (
-    <div className="animate-fadeIn" style={{ display: 'flex', height: 'calc(100vh - 120px)', gap: '1.25rem' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 120px)', background: '#F5F7FB', fontFamily: 'Inter, system-ui, sans-serif', borderRadius: '8px', overflow: 'hidden', border: '1px solid #E5E7EB' }}>
 
-      {/* Contacts Sidebar */}
-      <div className="glass-card" style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '1rem', gap: '0.75rem' }}>
+      {/* ── LEFT PANEL: Conversation List ── */}
+      <div style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#fff', borderRight: '1px solid #E5E7EB' }}>
 
-        <div className="flex-between">
-          <h2 className="font-bold" style={{ fontSize: '1rem' }}>Messages</h2>
-          <button className="btn btn-primary" style={{ width: '32px', height: '32px', padding: 0, borderRadius: 'var(--radius-sm)' }} onClick={() => setShowNewModal(true)}>
-            <Plus size={16} />
+        {/* Header */}
+        <div style={{ padding: '1.25rem 1rem 1rem', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#111827', margin: 0 }}>Messages</h2>
+          <button
+            onClick={() => setShowNewModal(true)}
+            style={{ width: '32px', height: '32px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: '#1A56DB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <Plus size={15} />
           </button>
         </div>
 
         {/* Search */}
-        <div style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary-foreground)' }} />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search chats..."
-            className="input" style={{ paddingLeft: '2rem', fontSize: '0.8rem', padding: '0.5rem 0.7rem 0.5rem 2rem' }} />
+        <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid #E5E7EB' }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search chats..."
+              style={{ width: '100%', padding: '0.5rem 0.75rem 0.5rem 2rem', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '6px', outline: 'none', background: '#F9FAFB', color: '#111827', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+          </div>
         </div>
 
-        {/* Contact List */}
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {conversations.length === 0 && <p className="text-xs text-muted" style={{ padding: '1rem', textAlign: 'center' }}>No conversations yet. Start one!</p>}
+        {/* Conversation List */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {conversations.length === 0 && (
+            <p style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '13px', color: '#9CA3AF' }}>No conversations yet. Start one!</p>
+          )}
           {filteredContacts.map(c => {
             const isActive = c.id === activeId;
             const name = getConversationName(c);
             const color = getAvatarColor(name);
+            const lastMsg = c.messages?.[0]?.text || (c.type === 'CHANNEL' ? 'Channel' : c.type === 'GROUP' ? 'Group' : 'Direct Message');
+
             return (
-              <div key={c.id} onClick={() => setActiveId(c.id)}
+              <div
+                key={c.id}
+                onClick={() => setActiveId(c.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                  background: isActive ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'transparent',
-                  boxShadow: isActive ? '0 4px 14px var(--primary-glow)' : 'none',
-                  transition: 'all var(--transition-fast)',
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.75rem 1rem', cursor: 'pointer',
+                  background: isActive ? '#EFF6FF' : 'transparent',
+                  borderLeft: isActive ? '3px solid #1A56DB' : '3px solid transparent',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = '#F9FAFB'; }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+              >
+                {/* Avatar */}
+                <div style={{
+                  width: '38px', height: '38px', flexShrink: 0,
+                  borderRadius: c.type === 'CHANNEL' ? '6px' : c.type === 'GROUP' ? '10px' : '50%',
+                  background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 700, fontSize: '13px', color: '#fff',
                 }}>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{
-                    width: '36px', height: '36px', flexShrink: 0,
-                    borderRadius: c.type === 'CHANNEL' ? 'var(--radius-sm)' : c.type === 'GROUP' ? '10px' : '50%',
-                    background: isActive ? 'rgba(255,255,255,0.25)' : `linear-gradient(135deg, ${color}, ${color}99)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: '0.75rem', color: '#fff',
-                  }}>
-                    {c.type === 'CHANNEL' ? <Hash size={16} /> : c.type === 'GROUP' ? <Users size={16} /> : getInitials(name)}
-                  </div>
+                  {c.type === 'CHANNEL' ? <Hash size={15} /> : c.type === 'GROUP' ? <Users size={15} /> : getInitials(name)}
                 </div>
+
+                {/* Name + Preview */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p className="text-sm font-semibold" style={{ color: isActive ? '#fff' : 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
-                  <p style={{ fontSize: '0.7rem', color: isActive ? 'rgba(255,255,255,0.7)' : 'var(--secondary-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {c.messages?.[0] ? c.messages[0].text : c.type}
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: isActive ? '#1A56DB' : '#111827', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</p>
+                  <p style={{ fontSize: '12px', color: '#6B7280', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
+                    {lastMsg}
                   </p>
                 </div>
               </div>
@@ -227,133 +250,199 @@ export default function ChatSystem() {
         </div>
       </div>
 
-      {/* Chat Window */}
-      {activeContact && (
-        <div className="glass-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+      {/* ── RIGHT PANEL ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#fff', minWidth: 0 }}>
 
-          {/* Header */}
-          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--surface-border)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-            <div style={{
-              width: '40px', height: '40px', borderRadius: activeContact.type === 'CHANNEL' ? 'var(--radius-sm)' : activeContact.type === 'GROUP' ? '12px' : '50%',
-              background: `linear-gradient(135deg, ${getAvatarColor(getConversationName(activeContact))}, var(--primary))`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#fff', flexShrink: 0,
-            }}>
-              {activeContact.type === 'CHANNEL' ? <Hash size={18} /> : activeContact.type === 'GROUP' ? <Users size={18} /> : getInitials(getConversationName(activeContact))}
+        {!activeContact ? (
+          /* Empty State */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: '#6B7280' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Users size={28} color="#1A56DB" />
             </div>
-            <div>
-              <h3 className="font-bold text-sm">{getConversationName(activeContact)}</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--secondary-foreground)' }}>
-                {activeContact.type === 'CHANNEL' ? 'All Team' : activeContact.type === 'GROUP' ? `${activeContact.participants.length} members` : 'Direct Message'}
-              </p>
-            </div>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Select a conversation</p>
+            <p style={{ fontSize: '13px', color: '#9CA3AF', margin: 0 }}>Choose from the left or start a new chat</p>
           </div>
-
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {messages.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--secondary-foreground)', marginTop: '4rem' }}>
-                <p className="text-sm">No messages yet. Say hello! 👋</p>
+        ) : (
+          <>
+            {/* Top Bar */}
+            <div style={{ padding: '0.9rem 1.25rem', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0, background: '#fff' }}>
+              <div style={{
+                width: '38px', height: '38px', flexShrink: 0,
+                borderRadius: activeContact.type === 'CHANNEL' ? '6px' : activeContact.type === 'GROUP' ? '10px' : '50%',
+                background: getAvatarColor(getConversationName(activeContact)),
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#fff', fontSize: '13px',
+              }}>
+                {activeContact.type === 'CHANNEL' ? <Hash size={16} /> : activeContact.type === 'GROUP' ? <Users size={16} /> : getInitials(getConversationName(activeContact))}
               </div>
-            )}
-            {messages.map(m => {
-              const isMe = m.sender.id === user.id;
-              const color = getAvatarColor(m.sender.name);
-              const dateObj = new Date(m.createdAt);
-              const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-              const dateString = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-              
-              return (
-                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: '0.3rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {!isMe && (
-                      <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: `linear-gradient(135deg, ${color}, ${color}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                        {getInitials(m.sender.name)}
-                      </div>
-                    )}
-                    <span className="text-xs font-semibold">{isMe ? "You" : m.sender.name}</span>
-                    <span className="text-xs text-muted">{dateString} at {timeString}</span>
-                  </div>
-                  <div style={{
-                    background: isMe ? 'linear-gradient(135deg, var(--primary), var(--primary-hover))' : 'var(--secondary)',
-                    color: isMe ? '#fff' : 'var(--foreground)',
-                    padding: '0.6rem 1rem', borderRadius: isMe ? '1rem 1rem 0.25rem 1rem' : '1rem 1rem 1rem 0.25rem',
-                    maxWidth: '65%', lineHeight: 1.5, fontSize: '0.875rem',
-                    boxShadow: isMe ? '0 4px 12px var(--primary-glow)' : 'var(--shadow-sm)',
-                    wordBreak: 'break-word'
-                  }}>
-                    {renderMessageText(m.text)}
-                  </div>
-                </div>
-              );
-            })}
-            <div ref={bottomRef} />
-          </div>
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: 0 }}>{getConversationName(activeContact)}</p>
+                <p style={{ fontSize: '12px', color: '#6B7280', margin: 0 }}>
+                  {activeContact.type === 'CHANNEL' ? 'All Team' : activeContact.type === 'GROUP' ? `${activeContact.participants.length} members` : 'Direct Message'}
+                </p>
+              </div>
+            </div>
 
-          {/* Input */}
-          <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--surface-border)', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--overlay-bg)', padding: '0.4rem 0.4rem 0.4rem 1rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--surface-border)', transition: 'border-color var(--transition-fast)' }}>
-              <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
-                placeholder={`Message ${getConversationName(activeContact)}...`}
-                style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--foreground)', outline: 'none', fontSize: '0.875rem' }} />
-              <button onClick={sendMessage} disabled={!text.trim()} className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)', width: '38px', height: '38px', padding: 0, flexShrink: 0, opacity: !text.trim() ? 0.5 : 1 }}>
-                <Send size={16} />
+            {/* Message List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#F5F7FB' }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#9CA3AF', marginTop: '3rem' }}>
+                  <p style={{ fontSize: '14px', margin: 0 }}>No messages yet. Say hello! 👋</p>
+                </div>
+              )}
+              {messages.map(m => {
+                const isMe = m.sender.id === user.id;
+                const color = getAvatarColor(m.sender.name);
+                const dateObj = new Date(m.createdAt);
+                const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateString = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+                return (
+                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: '4px' }}>
+                    {/* Sender name + time */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {!isMe && (
+                        <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {getInitials(m.sender.name)}
+                        </div>
+                      )}
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{isMe ? 'You' : m.sender.name}</span>
+                      <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{dateString} · {timeString}</span>
+                    </div>
+
+                    {/* Bubble */}
+                    <div style={{
+                      background: isMe ? '#1A56DB' : '#fff',
+                      color: isMe ? '#fff' : '#111827',
+                      padding: '0.55rem 0.9rem',
+                      borderRadius: isMe ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                      maxWidth: '60%', lineHeight: 1.55, fontSize: '14px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                      border: isMe ? 'none' : '1px solid #E5E7EB',
+                      wordBreak: 'break-word',
+                    }}>
+                      {renderMessageText(m.text)}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input Bar */}
+            <div style={{ padding: '0.85rem 1.25rem', borderTop: '1px solid #E5E7EB', flexShrink: 0, background: '#fff' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0.4rem 0.4rem 0.4rem 0.85rem' }}>
+                <input
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), sendMessage())}
+                  placeholder={`Message ${getConversationName(activeContact)}...`}
+                  style={{ flex: 1, background: 'transparent', border: 'none', color: '#111827', outline: 'none', fontSize: '14px', fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!text.trim()}
+                  style={{
+                    width: '36px', height: '36px', borderRadius: '6px', border: 'none', cursor: text.trim() ? 'pointer' : 'not-allowed',
+                    background: text.trim() ? '#1A56DB' : '#E5E7EB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, transition: 'background 0.15s',
+                  }}
+                >
+                  <Send size={15} />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── New Conversation Modal ── */}
+      {showNewModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={() => setShowNewModal(false)}
+        >
+          <div
+            style={{ width: '100%', maxWidth: '420px', background: '#fff', borderRadius: '8px', border: '1px solid #E5E7EB', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: 0 }}>New Conversation</h2>
+              <button onClick={() => setShowNewModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', display: 'flex', padding: '4px' }}>
+                <X size={18} />
               </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* New Conversation Modal */}
-      {showNewModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setShowNewModal(false)}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '420px', padding: '1.75rem' }} onClick={e => e.stopPropagation()}>
-            <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-              <h2 className="font-bold">New Conversation</h2>
-              <button className="btn btn-ghost" style={{ padding: '0.3rem' }} onClick={() => setShowNewModal(false)}><X size={18} /></button>
-            </div>
-            
             {/* Type Toggle */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'var(--secondary)', borderRadius: 'var(--radius-sm)', padding: '0.25rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: '#F3F4F6', borderRadius: '6px', padding: '3px' }}>
               {(["direct", "group"] as const).map(t => (
-                <button key={t} onClick={() => { setNewType(t); setSelectedMembers([]); }}
-                  className={newType === t ? "btn btn-primary" : "btn btn-ghost"}
-                  style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', textTransform: 'capitalize', gap: '0.4rem' }}>
-                  {t === 'direct' ? <><Users size={14} /> Direct Message</> : <><Users size={14} /> Group Chat</>}
+                <button
+                  key={t}
+                  onClick={() => { setNewType(t); setSelectedMembers([]); }}
+                  style={{
+                    flex: 1, padding: '0.45rem 0.5rem', fontSize: '13px', fontWeight: 600,
+                    borderRadius: '5px', border: 'none', cursor: 'pointer',
+                    background: newType === t ? '#1A56DB' : 'transparent',
+                    color: newType === t ? '#fff' : '#6B7280',
+                    transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <Users size={13} />
+                  {t === 'direct' ? 'Direct Message' : 'Group Chat'}
                 </button>
               ))}
             </div>
 
             {newType === 'group' && (
-              <input className="input" placeholder="Group name (optional)" value={groupName} onChange={e => setGroupName(e.target.value)} style={{ marginBottom: '1rem' }} />
+              <input
+                placeholder="Group name (optional)"
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+                style={{ width: '100%', padding: '0.6rem 0.75rem', fontSize: '13px', border: '1px solid #E5E7EB', borderRadius: '6px', outline: 'none', color: '#111827', marginBottom: '1rem', boxSizing: 'border-box', fontFamily: 'inherit' }}
+              />
             )}
 
-            <p className="text-xs text-muted font-semibold" style={{ marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
               {newType === 'direct' ? 'Select a person' : 'Select members'}
             </p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem', maxHeight: '200px', overflowY: 'auto' }}>
-              {allUsers.length === 0 && <p className="text-xs text-muted">Loading team members...</p>}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '1.25rem', maxHeight: '200px', overflowY: 'auto' }}>
+              {allUsers.length === 0 && <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading team members...</p>}
               {allUsers.map(m => {
                 const selected = selectedMembers.includes(m.id);
                 return (
-                  <div key={m.id} onClick={() => toggleMember(m.id)} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0.75rem',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    background: selected ? 'var(--primary-glow)' : 'var(--secondary)',
-                    border: `1px solid ${selected ? 'var(--primary)' : 'transparent'}`,
-                    transition: 'all var(--transition-fast)',
-                  }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: `linear-gradient(135deg, ${getAvatarColor(m.name)}, ${getAvatarColor(m.name)}99)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#fff' }}>
+                  <div
+                    key={m.id}
+                    onClick={() => toggleMember(m.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
+                      borderRadius: '6px', cursor: 'pointer',
+                      background: selected ? '#EFF6FF' : '#F9FAFB',
+                      border: `1px solid ${selected ? '#1A56DB' : '#E5E7EB'}`,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: getAvatarColor(m.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                       {getInitials(m.name)}
                     </div>
-                    <span className="text-sm font-medium" style={{ flex: 1, color: selected ? 'var(--primary-2)' : 'var(--foreground)' }}>{m.name}</span>
-                    {selected && <Check size={16} color="var(--primary-2)" />}
+                    <span style={{ flex: 1, fontSize: '14px', fontWeight: 500, color: selected ? '#1A56DB' : '#111827' }}>{m.name}</span>
+                    {selected && <Check size={15} color="#1A56DB" />}
                   </div>
                 );
               })}
             </div>
 
-            <button onClick={createConversation} disabled={selectedMembers.length === 0} className="btn btn-primary" style={{ width: '100%', opacity: selectedMembers.length === 0 ? 0.5 : 1 }}>
+            <button
+              onClick={createConversation}
+              disabled={selectedMembers.length === 0}
+              style={{
+                width: '100%', padding: '0.65rem', borderRadius: '6px', border: 'none', cursor: selectedMembers.length === 0 ? 'not-allowed' : 'pointer',
+                background: selectedMembers.length === 0 ? '#E5E7EB' : '#1A56DB',
+                color: selectedMembers.length === 0 ? '#9CA3AF' : '#fff',
+                fontWeight: 600, fontSize: '14px', fontFamily: 'inherit', transition: 'background 0.15s',
+              }}
+            >
               {newType === 'direct' ? 'Start Direct Message' : `Create Group (${selectedMembers.length})`}
             </button>
           </div>

@@ -1,13 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Mail, Phone, Search, Trash2, X } from "lucide-react";
+import { UserPlus, Mail, Phone, Search, Trash2, X, MoreHorizontal, Eye } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
+import { useRole } from "@/context/RoleContext";
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const C = {
+  bg: "#F5F7FB",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
+  primary: "#1A56DB",
+  text: "#111827",
+  muted: "#6B7280",
+  radius: "8px",
+  radiusSm: "6px",
+  radiusPill: "999px",
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 type Member = {
-  id: number;
+  id: number | string;
   name: string;
-  role: "Admin" | "Marketing" | "Editor";
+  role: string;
   email: string;
   phone: string;
   status: "online" | "offline" | "away";
@@ -17,87 +32,255 @@ type Member = {
 const initialTeam: Member[] = [
   { id: 1, name: "Mukul",   role: "Admin",     email: "mukul@resawc.com",     phone: "+91 9800000001", status: "online",  initials: "MK" },
   { id: 2, name: "Mukesh",  role: "Admin",     email: "mukesh@resawc.com",    phone: "+91 9800000002", status: "online",  initials: "MS" },
-  { id: 3, name: "Marketing User", role: "Marketing", email: "marketing@resawc.com", phone: "+91 9800000003", status: "away",    initials: "MR" },
+  { id: 3, name: "Marketing User", role: "Marketing", email: "marketing@resawc.com", phone: "+91 9800000003", status: "away", initials: "MR" },
   { id: 4, name: "Editor User",    role: "Editor",    email: "editor@resawc.com",    phone: "+91 9800000004", status: "offline", initials: "ED" },
 ];
 
-const roleColors: Record<string, { bg: string; text: string }> = {
-  Admin:     { bg: "rgba(244,63,94,0.15)",   text: "#f43f5e" },
-  Marketing: { bg: "rgba(99,102,241,0.15)",  text: "#818cf8" },
-  Editor:    { bg: "rgba(167,139,250,0.15)", text: "#a78bfa" },
+// Role badge colors
+const roleBadge = (role: string): React.CSSProperties => {
+  const map: Record<string, { bg: string; color: string }> = {
+    Admin:     { bg: "#FEF2F2", color: "#DC2626" },
+    Marketing: { bg: "#EEF2FF", color: "#4F46E5" },
+    Editor:    { bg: "#F5F3FF", color: "#7C3AED" },
+  };
+  const c = map[role] || { bg: "#F3F4F6", color: "#6B7280" };
+  return {
+    display: "inline-block",
+    padding: "0.2rem 0.6rem",
+    borderRadius: "999px",
+    fontSize: "0.72rem",
+    fontWeight: 700,
+    background: c.bg,
+    color: c.color,
+    textTransform: "capitalize" as const,
+  };
 };
 
-const avatarColors = ["#f43f5e", "#f43f5e", "#6366f1", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
+// Avatar palette
+const avatarPalette = ["#1A56DB", "#7C3AED", "#059669", "#D97706", "#DC2626", "#0891B2"];
 
+function getAvatarColor(index: number) {
+  return avatarPalette[index % avatarPalette.length];
+}
+
+// ─── Add Member Modal ─────────────────────────────────────────────────────────
 function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Member) => void }) {
-  const [form, setForm] = useState({ name: "", role: "Marketing" as Member["role"], email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ name: "", role: "Marketing", email: "", phone: "", password: "" });
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.55rem 0.75rem",
+    border: `1px solid ${C.border}`,
+    borderRadius: C.radiusSm,
+    fontSize: "0.875rem",
+    color: C.text,
+    background: "#fff",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.email || !form.password) { setErr("Name, Email and Password are required."); return; }
+    if (!form.name || !form.email || !form.password) {
+      setErr("Name, Email and Password are required.");
+      return;
+    }
     setSaving(true);
     try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role })
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          role: form.role,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        const initials = form.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-        onAdd({ id: data.data.id, name: form.name, role: form.role, email: form.email, phone: form.phone, status: "offline", initials });
+        const initials = form.name
+          .split(" ")
+          .map((w: string) => w[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        onAdd({
+          id: data.data.id,
+          name: form.name,
+          role: form.role,
+          email: form.email,
+          phone: form.phone,
+          status: "offline",
+          initials,
+        });
         onClose();
       } else {
-        setErr(data.error || 'Failed to create user');
+        setErr(data.error || "Failed to create user");
       }
     } catch {
-      setErr('Connection error. Try again.');
+      setErr("Connection error. Try again.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Add New Member</h2>
-          <button onClick={onClose} className="btn btn-ghost" style={{ padding: '0.3rem' }}><X size={18} /></button>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: C.radius,
+          width: "100%",
+          maxWidth: 440,
+          padding: "2rem",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1.5rem",
+          }}
+        >
+          <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: C.text, margin: 0 }}>
+            Add New Member
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              color: C.muted,
+              cursor: "pointer",
+              padding: "0.25rem",
+            }}
+          >
+            <X size={20} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div>
-            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Full Name *</label>
-            <input className="input" style={{ width: '100%' }} placeholder="e.g. Rahul Sharma" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>
+              Full Name *
+            </label>
+            <input
+              style={inputStyle}
+              placeholder="e.g. Rahul Sharma"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
           </div>
+
           <div>
-            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Role *</label>
-            <select className="input" style={{ width: '100%' }} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value as Member["role"] }))}>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>
+              Role *
+            </label>
+            <select
+              style={inputStyle}
+              value={form.role}
+              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+            >
               <option value="Admin">Admin</option>
               <option value="Marketing">Marketing</option>
               <option value="Editor">Editor</option>
             </select>
           </div>
+
           <div>
-            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Email *</label>
-            <input className="input" style={{ width: '100%' }} type="email" placeholder="name@resawc.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Phone</label>
-            <input className="input" style={{ width: '100%' }} placeholder="+91 9800000000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-sm font-semibold" style={{ display: 'block', marginBottom: '0.4rem' }}>Password *</label>
-            <input className="input" style={{ width: '100%' }} type="password" placeholder="Set login password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>
+              Email *
+            </label>
+            <input
+              style={inputStyle}
+              type="email"
+              placeholder="name@resawc.com"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
           </div>
 
-          {err && <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>{err}</p>}
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>
+              Phone
+            </label>
+            <input
+              style={inputStyle}
+              placeholder="+91 9800000000"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            />
+          </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button type="button" onClick={onClose} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
-            <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={saving}>{saving ? 'Adding...' : 'Add Member'}</button>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>
+              Password *
+            </label>
+            <input
+              style={inputStyle}
+              type="password"
+              placeholder="Set login password"
+              value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            />
+          </div>
+
+          {err && (
+            <p style={{ color: "#DC2626", fontSize: "0.85rem", margin: 0 }}>{err}</p>
+          )}
+
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: "0.7rem",
+                border: `1px solid ${C.border}`,
+                borderRadius: C.radiusSm,
+                background: "#fff",
+                color: C.text,
+                fontWeight: 600,
+                fontSize: "0.875rem",
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: "0.7rem",
+                border: "none",
+                borderRadius: C.radiusSm,
+                background: saving ? "#93C5FD" : C.primary,
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? "Adding…" : "Add Member"}
+            </button>
           </div>
         </form>
       </div>
@@ -105,167 +288,561 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
   );
 }
 
+// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+function DeleteModal({
+  memberName,
+  onConfirm,
+  onCancel,
+}: {
+  memberName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: C.radius,
+          width: "100%",
+          maxWidth: 360,
+          padding: "2rem",
+          textAlign: "center",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+        }}
+      >
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "14px",
+            background: "#FEF2F2",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 1rem",
+          }}
+        >
+          <Trash2 color="#DC2626" size={24} />
+        </div>
+        <h3 style={{ fontWeight: 700, color: C.text, marginBottom: "0.5rem" }}>Remove Member?</h3>
+        <p style={{ fontSize: "0.875rem", color: C.muted, marginBottom: "1.5rem", lineHeight: 1.5 }}>
+          <strong style={{ color: C.text }}>{memberName}</strong> will be permanently removed from the team.
+          This action cannot be undone.
+        </p>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              padding: "0.7rem",
+              border: `1px solid ${C.border}`,
+              borderRadius: C.radiusSm,
+              background: "#fff",
+              color: C.text,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              flex: 1,
+              padding: "0.7rem",
+              border: "none",
+              borderRadius: C.radiusSm,
+              background: "#DC2626",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Team Content ─────────────────────────────────────────────────────────────
+const PAGE_SIZE = 10;
+
 function TeamContent() {
+  const { user } = useRole();
+  const isAdmin = user?.role === "admin";
+
   const [team, setTeam] = useState<Member[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Member | null>(null);
+  const [page, setPage] = useState(1);
 
-  // Load from real database on mount
+  // Load from real DB on mount
   useEffect(() => {
-    fetch('/api/users')
-      .then(r => r.json())
-      .then(data => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((data) => {
         if (data.success) {
-          setTeam(data.data.map((u: any) => ({
-            id: u.id,
-            name: u.name,
-            role: u.role.charAt(0) + u.role.slice(1).toLowerCase() as Member['role'],
-            email: u.email,
-            phone: '',
-            status: 'offline' as const,
-            initials: u.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-          })));
+          setTeam(
+            data.data.map((u: any) => ({
+              id: u.id,
+              name: u.name,
+              role: u.role.charAt(0) + u.role.slice(1).toLowerCase(),
+              email: u.email,
+              phone: "",
+              status: "offline" as const,
+              initials: u.name
+                .split(" ")
+                .map((w: string) => w[0])
+                .join("")
+                .slice(0, 2)
+                .toUpperCase(),
+            }))
+          );
         } else {
-          setTeam(initialTeam); // fallback
+          setTeam(initialTeam);
         }
         setLoaded(true);
       })
-      .catch(() => { setTeam(initialTeam); setLoaded(true); });
+      .catch(() => {
+        setTeam(initialTeam);
+        setLoaded(true);
+      });
   }, []);
 
-  // Delete from real database
+  // Delete from real DB
   const handleDelete = async (id: number | string) => {
     try {
-      await fetch('/api/users', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+      await fetch("/api/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
       });
     } catch {}
-    setTeam(t => t.filter(m => m.id !== id));
+    setTeam((t) => t.filter((m) => m.id !== id));
     setConfirmDelete(null);
   };
 
-  const filtered = team.filter(m => {
-    const matchTab = activeTab === "all" || m.role.toLowerCase() === activeTab.replace("s", "").replace("admin", "admin");
-    const matchQ = m.name.toLowerCase().includes(query.toLowerCase()) || m.email.toLowerCase().includes(query.toLowerCase());
+  const tabs = ["all", "admins", "marketing", "editors"];
+
+  const filtered = team.filter((m) => {
+    const matchTab =
+      activeTab === "all" ||
+      m.role.toLowerCase() === activeTab.replace("s", "").replace("admin", "admin");
+    const matchQ =
+      m.name.toLowerCase().includes(query.toLowerCase()) ||
+      m.email.toLowerCase().includes(query.toLowerCase());
     return matchTab && matchQ;
   });
 
-  const handleAdd = (member: Member) => setTeam(t => [...t, member]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const handleAdd = (member: Member) => {
+    setTeam((t) => [...t, member]);
+    setPage(1);
+  };
+
+  // Helpers
+  const thStyle: React.CSSProperties = {
+    padding: "0.75rem 1rem",
+    textAlign: "left",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    color: C.muted,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    borderBottom: `1px solid ${C.border}`,
+    background: "#F9FAFB",
+    whiteSpace: "nowrap",
+  };
+
+  const tdStyle: React.CSSProperties = {
+    padding: "0.875rem 1rem",
+    fontSize: "0.875rem",
+    color: C.text,
+    borderBottom: `1px solid ${C.border}`,
+    verticalAlign: "middle",
+  };
 
   return (
     <>
-      {showModal && <AddMemberModal onClose={() => setShowModal(false)} onAdd={handleAdd} />}
-
-      {/* Delete Confirm Modal */}
-      {confirmDelete !== null && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass-card" style={{ maxWidth: '360px', width: '100%', padding: '2rem', textAlign: 'center' }}>
-            <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-              <Trash2 color="#ef4444" size={24} />
-            </div>
-            <h3 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>Remove Member?</h3>
-            <p className="text-muted text-sm" style={{ marginBottom: '1.5rem' }}>This action cannot be undone. The member will be permanently removed from the team.</p>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={() => setConfirmDelete(null)} className="btn btn-secondary" style={{ flex: 1 }}>Cancel</button>
-              <button onClick={() => handleDelete(confirmDelete)} className="btn" style={{ flex: 1, background: '#ef4444', color: '#fff' }}>Remove</button>
-            </div>
-          </div>
-        </div>
+      {showModal && isAdmin && (
+        <AddMemberModal onClose={() => setShowModal(false)} onAdd={handleAdd} />
+      )}
+      {confirmDelete && (
+        <DeleteModal
+          memberName={confirmDelete.name}
+          onConfirm={() => handleDelete(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
 
-      <div className="animate-fadeIn">
-        {/* Header */}
-        <div className="flex-between" style={{ marginBottom: '2rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Team & Members</h1>
-          <p className="text-muted text-sm">{team.length} members · {team.filter(m => m.status === "online").length} online</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          <UserPlus size={16} /> Add Member
-        </button>
-      </div>
-
-      {/* Filters + Search */}
-      <div className="flex-between" style={{ marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {["all", "admins", "marketing", "editors"].map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={activeTab === tab ? "btn btn-primary" : "btn btn-secondary"}
-              style={{ padding: '0.4rem 0.9rem', fontSize: '0.8rem', textTransform: 'capitalize' }}>
-              {tab}
+      <div style={{ fontFamily: "Inter, system-ui, sans-serif" }}>
+        {/* ── Page Header ──────────────────────────────────────────────────── */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "1rem",
+            marginBottom: "1.75rem",
+          }}
+        >
+          <div>
+            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: C.text, margin: 0 }}>
+              Team &amp; Members
+            </h1>
+            <p style={{ fontSize: "0.875rem", color: C.muted, margin: "0.25rem 0 0 0" }}>
+              {team.length} members in the workspace
+            </p>
+          </div>
+          {isAdmin && (
+            <button
+              onClick={() => setShowModal(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                padding: "0.55rem 1.1rem",
+                background: C.primary,
+                color: "#fff",
+                border: "none",
+                borderRadius: C.radiusSm,
+                fontSize: "0.875rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <UserPlus size={16} /> Add Member
             </button>
-          ))}
+          )}
         </div>
-        <div style={{ position: 'relative' }}>
-          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--secondary-foreground)' }} />
-          <input value={query} onChange={e => setQuery(e.target.value)} className="input" placeholder="Search members..." style={{ paddingLeft: '2.25rem', width: '220px' }} />
-        </div>
-      </div>
 
-      {/* Team Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-        {filtered.map((member, i) => (
-          <div key={member.id} className="glass-card" style={{ padding: '1.25rem' }}>
-            <div className="flex-between" style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-                <div style={{ position: 'relative' }}>
-                  <div style={{
-                    width: '44px', height: '44px', borderRadius: '14px',
-                    background: `linear-gradient(135deg, ${avatarColors[i % avatarColors.length]} 0%, ${avatarColors[(i + 2) % avatarColors.length]} 100%)`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: '0.9rem', color: '#fff',
-                    boxShadow: `0 4px 12px ${avatarColors[i % avatarColors.length]}60`,
-                  }}>{member.initials}</div>
-                  <div className={`status-dot status-${member.status}`} style={{ position: 'absolute', bottom: '-2px', right: '-2px', border: '2px solid var(--glass-bg)', width: '12px', height: '12px' }} />
-                </div>
-                <div>
-                  <p className="font-semibold text-sm">{member.name}</p>
-                  <span className="badge" style={{ ...roleColors[member.role], fontSize: '0.7rem', padding: '0.15rem 0.55rem' }}>{member.role}</span>
-                </div>
+        {/* ── White Card ───────────────────────────────────────────────────── */}
+        <div
+          style={{
+            background: C.card,
+            border: `1px solid ${C.border}`,
+            borderRadius: C.radius,
+          }}
+        >
+          {/* Toolbar */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              padding: "1rem 1.25rem",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            {/* Role tabs */}
+            <div style={{ display: "flex", gap: "0.25rem" }}>
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setActiveTab(tab); setPage(1); }}
+                  style={{
+                    padding: "0.4rem 0.85rem",
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    borderRadius: C.radiusSm,
+                    border: "none",
+                    cursor: "pointer",
+                    textTransform: "capitalize",
+                    background: activeTab === tab ? C.primary : "transparent",
+                    color: activeTab === tab ? "#fff" : C.muted,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div style={{ position: "relative" }}>
+              <Search
+                size={15}
+                style={{
+                  position: "absolute",
+                  left: "0.75rem",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: C.muted,
+                }}
+              />
+              <input
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+                placeholder="Search members…"
+                style={{
+                  paddingLeft: "2.25rem",
+                  paddingRight: "0.75rem",
+                  paddingTop: "0.45rem",
+                  paddingBottom: "0.45rem",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: C.radiusSm,
+                  fontSize: "0.875rem",
+                  color: C.text,
+                  outline: "none",
+                  width: "220px",
+                  background: "#fff",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={{ ...thStyle, width: 40 }}>
+                    <input type="checkbox" style={{ cursor: "pointer" }} />
+                  </th>
+                  <th style={thStyle}>Full Name</th>
+                  <th style={thStyle}>Email</th>
+                  <th style={thStyle}>Role</th>
+                  <th style={thStyle}>Phone</th>
+                  <th style={{ ...thStyle, textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!loaded ? (
+                  <tr>
+                    <td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: C.muted, padding: "3rem" }}>
+                      Loading…
+                    </td>
+                  </tr>
+                ) : paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ ...tdStyle, textAlign: "center", color: C.muted, padding: "3rem" }}>
+                      No members found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginated.map((member, i) => {
+                    const globalIdx = (page - 1) * PAGE_SIZE + i;
+                    const avatarColor = getAvatarColor(globalIdx);
+                    return (
+                      <tr
+                        key={member.id}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        style={{ transition: "background 0.15s" }}
+                      >
+                        {/* Checkbox */}
+                        <td style={{ ...tdStyle, width: 40 }}>
+                          <input type="checkbox" style={{ cursor: "pointer" }} />
+                        </td>
+
+                        {/* Name + Avatar */}
+                        <td style={tdStyle}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                            <div
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                background: avatarColor,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#fff",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {member.initials}
+                            </div>
+                            <span style={{ fontWeight: 600, color: C.text }}>
+                              {member.name}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Email */}
+                        <td style={{ ...tdStyle, color: C.muted }}>
+                          <a
+                            href={`mailto:${member.email}`}
+                            style={{ color: C.muted, textDecoration: "none" }}
+                          >
+                            {member.email}
+                          </a>
+                        </td>
+
+                        {/* Role badge */}
+                        <td style={tdStyle}>
+                          <span style={roleBadge(member.role)}>{member.role}</span>
+                        </td>
+
+                        {/* Phone */}
+                        <td style={{ ...tdStyle, color: C.muted }}>
+                          {member.phone ? (
+                            <a
+                              href={`tel:${member.phone}`}
+                              style={{ color: C.muted, textDecoration: "none" }}
+                            >
+                              {member.phone}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td style={{ ...tdStyle, textAlign: "right" }}>
+                          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end", alignItems: "center" }}>
+                            <a
+                              href={`mailto:${member.email}`}
+                              title="View profile"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.3rem",
+                                padding: "0.35rem 0.75rem",
+                                border: `1px solid ${C.border}`,
+                                borderRadius: C.radiusSm,
+                                background: "#fff",
+                                color: C.text,
+                                fontSize: "0.78rem",
+                                fontWeight: 600,
+                                textDecoration: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <Eye size={13} /> View
+                            </a>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setConfirmDelete(member)}
+                                title="Remove member"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: 32,
+                                  height: 32,
+                                  border: `1px solid #FECACA`,
+                                  borderRadius: C.radiusSm,
+                                  background: "#FEF2F2",
+                                  color: "#DC2626",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {filtered.length > PAGE_SIZE && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "0.875rem 1.25rem",
+                borderTop: `1px solid ${C.border}`,
+              }}
+            >
+              <span style={{ fontSize: "0.8rem", color: C.muted }}>
+                Showing {(page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} members
+              </span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: C.radiusSm,
+                    background: page === 1 ? "#F9FAFB" : "#fff",
+                    color: page === 1 ? C.muted : C.text,
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: page === 1 ? "not-allowed" : "pointer",
+                  }}
+                >
+                  ← Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    style={{
+                      padding: "0.35rem 0.65rem",
+                      border: `1px solid ${page === p ? C.primary : C.border}`,
+                      borderRadius: C.radiusSm,
+                      background: page === p ? C.primary : "#fff",
+                      color: page === p ? "#fff" : C.text,
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      minWidth: 32,
+                    }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{
+                    padding: "0.35rem 0.75rem",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: C.radiusSm,
+                    background: page === totalPages ? "#F9FAFB" : "#fff",
+                    color: page === totalPages ? C.muted : C.text,
+                    fontSize: "0.8rem",
+                    fontWeight: 600,
+                    cursor: page === totalPages ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Next →
+                </button>
               </div>
-              <button
-                className="btn btn-ghost"
-                style={{ padding: '0.3rem', color: '#ef4444' }}
-                onClick={() => setConfirmDelete(member.id)}
-                title="Remove member"
-              >
-                <Trash2 size={16} />
-              </button>
             </div>
-
-            <p className="text-xs text-muted" style={{ marginBottom: '0.35rem' }}>{member.email}</p>
-            {member.phone && <p className="text-xs text-muted" style={{ marginBottom: '0.875rem' }}>{member.phone}</p>}
-
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <a href={`mailto:${member.email}`} className="btn btn-secondary text-xs" style={{ flex: 1, padding: '0.4rem', gap: '0.3rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Mail size={13} /> Email
-              </a>
-              {member.phone && (
-                <a href={`tel:${member.phone}`} className="btn btn-secondary text-xs" style={{ flex: 1, padding: '0.4rem', gap: '0.3rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Phone size={13} /> Call
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {filtered.length === 0 && (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '3rem', color: 'var(--secondary-foreground)' }}>
-            <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>👤</p>
-            <p className="text-sm">No members found.</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
     </>
   );
 }
 
+// ─── Page Export ──────────────────────────────────────────────────────────────
 export default function TeamManagement() {
   return (
     <RoleGuard allowedRoles={["admin"]} redirectTo="/dashboard/tasks">

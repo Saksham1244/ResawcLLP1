@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRole } from "@/context/RoleContext";
 import { useRouter } from "next/navigation";
-import { 
-  Clock, MapPin, CheckCircle2, AlertCircle, ArrowLeft, 
-  LogOut, ShieldCheck, Navigation, Calendar 
+import {
+  Clock, MapPin, CheckCircle2, AlertCircle, ArrowLeft,
+  ShieldCheck, Navigation, XCircle, Loader
 } from "lucide-react";
 
 // Office Location: South Extension I, New Delhi
@@ -14,7 +14,7 @@ const OFFICE_LON = 77.2203;
 const ALLOWED_RADIUS_METERS = 300; // 300m grace zone
 
 function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371e3; // Earth radius in meters
+  const R = 6371e3;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
@@ -42,12 +42,12 @@ export default function StandaloneAttendancePage() {
   const [distanceMeters, setDistanceMeters] = useState<number | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Clock Update
+  // Clock Update (IST)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      setCurrentDate(now.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", weekday: "short", month: "short", day: "numeric", year: "numeric" }));
+      setCurrentDate(now.toLocaleDateString("en-US", { timeZone: "Asia/Kolkata", weekday: "long", month: "long", day: "numeric", year: "numeric" }));
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -62,7 +62,7 @@ export default function StandaloneAttendancePage() {
   const getISTTime = () =>
     new Date().toLocaleTimeString("en-US", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 
-  // Fetch today's status
+  // Fetch today's attendance status
   const fetchTodayStatus = useCallback(async () => {
     if (!user?.email) return;
     try {
@@ -74,7 +74,7 @@ export default function StandaloneAttendancePage() {
         if (todayRecord) {
           const inTime = todayRecord.timeIn || todayRecord.systemLoginTime || todayRecord.mobileLoginTime;
           const outTime = todayRecord.timeOut;
-          
+
           if (inTime && (!outTime || outTime === "--" || outTime === "")) {
             setIsCheckedIn(true);
             setCheckInTime(inTime);
@@ -177,18 +177,24 @@ export default function StandaloneAttendancePage() {
 
   if (!isHydrated) return null;
 
+  const font = 'Inter, system-ui, -apple-system, sans-serif';
+
+  // ── Not logged in ──
   if (!user) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--background)", padding: "1.5rem" }}>
-        <div className="glass-card" style={{ maxWidth: "400px", width: "100%", textAlign: "center", padding: "2.5rem 1.5rem" }}>
-          <div style={{ width: "60px", height: "60px", borderRadius: "50%", background: "var(--primary-glow)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" }}>
-            <ShieldCheck size={32} />
+      <div style={{ minHeight: '100vh', background: '#F5F7FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', fontFamily: font }}>
+        <div style={{ maxWidth: '400px', width: '100%', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '2.5rem 2rem', textAlign: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+            <ShieldCheck size={30} color="#1A56DB" />
           </div>
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "0.5rem" }}>Resawc Attendance Portal</h2>
-          <p className="text-muted text-sm" style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#111827', margin: '0 0 8px' }}>Resawc Attendance Portal</h2>
+          <p style={{ fontSize: '14px', color: '#6B7280', margin: '0 0 2rem', lineHeight: 1.6 }}>
             Please log in to your employee account to record your attendance.
           </p>
-          <button onClick={() => router.push("/")} className="btn btn-primary" style={{ width: "100%", padding: "0.9rem", fontWeight: 700 }}>
+          <button
+            onClick={() => router.push("/")}
+            style={{ width: '100%', padding: '0.85rem', background: '#1A56DB', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '15px', cursor: 'pointer', fontFamily: font }}
+          >
             Go to Login
           </button>
         </div>
@@ -196,119 +202,178 @@ export default function StandaloneAttendancePage() {
     );
   }
 
+  // GPS pill colors
+  const gpsPillColor = gpsStatus === "in_range" ? { bg: '#ECFDF5', text: '#059669', border: '#A7F3D0' }
+    : gpsStatus === "out_of_range" ? { bg: '#FFF7ED', text: '#D97706', border: '#FDE68A' }
+    : gpsStatus === "denied" ? { bg: '#FEF2F2', text: '#EF4444', border: '#FCA5A5' }
+    : { bg: '#EFF6FF', text: '#1A56DB', border: '#BFDBFE' };
+
+  const gpsLabel = gpsStatus === "locating" ? "Locating…"
+    : gpsStatus === "in_range" ? `In range — ${distanceMeters}m away`
+    : gpsStatus === "out_of_range" ? `${distanceMeters}m from office`
+    : gpsStatus === "denied" ? "Location denied"
+    : "Awaiting location";
+
   return (
-    <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", flexDirection: "column", padding: "1.5rem 1rem" }}>
-      {/* Top Navbar */}
-      <div style={{ maxWidth: "600px", width: "100%", margin: "0 auto 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={() => router.push("/dashboard")} className="btn btn-ghost" style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.5rem 0.8rem", fontSize: "0.85rem", color: "var(--muted)" }}>
-          <ArrowLeft size={16} /> Back to Dashboard
-        </button>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div style={{ textAlign: "right" }}>
-            <p style={{ fontSize: "0.85rem", fontWeight: 700, margin: 0 }}>{user.name}</p>
-            <p className="text-muted" style={{ fontSize: "0.75rem", margin: 0, textTransform: "capitalize" }}>{user.role}</p>
+    <div style={{ minHeight: '100vh', background: '#F5F7FB', fontFamily: font, display: 'flex', flexDirection: 'column' }}>
+
+      {/* ── Top Navbar ── */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '0 1.5rem', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Logo mark */}
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#1A56DB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px', color: '#fff' }}>R</div>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>Resawc CRM</span>
+          <span style={{ fontSize: '13px', color: '#9CA3AF', marginLeft: '4px' }}>/ Attendance Portal</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '13px', fontWeight: 700, color: '#111827', margin: 0 }}>{user.name}</p>
+            <p style={{ fontSize: '11px', color: '#6B7280', margin: 0, textTransform: 'capitalize' }}>{user.role}</p>
           </div>
+          <button
+            onClick={() => router.push("/dashboard")}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.45rem 0.85rem', fontSize: '13px', fontWeight: 500, border: '1px solid #E5E7EB', borderRadius: '6px', background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: font }}
+          >
+            <ArrowLeft size={14} /> Dashboard
+          </button>
         </div>
       </div>
 
-      {/* Main Check-In Card */}
-      <div style={{ maxWidth: "600px", width: "100%", margin: "0 auto", flex: 1, display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-        <div className="glass-card" style={{ padding: "2.5rem 1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
-          {/* Live Digital Clock */}
-          <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "var(--secondary)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.25rem" }}>
-            <Clock size={30} color="var(--primary)" />
-          </div>
+      {/* ── Main Content ── */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1rem' }}>
+        <div style={{ width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "0.25rem" }}>
-            {currentDate || "Loading Date..."}
-          </p>
-          <h1 style={{ fontSize: "2.8rem", fontWeight: 800, fontFamily: "monospace", letterSpacing: "0.05em", color: "var(--foreground)", margin: "0 0 1rem 0" }}>
-            {currentTime || "--:--:--"}
-          </h1>
+          {/* ── Main Check-In Card ── */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '2.5rem 2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', textAlign: 'center' }}>
 
-          {/* Location Badge */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 0.9rem", borderRadius: "999px", background: "var(--overlay-bg)", border: "1px solid var(--surface-border)", fontSize: "0.8rem", color: "var(--secondary-foreground)", marginBottom: "2rem" }}>
-            <MapPin size={14} color="var(--primary)" />
-            <span>South Extension I, New Delhi (HQ)</span>
-          </div>
-
-          {/* Status Alert */}
-          {statusMessage && (
-            <div style={{
-              padding: "0.85rem 1rem", borderRadius: "var(--radius-md)", marginBottom: "1.5rem", fontSize: "0.85rem",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
-              background: statusMessage.type === "success" ? "rgba(16,185,129,0.12)" : statusMessage.type === "error" ? "rgba(239,68,68,0.12)" : "rgba(99,102,241,0.12)",
-              color: statusMessage.type === "success" ? "#10b981" : statusMessage.type === "error" ? "#ef4444" : "var(--primary)",
-              border: `1px solid ${statusMessage.type === "success" ? "rgba(16,185,129,0.3)" : statusMessage.type === "error" ? "rgba(239,68,68,0.3)" : "rgba(99,102,241,0.3)"}`
-            }}>
-              {statusMessage.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-              <span>{statusMessage.text}</span>
+            {/* Clock Icon */}
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+              <Clock size={26} color="#1A56DB" />
             </div>
-          )}
 
-          {/* GPS Proximity Meter */}
-          <div style={{ background: "var(--overlay-bg)", border: "1px solid var(--surface-border)", borderRadius: "var(--radius-md)", padding: "1rem", marginBottom: "1.75rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <Navigation size={18} color={gpsStatus === "in_range" ? "#10b981" : gpsStatus === "out_of_range" ? "#f59e0b" : "var(--muted)"} />
-              <div style={{ textAlign: "left" }}>
-                <p style={{ fontSize: "0.8rem", fontWeight: 700, margin: 0 }}>Office Geofence Check</p>
-                <p className="text-muted" style={{ fontSize: "0.75rem", margin: 0 }}>
-                  {gpsStatus === "locating" ? "Locating device..." : gpsStatus === "in_range" ? `Verified (${distanceMeters}m away)` : gpsStatus === "out_of_range" ? `${distanceMeters}m from office` : "Location access ready"}
-                </p>
-              </div>
-            </div>
-            <button onClick={requestLocation} className="btn btn-ghost" style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem", color: "var(--primary)" }}>
-              Refresh GPS
-            </button>
-          </div>
+            {/* Date */}
+            <p style={{ fontSize: '13px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>
+              {currentDate || "Loading…"}
+            </p>
 
-          {/* Action Button */}
-          {isCheckedIn ? (
-            <div>
-              <div style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)", padding: "1rem", borderRadius: "var(--radius-md)", marginBottom: "1.5rem" }}>
-                <p style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", color: "#10b981", fontWeight: 700, fontSize: "0.95rem", margin: 0 }}>
-                  <CheckCircle2 size={18} /> Currently Checked In since {checkInTime}
-                </p>
-              </div>
-              <button 
-                onClick={handleAttendanceAction}
-                disabled={loading}
-                style={{
-                  width: "100%", padding: "1.1rem", borderRadius: "var(--radius-md)", border: "none", cursor: loading ? "not-allowed" : "pointer",
-                  background: "#ef4444", color: "#fff", fontWeight: 800, fontSize: "1.05rem",
-                  boxShadow: "0 6px 20px rgba(239,68,68,0.35)", transition: "all 0.2s"
-                }}>
-                {loading ? "Recording Check Out..." : "Check Out for Today"}
-              </button>
+            {/* Large Digital Clock */}
+            <h1 style={{ fontSize: '52px', fontWeight: 800, fontFamily: '"Courier New", monospace', letterSpacing: '0.04em', color: '#111827', margin: '0 0 1.25rem', lineHeight: 1 }}>
+              {currentTime || "--:--:--"}
+            </h1>
+
+            {/* IST badge */}
+            <span style={{ display: 'inline-block', padding: '2px 10px', background: '#F3F4F6', color: '#6B7280', borderRadius: '999px', fontSize: '11px', fontWeight: 600, marginBottom: '1rem' }}>
+              IST (Asia/Kolkata)
+            </span>
+
+            {/* Office Location Badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.4rem 0.9rem', borderRadius: '999px', background: '#F9FAFB', border: '1px solid #E5E7EB', fontSize: '13px', color: '#374151', marginBottom: '1.5rem' }}>
+              <MapPin size={13} color="#1A56DB" />
+              <span>South Extension I, New Delhi (HQ)</span>
             </div>
-          ) : (
-            <div>
-              {checkOutTime && (
-                <div style={{ background: "var(--secondary)", padding: "0.85rem", borderRadius: "var(--radius-md)", marginBottom: "1.25rem", fontSize: "0.85rem", color: "var(--muted)" }}>
-                  Shift Completed today: {checkInTime} – {checkOutTime}
+
+            {/* GPS Status Pill */}
+            <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0.75rem 1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <Navigation size={16} color={gpsPillColor.text} />
+                <div style={{ textAlign: 'left' }}>
+                  <p style={{ fontSize: '12px', fontWeight: 700, color: '#111827', margin: 0 }}>Office Geofence</p>
+                  <span style={{
+                    display: 'inline-block', marginTop: '3px', padding: '1px 8px', borderRadius: '999px',
+                    background: gpsPillColor.bg, color: gpsPillColor.text, border: `1px solid ${gpsPillColor.border}`,
+                    fontSize: '11px', fontWeight: 600,
+                  }}>
+                    {gpsLabel}
+                  </span>
                 </div>
-              )}
-              <button 
+              </div>
+              <button
+                onClick={requestLocation}
+                style={{ fontSize: '12px', color: '#1A56DB', background: 'none', border: '1px solid #BFDBFE', borderRadius: '6px', padding: '0.3rem 0.65rem', cursor: 'pointer', fontWeight: 500, fontFamily: font }}
+              >
+                Refresh
+              </button>
+            </div>
+
+            {/* Status Alert */}
+            {statusMessage && (
+              <div style={{
+                padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1.25rem', fontSize: '13px',
+                display: 'flex', alignItems: 'center', gap: '8px', textAlign: 'left',
+                background: statusMessage.type === "success" ? '#ECFDF5' : statusMessage.type === "error" ? '#FEF2F2' : '#EFF6FF',
+                color: statusMessage.type === "success" ? '#059669' : statusMessage.type === "error" ? '#EF4444' : '#1A56DB',
+                border: `1px solid ${statusMessage.type === "success" ? '#A7F3D0' : statusMessage.type === "error" ? '#FCA5A5' : '#BFDBFE'}`,
+              }}>
+                {statusMessage.type === "success"
+                  ? <CheckCircle2 size={15} />
+                  : statusMessage.type === "error"
+                  ? <XCircle size={15} />
+                  : <Loader size={15} />}
+                <span style={{ lineHeight: 1.5 }}>{statusMessage.text}</span>
+              </div>
+            )}
+
+            {/* Already completed shift banner */}
+            {!isCheckedIn && checkOutTime && (
+              <div style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '13px', color: '#6B7280', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                <CheckCircle2 size={14} color="#059669" />
+                Shift completed today: <strong>{checkInTime}</strong> – <strong>{checkOutTime}</strong>
+              </div>
+            )}
+
+            {/* Currently Checked In Banner */}
+            {isCheckedIn && (
+              <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <CheckCircle2 size={16} color="#059669" />
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#059669' }}>
+                  Checked in since {checkInTime}
+                </span>
+              </div>
+            )}
+
+            {/* Action Button */}
+            {isCheckedIn ? (
+              <button
                 onClick={handleAttendanceAction}
                 disabled={loading}
                 style={{
-                  width: "100%", padding: "1.1rem", borderRadius: "var(--radius-md)", border: "none", cursor: loading ? "not-allowed" : "pointer",
-                  background: "linear-gradient(135deg, var(--primary), var(--primary-hover))",
-                  color: "var(--primary-foreground, #fff)", fontWeight: 800, fontSize: "1.05rem",
-                  boxShadow: "0 6px 20px var(--primary-glow)", transition: "all 0.2s"
-                }}>
-                {loading ? "Recording Attendance..." : "Mark Check In"}
+                  width: '100%', padding: '1rem', borderRadius: '8px', border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  background: loading ? '#FCA5A5' : '#EF4444',
+                  color: '#fff', fontWeight: 800, fontSize: '16px', fontFamily: font,
+                  boxShadow: '0 4px 16px rgba(239,68,68,0.3)', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                }}
+              >
+                {loading ? <><Loader size={18} /> Recording Check Out…</> : '🔴 Check Out for Today'}
               </button>
-            </div>
-          )}
-        </div>
+            ) : (
+              <button
+                onClick={handleAttendanceAction}
+                disabled={loading}
+                style={{
+                  width: '100%', padding: '1rem', borderRadius: '8px', border: 'none',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  background: loading ? '#93C5FD' : '#1A56DB',
+                  color: '#fff', fontWeight: 800, fontSize: '16px', fontFamily: font,
+                  boxShadow: '0 4px 16px rgba(26,86,219,0.3)', transition: 'all 0.2s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                }}
+              >
+                {loading ? <><Loader size={18} /> Recording Attendance…</> : '🟢 Mark Check In'}
+              </button>
+            )}
+          </div>
 
-        {/* Quick Instructions Card */}
-        <div className="glass-card" style={{ padding: "1.25rem 1.5rem" }}>
-          <h3 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "0.5rem" }}>📱 Easy Web Check-In</h3>
-          <p className="text-muted" style={{ fontSize: "0.8rem", lineHeight: 1.6, margin: 0 }}>
-            Bookmark this page on your smartphone or computer browser. Open it when you arrive at the office, allow location access when prompted, and tap <strong>Mark Check In</strong>. No mobile app download required!
-          </p>
+          {/* ── Instructions Card ── */}
+          <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '12px', padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>📱 Easy Web Check-In</h3>
+            <p style={{ fontSize: '13px', color: '#6B7280', lineHeight: 1.65, margin: 0 }}>
+              Bookmark this page on your smartphone or computer browser. Open it when you arrive at the office,
+              allow location access when prompted, and tap <strong style={{ color: '#111827' }}>Mark Check In</strong>. No app download required!
+            </p>
+          </div>
+
         </div>
       </div>
     </div>

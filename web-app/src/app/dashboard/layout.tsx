@@ -5,66 +5,149 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, CheckSquare, MessageSquare,
-  Settings, LogOut, Bell, TrendingUp, ChevronDown, CalendarCheck, Activity
+  Settings, LogOut, Bell, TrendingUp, ChevronDown,
+  CalendarCheck, Activity, Search, PanelLeftClose, PanelLeftOpen, Clock
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRole, UserRole } from "@/context/RoleContext";
 
-// Role-based nav config
+// ─── Role-based nav config ───────────────────────────────────────────────────
 const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]> = {
   admin: [
-    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Team & Members", href: "/dashboard/team", icon: Users },
-    { name: "Leads", href: "/dashboard/leads", icon: TrendingUp },
-    { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
-    { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-    { name: "Live Monitor", href: "/dashboard/monitor", icon: Activity },
-    { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Dashboard",     href: "/dashboard",            icon: LayoutDashboard },
+    { name: "Team",          href: "/dashboard/team",        icon: Users           },
+    { name: "Leads",         href: "/dashboard/leads",       icon: TrendingUp      },
+    { name: "Tasks",         href: "/dashboard/tasks",       icon: CheckSquare     },
+    { name: "Attendance",    href: "/dashboard/attendance",  icon: CalendarCheck   },
+    { name: "Live Monitor",  href: "/dashboard/monitor",     icon: Activity        },
+    { name: "Messages",      href: "/dashboard/chat",        icon: MessageSquare   },
   ],
   marketing: [
-    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "My Leads", href: "/dashboard/leads", icon: TrendingUp },
-    { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
-    { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-    { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Dashboard",  href: "/dashboard",           icon: LayoutDashboard },
+    { name: "My Leads",   href: "/dashboard/leads",     icon: TrendingUp      },
+    { name: "Tasks",      href: "/dashboard/tasks",     icon: CheckSquare     },
+    { name: "Attendance", href: "/dashboard/attendance",icon: CalendarCheck   },
+    { name: "Messages",   href: "/dashboard/chat",      icon: MessageSquare   },
   ],
   editor: [
-    { name: "My Tasks", href: "/dashboard/tasks", icon: CheckSquare },
+    { name: "Tasks",      href: "/dashboard/tasks",      icon: CheckSquare  },
     { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-    { name: "Messages", href: "/dashboard/chat", icon: MessageSquare },
+    { name: "Messages",   href: "/dashboard/chat",       icon: MessageSquare },
   ],
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  admin: "#f43f5e",
-  marketing: "#6366f1",
-  editor: "#10b981",
+  admin:     "#1A56DB",
+  marketing: "#7C3AED",
+  editor:    "#059669",
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  admin: "👑 Admin",
-  marketing: "📞 Marketing",
-  editor: "🎬 Editor",
+  admin:     "Admin",
+  marketing: "Marketing",
+  editor:    "Editor",
 };
 
+// ─── Page title from pathname ─────────────────────────────────────────────────
+function getPageTitle(pathname: string): string {
+  if (pathname === "/dashboard")              return "Dashboard";
+  if (pathname.startsWith("/dashboard/team")) return "Team & Members";
+  if (pathname.startsWith("/dashboard/leads"))return "Leads";
+  if (pathname.startsWith("/dashboard/tasks"))return "Tasks";
+  if (pathname.startsWith("/dashboard/attendance")) return "Attendance";
+  if (pathname.startsWith("/dashboard/monitor"))    return "Live Monitor";
+  if (pathname.startsWith("/dashboard/chat"))       return "Messages";
+  if (pathname.startsWith("/dashboard/settings"))   return "Settings";
+  return "Dashboard";
+}
+
+// ─── Format notification date & time ──────────────────────────────────────────
+function formatNotificationDate(dateStr: string | Date): string {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+
+    const datePart = d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    const timePart = d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    return `${datePart} • ${timePart}`;
+  } catch {
+    return String(dateStr);
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isHydrated } = useRole();
-  const pathname = usePathname();
-  const router = useRouter();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [showNotifs, setShowNotifs] = useState(false);
+  const pathname  = usePathname();
+  const router    = useRouter();
 
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifs,    setShowNotifs]    = useState(false);
+  const [showUserMenu,  setShowUserMenu]  = useState(false);
+  const [isCollapsed,   setIsCollapsed]   = useState(false);
+
+  // ── Appearance & Density Settings Sync ────────────────────────────────────
   useEffect(() => {
-    if (!user || !user.id) return;
+    const applySavedSettings = () => {
+      try {
+        const savedAccent = localStorage.getItem("resawc_accent_color");
+        if (savedAccent) {
+          document.documentElement.style.setProperty("--primary", savedAccent);
+          document.documentElement.style.setProperty("--bg-sidebar", savedAccent);
+        }
+        const savedDensity = localStorage.getItem("resawc_density");
+        if (savedDensity) {
+          document.documentElement.setAttribute("data-density", savedDensity);
+        }
+        const savedAnims = localStorage.getItem("resawc_animations");
+        if (savedAnims !== null) {
+          document.documentElement.setAttribute("data-animations", savedAnims);
+        }
+        const savedCollapsed = localStorage.getItem("resawc_sidebar_collapsed");
+        if (savedCollapsed !== null) {
+          const shouldCollapse = savedCollapsed === "true";
+          setIsCollapsed(prev => (prev !== shouldCollapse ? shouldCollapse : prev));
+        }
+      } catch {}
+    };
+
+    applySavedSettings();
+    window.addEventListener("resawc_settings_updated", applySavedSettings);
+    return () => window.removeEventListener("resawc_settings_updated", applySavedSettings);
+  }, []);
+
+  const toggleSidebarCollapse = () => {
+    const next = !isCollapsed;
+    setIsCollapsed(next);
+    try {
+      localStorage.setItem("resawc_sidebar_collapsed", String(next));
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resawc_settings_updated"));
+      }, 0);
+    } catch {}
+  };
+
+  // ── Notification polling ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user?.id) return;
     const fetchNotifs = async () => {
       try {
-        const res = await fetch(`/api/notifications?userId=${user.id}`);
+        const res  = await fetch(`/api/notifications?userId=${user.id}`);
         const data = await res.json();
         if (data.success) setNotifications(data.data);
-      } catch (e) {}
+      } catch {}
     };
     fetchNotifs();
-    const int = setInterval(fetchNotifs, 10000);
+    const int = setInterval(fetchNotifs, 10_000);
     return () => clearInterval(int);
   }, [user]);
 
@@ -72,96 +155,190 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const markAsRead = async (id?: string) => {
     try {
-      await fetch('/api/notifications/mark-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(id ? { notificationId: id } : { userId: user?.id })
+      await fetch("/api/notifications/mark-read", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(id ? { notificationId: id } : { userId: user?.id }),
       });
-      setNotifications(prev => prev.map(n => id ? (n.id === id ? { ...n, isRead: true } : n) : { ...n, isRead: true }));
+      setNotifications(prev =>
+        prev.map(n => id ? (n.id === id ? { ...n, isRead: true } : n) : { ...n, isRead: true })
+      );
     } catch {}
   };
 
+  // ── Auth / hydration guards ───────────────────────────────────────────────
   if (!isHydrated) return null;
   if (!user) {
     if (typeof window !== "undefined") router.replace("/");
     return null;
   }
-  
+
   const navItems = NAV_BY_ROLE[user.role];
 
-  // Guard: if editor tries to access leads, redirect to tasks
   if (user.role === "editor" && pathname.startsWith("/dashboard/leads")) {
     if (typeof window !== "undefined") router.replace("/dashboard/tasks");
     return null;
   }
-
-  // Guard: if editor tries to access team management, redirect to tasks
   if (user.role === "editor" && pathname.startsWith("/dashboard/team")) {
     if (typeof window !== "undefined") router.replace("/dashboard/tasks");
     return null;
   }
 
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', backgroundColor: 'var(--background-2)', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', width: '100%', maxWidth: '1440px', backgroundColor: 'var(--background)', boxShadow: 'var(--shadow-lg)', position: 'relative' }}>
+  const pageTitle = getPageTitle(pathname);
 
-      {/* Redesigned Modern Sidebar */}
+  // ── Logout helper ─────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userRole");
+    router.replace("/");
+  };
+
+  return (
+    <div style={{
+      display: "flex",
+      minHeight: "100vh",
+      backgroundColor: "#F5F7FB",
+      fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+    }}>
+
+      {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
       <aside style={{
-        width: '260px', flexShrink: 0,
-        display: 'flex', flexDirection: 'column', padding: '1.25rem 0.85rem',
-        borderRight: '1px solid var(--surface-border)',
-        background: 'var(--surface)',
-        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
+        width: isCollapsed ? "68px" : "220px",
+        flexShrink: 0,
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "var(--bg-sidebar, #1A56DB)",
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+        overflowY: "auto",
+        zIndex: 40,
+        transition: "width 0.2s ease, background-color 0.2s ease",
       }}>
 
-        {/* Brand Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.65rem', marginBottom: '1.75rem' }}>
-          <div style={{
-            width: '38px', height: '38px', borderRadius: '10px', flexShrink: 0,
-            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800
-          }}>
-            ⚡
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em', color: 'var(--foreground)' }}>Resawc</span>
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(99, 102, 241, 0.2)', color: 'var(--primary-2)', border: '1px solid rgba(99, 102, 241, 0.35)' }}>
-                HQ
-              </span>
+        {/* Logo / Brand */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: isCollapsed ? "center" : "space-between",
+          padding: isCollapsed ? "18px 0 14px" : "20px 18px 16px",
+          borderBottom: "1px solid rgba(255,255,255,0.12)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "10px",
+              backgroundColor: "rgba(255,255,255,0.18)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: "18px",
+              color: "#fff",
+              flexShrink: 0,
+              letterSpacing: "-0.5px",
+            }}>
+              R
             </div>
-            <span style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600 }}>Enterprise CRM</span>
+            {!isCollapsed && (
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "15px", color: "#fff", lineHeight: 1.2 }}>
+                  Resawc
+                </div>
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
+                  CRM Platform
+                </div>
+              </div>
+            )}
           </div>
+          {!isCollapsed && (
+            <button
+              onClick={toggleSidebarCollapse}
+              title="Collapse Sidebar"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.65)",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "5px",
+              }}
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          )}
         </div>
 
-        {/* Nav section label */}
-        <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', padding: '0 0.75rem', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          {user.role === "editor" ? "Workspace" : "Navigation"}
-        </p>
+        {/* Collapsed expand button */}
+        {isCollapsed && (
+          <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+            <button
+              onClick={toggleSidebarCollapse}
+              title="Expand Sidebar"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.7)",
+                cursor: "pointer",
+                padding: "6px",
+                display: "flex",
+                alignItems: "center",
+                borderRadius: "5px",
+              }}
+            >
+              <PanelLeftOpen size={17} />
+            </button>
+          </div>
+        )}
 
-        {/* Navigation Items */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1 }}>
+        {/* Nav section label */}
+        {!isCollapsed && (
+          <p style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.45)",
+            padding: "18px 18px 8px",
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+            margin: 0,
+          }}>
+            {user.role === "editor" ? "Workspace" : "Main Menu"}
+          </p>
+        )}
+
+        {/* Nav items */}
+        <nav style={{ display: "flex", flexDirection: "column", gap: "2px", padding: isCollapsed ? "8px 6px" : "0 10px", flex: 1 }}>
           {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const Icon     = item.icon;
+            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
             return (
-              <Link key={item.name} href={item.href} style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-                color: isActive ? '#FFFFFF' : 'var(--secondary-foreground)',
-                background: isActive ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : 'transparent',
-                boxShadow: isActive ? '0 4px 16px rgba(99, 102, 241, 0.4)' : 'none',
-                fontWeight: isActive ? 700 : 500, fontSize: '0.875rem',
-                border: isActive ? '1px solid rgba(255,255,255,0.2)' : '1px solid transparent',
-                transition: 'all var(--transition-fast)',
-              }}>
-                <Icon size={18} color={isActive ? '#FFFFFF' : 'var(--secondary-foreground)'} />
-                <span>{item.name}</span>
-                {isActive && (
-                  <span style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 0 6px #FFFFFF' }} />
-                )}
+              <Link
+                key={item.name}
+                href={item.href}
+                title={item.name}
+                style={{
+                  display:        "flex",
+                  alignItems:     "center",
+                  justifyContent: isCollapsed ? "center" : "flex-start",
+                  gap:            isCollapsed ? 0 : "10px",
+                  padding:        isCollapsed ? "10px 0" : "9px 12px",
+                  borderRadius:   "7px",
+                  color:          isActive ? "#fff" : "rgba(255,255,255,0.72)",
+                  backgroundColor: isActive ? "rgba(255,255,255,0.18)" : "transparent",
+                  fontWeight:     isActive ? 600 : 400,
+                  fontSize:       "13.5px",
+                  textDecoration: "none",
+                  transition:     "background-color 0.15s, color 0.15s",
+                  borderLeft:     !isCollapsed && isActive ? "3px solid rgba(255,255,255,0.85)" : "3px solid transparent",
+                }}
+              >
+                <Icon size={isCollapsed ? 18 : 16} strokeWidth={isActive ? 2.2 : 1.8} />
+                {!isCollapsed && <span>{item.name}</span>}
               </Link>
             );
           })}
@@ -169,133 +346,379 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Settings — Admin only */}
           {user.role === "admin" && (
             <>
-              <div style={{ height: '1px', background: 'var(--surface-border)', margin: '0.75rem 0.5rem' }} />
-              <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', padding: '0 0.75rem', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Preferences</p>
-              <Link href="/dashboard/settings" style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)',
-                color: pathname === '/dashboard/settings' ? '#FFFFFF' : 'var(--secondary-foreground)',
-                background: pathname === '/dashboard/settings' ? 'linear-gradient(135deg, #6366F1, #4F46E5)' : 'transparent',
-                fontWeight: pathname === '/dashboard/settings' ? 700 : 500, fontSize: '0.875rem', transition: 'all var(--transition-fast)',
-              }}>
-                <Settings size={18} /> Settings
+              <div style={{ height: "1px", backgroundColor: "rgba(255,255,255,0.12)", margin: "10px 4px" }} />
+              <Link
+                href="/dashboard/settings"
+                title="Settings"
+                style={{
+                  display:         "flex",
+                  alignItems:      "center",
+                  justifyContent:  isCollapsed ? "center" : "flex-start",
+                  gap:             isCollapsed ? 0 : "10px",
+                  padding:         isCollapsed ? "10px 0" : "9px 12px",
+                  borderRadius:    "7px",
+                  color:           pathname === "/dashboard/settings" ? "#fff" : "rgba(255,255,255,0.72)",
+                  backgroundColor: pathname === "/dashboard/settings" ? "rgba(255,255,255,0.18)" : "transparent",
+                  fontWeight:      pathname === "/dashboard/settings" ? 600 : 400,
+                  fontSize:        "13.5px",
+                  textDecoration:  "none",
+                  borderLeft:      !isCollapsed && pathname === "/dashboard/settings" ? "3px solid rgba(255,255,255,0.85)" : "3px solid transparent",
+                }}
+              >
+                <Settings size={isCollapsed ? 18 : 16} />
+                {!isCollapsed && <span>Settings</span>}
               </Link>
             </>
           )}
         </nav>
 
-        {/* Bottom User Profile Card & Logout */}
-        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--surface-border)' }}>
+        {/* Bottom user chip */}
+        <div style={{
+          padding:    isCollapsed ? "12px 6px" : "14px 10px",
+          borderTop:  "1px solid rgba(255,255,255,0.12)",
+          marginTop:  "auto",
+        }}>
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-md)',
-            background: 'var(--surface-solid)', border: '1px solid var(--surface-border)'
+            display:         "flex",
+            alignItems:      "center",
+            justifyContent:  isCollapsed ? "center" : "space-between",
+            padding:         isCollapsed ? "8px 0" : "8px 10px",
+            borderRadius:    "8px",
+            backgroundColor: "rgba(255,255,255,0.12)",
+            flexDirection:   isCollapsed ? "column" : "row",
+            gap:             isCollapsed ? "8px" : 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  width: '32px', height: '32px', borderRadius: '8px',
-                  background: `linear-gradient(135deg, ${ROLE_COLORS[user.role]}, ${ROLE_COLORS[user.role]}99)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.75rem', fontWeight: 800, color: '#fff',
-                }}>
-                  {user.initials}
+            <div style={{ display: "flex", alignItems: "center", gap: "9px", minWidth: 0 }}>
+              {/* Avatar */}
+              <div style={{
+                width:           "32px",
+                height:          "32px",
+                borderRadius:    "8px",
+                backgroundColor: "rgba(255,255,255,0.25)",
+                display:         "flex",
+                alignItems:      "center",
+                justifyContent:  "center",
+                fontSize:        "12px",
+                fontWeight:      700,
+                color:           "#fff",
+                flexShrink:      0,
+              }} title={user.name}>
+                {user.initials}
+              </div>
+              {!isCollapsed && (
+                <div style={{ minWidth: 0 }}>
+                  <p style={{
+                    fontSize:      "12.5px",
+                    fontWeight:    600,
+                    color:         "#fff",
+                    margin:        0,
+                    overflow:      "hidden",
+                    textOverflow:  "ellipsis",
+                    whiteSpace:    "nowrap",
+                  }}>
+                    {user.name}
+                  </p>
+                  <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)", margin: 0, fontWeight: 500 }}>
+                    {ROLE_LABELS[user.role]}
+                  </p>
                 </div>
-                <span style={{ position: 'absolute', bottom: '-2px', right: '-2px', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', border: '1.5px solid var(--surface-solid)' }} />
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: '0.85rem', fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.name}
-                </p>
-                <p style={{ fontSize: '0.7rem', color: ROLE_COLORS[user.role], fontWeight: 700, margin: 0 }}>
-                  {ROLE_LABELS[user.role]}
-                </p>
-              </div>
+              )}
             </div>
-
             <button
-              onClick={() => {
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userEmail');
-                localStorage.removeItem('userName');
-                localStorage.removeItem('userRole');
-                router.replace('/');
-              }}
+              onClick={handleLogout}
               title="Logout"
-              className="btn btn-ghost"
-              style={{ padding: '0.4rem', color: 'var(--muted)', borderRadius: '6px' }}
+              style={{
+                background: "transparent",
+                border:     "none",
+                color:      "rgba(255,255,255,0.65)",
+                cursor:     "pointer",
+                padding:    "4px",
+                display:    "flex",
+                alignItems: "center",
+                borderRadius: "5px",
+              }}
             >
-              <LogOut size={16} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {/* ── MAIN COLUMN ──────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
-        {/* Topbar */}
+        {/* ── TOP NAV BAR ────────────────────────────────────────────────── */}
         <header style={{
-          height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          padding: '0 2rem', gap: '0.75rem',
-          borderBottom: '1px solid var(--surface-border)',
-          background: 'var(--overlay-bg)',
-          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-          position: 'sticky', top: 0, zIndex: 30,
+          height:          "60px",
+          display:         "flex",
+          alignItems:      "center",
+          justifyContent:  "space-between",
+          padding:         "0 28px",
+          backgroundColor: "#fff",
+          borderBottom:    "1px solid #E5E7EB",
+          position:        "sticky",
+          top:             0,
+          zIndex:          30,
+          flexShrink:      0,
         }}>
 
-          {/* Role Badge (read-only) */}
-          <div style={{
-            fontSize: '0.78rem', fontWeight: 700,
-            padding: '0.4rem 0.85rem', borderRadius: '20px',
-            border: `1px solid ${ROLE_COLORS[user.role]}50`,
-            color: ROLE_COLORS[user.role],
-            background: `${ROLE_COLORS[user.role]}12`,
-          }}>
-            {ROLE_LABELS[user.role]}
+          {/* Left: Page title */}
+          <div>
+            <h1 style={{
+              fontSize:    "15px",
+              fontWeight:  600,
+              color:       "#111827",
+              margin:      0,
+              lineHeight:  1,
+            }}>
+              {pageTitle}
+            </h1>
           </div>
 
-          <ThemeToggle />
+          {/* Right: actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
 
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setShowNotifs(!showNotifs)} className="btn btn-ghost" style={{ width: '36px', height: '36px', padding: 0, position: 'relative' }}>
-              <Bell size={18} />
-              {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', width: '7px', height: '7px', borderRadius: '50%', background: 'var(--destructive)', border: '1.5px solid var(--background)' }} />}
+            {/* Search button */}
+            <button style={{
+              width:           "36px",
+              height:          "36px",
+              borderRadius:    "8px",
+              border:          "1px solid #E5E7EB",
+              backgroundColor: "#fff",
+              display:         "flex",
+              alignItems:      "center",
+              justifyContent:  "center",
+              cursor:          "pointer",
+              color:           "#6B7280",
+            }}>
+              <Search size={16} />
             </button>
-            {showNotifs && (
-              <div className="glass-card animate-fadeIn" style={{ position: 'absolute', top: '100%', right: 0, width: '320px', padding: '1rem', zIndex: 50, marginTop: '0.5rem', boxShadow: '0 10px 40px rgba(0,0,0,0.3)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Notifications</h3>
-                  {unreadCount > 0 && <button onClick={() => markAsRead()} style={{ fontSize: '0.75rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Mark all read</button>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto' }}>
-                  {notifications.length === 0 ? (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--muted)', textAlign: 'center', padding: '1rem 0' }}>No notifications yet.</p>
-                  ) : notifications.map(n => (
-                    <div key={n.id} onClick={() => !n.isRead && markAsRead(n.id)} style={{ padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: n.isRead ? 'transparent' : 'var(--overlay-bg)', border: n.isRead ? '1px solid transparent' : '1px solid var(--surface-border)', cursor: n.isRead ? 'default' : 'pointer' }}>
-                      <p style={{ fontSize: '0.8rem', color: n.isRead ? 'var(--secondary-foreground)' : 'var(--foreground)', lineHeight: 1.4, fontWeight: n.isRead ? 500 : 600 }}>{n.text}</p>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--muted)', marginTop: '0.25rem', display: 'block' }}>{new Date(n.createdAt).toLocaleTimeString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
-            background: `linear-gradient(135deg, ${ROLE_COLORS[user.role]}, var(--primary))`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, fontSize: '0.8rem', color: '#fff',
-            boxShadow: `0 4px 12px ${ROLE_COLORS[user.role]}50`,
-          }}>{user.initials}</div>
+            {/* Role badge */}
+            <div style={{
+              fontSize:        "11.5px",
+              fontWeight:      600,
+              padding:         "4px 10px",
+              borderRadius:    "20px",
+              border:          `1px solid ${ROLE_COLORS[user.role]}30`,
+              color:           ROLE_COLORS[user.role],
+              backgroundColor: `${ROLE_COLORS[user.role]}10`,
+            }}>
+              {ROLE_LABELS[user.role]}
+            </div>
+
+            {/* Bell / Notifications */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => { setShowNotifs(!showNotifs); setShowUserMenu(false); }}
+                style={{
+                  width:           "36px",
+                  height:          "36px",
+                  borderRadius:    "8px",
+                  border:          "1px solid #E5E7EB",
+                  backgroundColor: "#fff",
+                  display:         "flex",
+                  alignItems:      "center",
+                  justifyContent:  "center",
+                  cursor:          "pointer",
+                  color:           "#6B7280",
+                  position:        "relative",
+                }}
+              >
+                <Bell size={16} />
+                {unreadCount > 0 && (
+                  <span style={{
+                    position:        "absolute",
+                    top:             "7px",
+                    right:           "7px",
+                    width:           "8px",
+                    height:          "8px",
+                    borderRadius:    "50%",
+                    backgroundColor: "#EF4444",
+                    border:          "1.5px solid #fff",
+                  }} />
+                )}
+              </button>
+
+              {/* Notifications dropdown */}
+              {showNotifs && (
+                <div style={{
+                  position:        "absolute",
+                  top:             "calc(100% + 8px)",
+                  right:           0,
+                  width:           "360px",
+                  backgroundColor: "#fff",
+                  border:          "1px solid #E5E7EB",
+                  borderRadius:    "10px",
+                  boxShadow:       "0 8px 32px rgba(0,0,0,0.10)",
+                  zIndex:          50,
+                  overflow:        "hidden",
+                }}>
+                  <div style={{
+                    display:        "flex",
+                    justifyContent: "space-between",
+                    alignItems:     "center",
+                    padding:        "14px 16px",
+                    borderBottom:   "1px solid #E5E7EB",
+                  }}>
+                    <span style={{ fontWeight: 600, fontSize: "14px", color: "#111827" }}>
+                      Notifications
+                    </span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAsRead()}
+                        style={{
+                          fontSize:   "12px",
+                          color:      "#1A56DB",
+                          background: "none",
+                          border:     "none",
+                          cursor:     "pointer",
+                          fontWeight: 500,
+                        }}
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                    {notifications.length === 0 ? (
+                      <p style={{
+                        fontSize:   "13px",
+                        color:      "#6B7280",
+                        textAlign:  "center",
+                        padding:    "20px 16px",
+                        margin:     0,
+                      }}>
+                        No notifications yet.
+                      </p>
+                    ) : (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => !n.isRead && markAsRead(n.id)}
+                          style={{
+                            padding:         "12px 16px",
+                            borderBottom:    "1px solid #F3F4F6",
+                            cursor:          n.isRead ? "default" : "pointer",
+                            backgroundColor: n.isRead ? "#fff" : "#EFF6FF",
+                            transition:      "background-color 0.15s",
+                          }}
+                        >
+                          <p style={{
+                            fontSize:   "13px",
+                            color:      n.isRead ? "#6B7280" : "#111827",
+                            lineHeight: 1.45,
+                            fontWeight: n.isRead ? 400 : 600,
+                            margin:     0,
+                          }}>
+                            {n.text}
+                          </p>
+                          <div style={{
+                            display:    "flex",
+                            alignItems: "center",
+                            gap:        "5px",
+                            marginTop:  "5px",
+                            fontSize:   "11px",
+                            color:      "#9CA3AF",
+                          }}>
+                            <Clock size={11} color="#9CA3AF" />
+                            <span>{formatNotificationDate(n.createdAt)}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* User avatar + name dropdown */}
+            <div style={{ position: "relative" }}>
+              <button
+                onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifs(false); }}
+                style={{
+                  display:         "flex",
+                  alignItems:      "center",
+                  gap:             "8px",
+                  padding:         "5px 10px 5px 5px",
+                  borderRadius:    "8px",
+                  border:          "1px solid #E5E7EB",
+                  backgroundColor: "#fff",
+                  cursor:          "pointer",
+                  height:          "36px",
+                }}
+              >
+                <div style={{
+                  width:           "26px",
+                  height:          "26px",
+                  borderRadius:    "6px",
+                  backgroundColor: ROLE_COLORS[user.role],
+                  display:         "flex",
+                  alignItems:      "center",
+                  justifyContent:  "center",
+                  fontSize:        "11px",
+                  fontWeight:      700,
+                  color:           "#fff",
+                }}>
+                  {user.initials}
+                </div>
+                <span style={{ fontSize: "13px", fontWeight: 500, color: "#111827" }}>
+                  {user.name.split(" ")[0]}
+                </span>
+                <ChevronDown size={13} color="#6B7280" />
+              </button>
+
+              {showUserMenu && (
+                <div style={{
+                  position:        "absolute",
+                  top:             "calc(100% + 8px)",
+                  right:           0,
+                  width:           "180px",
+                  backgroundColor: "#fff",
+                  border:          "1px solid #E5E7EB",
+                  borderRadius:    "10px",
+                  boxShadow:       "0 8px 32px rgba(0,0,0,0.10)",
+                  zIndex:          50,
+                  overflow:        "hidden",
+                  padding:         "6px",
+                }}>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      display:         "flex",
+                      alignItems:      "center",
+                      gap:             "8px",
+                      width:           "100%",
+                      padding:         "9px 12px",
+                      borderRadius:    "6px",
+                      border:          "none",
+                      backgroundColor: "transparent",
+                      color:           "#EF4444",
+                      fontSize:        "13px",
+                      fontWeight:      500,
+                      cursor:          "pointer",
+                      textAlign:       "left",
+                    }}
+                  >
+                    <LogOut size={14} />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+
+          </div>
         </header>
 
-        {/* Page content */}
-        <div style={{ padding: '2rem', flex: 1, overflowY: 'auto' }}>
+        {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
+        <main style={{
+          flex:       1,
+          padding:    "24px",
+          overflowY:  "auto",
+          backgroundColor: "#F5F7FB",
+        }}>
           {children}
-        </div>
-      </div>
+        </main>
       </div>
     </div>
   );

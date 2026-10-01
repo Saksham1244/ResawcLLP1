@@ -1,30 +1,124 @@
 "use client";
 
-import { Users, CheckSquare, TrendingUp, Activity, ArrowRight, Sparkles, Clock, Shield, Flame, Compass } from "lucide-react";
+import {
+  TrendingUp,
+  CheckSquare,
+  CalendarCheck,
+  Activity,
+  MessageSquare,
+  Users,
+  ArrowRight,
+  Clock,
+} from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, CSSProperties } from "react";
 import { useRole } from "@/context/RoleContext";
 
+/* ─── helpers ──────────────────────────────────────── */
 function getGreeting() {
-  const hour = new Date().toLocaleTimeString('en-US', { hour12: false, hour: 'numeric', timeZone: 'Asia/Kolkata' });
+  const hour = new Date().toLocaleTimeString("en-US", {
+    hour12: false,
+    hour: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
   const h = parseInt(hour, 10);
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
 }
 
+/* ─── types ─────────────────────────────────────────── */
+interface ActivityItem {
+  text: string;
+  highlight?: string;
+  color?: string;
+  time?: string;
+}
+
+interface OverviewData {
+  activeLeads: number;
+  pendingTasks: number;
+  teamMembers: number;
+  recentActivity: ActivityItem[];
+}
+
+/* ─── quick-access card definition ─────────────────── */
+const quickCards = (isAdmin: boolean, isEditor: boolean) =>
+  [
+    {
+      id: "leads",
+      title: "Leads & Pipeline",
+      subtitle: "Round-robin leads & call logs",
+      href: "/dashboard/leads",
+      icon: TrendingUp,
+      bg: "#FFF0F3",
+      iconBg: "#FFD6E0",
+      iconColor: "#E8265E",
+      show: !isEditor,
+    },
+    {
+      id: "tasks",
+      title: "Team Tasks",
+      subtitle: "Active queues & deliverables",
+      href: "/dashboard/tasks",
+      icon: CheckSquare,
+      bg: "#EFF8FF",
+      iconBg: "#C7E5FF",
+      iconColor: "#1A56DB",
+      show: true,
+    },
+    {
+      id: "attendance",
+      title: "Attendance",
+      subtitle: "Check-ins, leaves & reports",
+      href: "/dashboard/attendance",
+      icon: CalendarCheck,
+      bg: "#F0FFF8",
+      iconBg: "#C3F5E2",
+      iconColor: "#0E9F6E",
+      show: true,
+    },
+    {
+      id: "monitor",
+      title: "Live Monitor",
+      subtitle: "Real-time team radar",
+      href: "/dashboard/monitor",
+      icon: Activity,
+      bg: "#FFF8F0",
+      iconBg: "#FFE3C3",
+      iconColor: "#D97706",
+      show: isAdmin,
+    },
+    {
+      id: "chat",
+      title: "Messages",
+      subtitle: "Team chat & updates",
+      href: "/dashboard/chat",
+      icon: MessageSquare,
+      bg: "#F5F0FF",
+      iconBg: "#E0D4FC",
+      iconColor: "#7C3AED",
+      show: true,
+    },
+  ].filter((c) => c.show);
+
+/* ─── component ─────────────────────────────────────── */
 export default function DashboardOverview() {
   const { user } = useRole();
-  const [data, setData] = useState({ activeLeads: 0, pendingTasks: 0, teamMembers: 0, recentActivity: [] });
+  const [data, setData] = useState<OverviewData>({
+    activeLeads: 0,
+    pendingTasks: 0,
+    teamMembers: 0,
+    recentActivity: [],
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
     fetch(`/api/overview?userId=${user.id}&role=${user.role}`)
-      .then(r => r.json())
-      .then(res => {
+      .then((r) => r.json())
+      .then((res) => {
         if (res.success) setData(res.data);
         setLoading(false);
       })
@@ -32,292 +126,412 @@ export default function DashboardOverview() {
   }, [user]);
 
   if (!user) return null;
-  const greeting = getGreeting();
 
-  const stats = [
-    {
-      id: 'leads',
-      label: "ACTIVE LEADS",
-      value: loading ? "--" : data.activeLeads.toString(),
-      trend: "+12% this month",
-      trendPositive: true,
-      icon: TrendingUp,
-      color: "#6366F1",
-      glow: "rgba(99, 102, 241, 0.25)",
-      href: "/dashboard/leads",
-      show: user.role !== 'editor'
+  const greeting = getGreeting();
+  const isAdmin = user.role === "admin";
+  const isEditor = user.role === "editor";
+  const cards = quickCards(isAdmin, isEditor);
+
+  /* ── style helpers ── */
+  const s: Record<string, CSSProperties> = {
+    page: {
+      maxWidth: 1280,
+      margin: "0 auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: "1.75rem",
+      fontFamily: "Inter, system-ui, sans-serif",
     },
-    {
-      id: 'tasks',
-      label: "PENDING TASKS",
-      value: loading ? "--" : data.pendingTasks.toString(),
-      trend: data.pendingTasks > 0 ? "Requires attention" : "All cleared",
-      trendPositive: data.pendingTasks === 0,
-      icon: CheckSquare,
-      color: "#F59E0B",
-      glow: "rgba(245, 158, 11, 0.25)",
-      href: "/dashboard/tasks",
-      show: true
+
+    /* ── header banner ── */
+    headerBanner: {
+      background: "#FFFFFF",
+      border: "1px solid #E5E7EB",
+      borderRadius: 8,
+      padding: "1.75rem 2rem",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      flexWrap: "wrap" as const,
+      gap: "1rem",
     },
-    {
-      id: 'team',
-      label: "ACTIVE TEAM MEMBERS",
-      value: loading ? "--" : data.teamMembers.toString(),
-      trend: "Operational",
-      trendPositive: true,
-      icon: Users,
-      color: "#10B981",
-      glow: "rgba(16, 185, 129, 0.25)",
-      href: "/dashboard/team",
-      show: user.role === 'admin'
+    greeting: {
+      fontSize: 28,
+      fontWeight: 700,
+      color: "#111827",
+      margin: "0 0 0.3rem 0",
+      letterSpacing: "-0.02em",
     },
-    {
-      id: 'status',
-      label: "SYSTEM RADAR",
-      value: "99.8%",
-      trend: "All systems online",
-      trendPositive: true,
-      icon: Activity,
-      color: "#8B5CF6",
-      glow: "rgba(139, 92, 246, 0.25)",
-      href: "/dashboard/monitor",
-      show: true
+    subtitle: {
+      fontSize: 14,
+      color: "#6B7280",
+      margin: 0,
     },
-  ].filter(s => s.show);
+    btnRow: {
+      display: "flex",
+      gap: "0.75rem",
+      flexWrap: "wrap" as const,
+      alignItems: "center",
+    },
+    btnOutline: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.5rem",
+      padding: "0.55rem 1.1rem",
+      borderRadius: 6,
+      border: "1px solid #D1D5DB",
+      background: "#FFFFFF",
+      color: "#374151",
+      fontWeight: 600,
+      fontSize: 14,
+      textDecoration: "none",
+      cursor: "pointer",
+      transition: "background 0.15s",
+    },
+    btnBlue: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "0.5rem",
+      padding: "0.55rem 1.1rem",
+      borderRadius: 6,
+      border: "none",
+      background: "#1A56DB",
+      color: "#FFFFFF",
+      fontWeight: 600,
+      fontSize: 14,
+      textDecoration: "none",
+      cursor: "pointer",
+    },
+
+    /* ── quick access row ── */
+    sectionLabel: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#9CA3AF",
+      letterSpacing: "0.08em",
+      textTransform: "uppercase" as const,
+      marginBottom: "0.75rem",
+    },
+    cardsRow: {
+      display: "flex",
+      flexWrap: "wrap" as const,
+      gap: "1rem",
+    },
+    card: {
+      background: "#FFFFFF",
+      border: "1px solid #E5E7EB",
+      borderRadius: 8,
+      padding: "1.25rem",
+      width: 160,
+      minWidth: 145,
+      flexShrink: 0,
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "0.75rem",
+      textDecoration: "none",
+      transition: "box-shadow 0.15s, transform 0.15s",
+      cursor: "pointer",
+    },
+
+    /* ── bottom two-panel row ── */
+    panelRow: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "1.25rem",
+    },
+    panel: {
+      background: "#FFFFFF",
+      border: "1px solid #E5E7EB",
+      borderRadius: 8,
+      padding: "1.5rem",
+    },
+    panelTitle: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#111827",
+      margin: "0 0 1.25rem 0",
+    },
+
+    /* ── activity list ── */
+    activityRow: {
+      display: "flex",
+      alignItems: "flex-start",
+      gap: "0.75rem",
+      padding: "0.7rem 0",
+      borderBottom: "1px solid #F3F4F6",
+    },
+    activityDot: {
+      width: 8,
+      height: 8,
+      borderRadius: "50%",
+      background: "#1A56DB",
+      marginTop: 5,
+      flexShrink: 0,
+    },
+    activityText: {
+      fontSize: 13,
+      color: "#374151",
+      margin: 0,
+      flex: 1,
+    },
+    activityTime: {
+      fontSize: 12,
+      color: "#9CA3AF",
+      flexShrink: 0,
+    },
+    emptyState: {
+      textAlign: "center" as const,
+      padding: "2.5rem 1rem",
+      color: "#9CA3AF",
+    },
+
+    /* ── key metrics ── */
+    metricGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "0.85rem",
+    },
+    metricTile: {
+      background: "#F9FAFB",
+      border: "1px solid #E5E7EB",
+      borderRadius: 8,
+      padding: "1rem 1.1rem",
+    },
+    metricValue: {
+      fontSize: 32,
+      fontWeight: 800,
+      color: "#111827",
+      lineHeight: 1,
+      margin: "0 0 0.3rem 0",
+      letterSpacing: "-0.03em",
+    },
+    metricLabel: {
+      fontSize: 12,
+      color: "#6B7280",
+      fontWeight: 500,
+      margin: 0,
+    },
+  };
 
   return (
-    <div className="animate-fadeIn" style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Leonar-Style Radiant Welcome Banner */}
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="glass-card"
-        style={{
-          padding: '2.25rem 2rem',
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 50%, rgba(14, 15, 21, 0.8) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1.5rem'
-        }}
-      >
+    <div style={s.page}>
+
+      {/* ── Page Header ── */}
+      <div style={s.headerBanner}>
         <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0.75rem', borderRadius: '999px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: 'var(--primary-2)', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-            <Sparkles size={13} /> RESAWC CORE WORKSPACE
-          </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 0.5rem 0' }}>
+          <h1 style={s.greeting}>
             {greeting}, {user.name} 👋
           </h1>
-          <p className="text-muted text-sm" style={{ margin: 0, maxWidth: '520px' }}>
-            Here is your live team telemetry, task queue, and CRM performance overview for today.
+          <p style={s.subtitle}>
+            Here is your workspace overview for today — tasks, leads, and team updates.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={s.btnRow}>
           <a
             href="/attendance"
             target="_blank"
             rel="noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.7rem 1.25rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--surface-solid)',
-              border: '1px solid var(--surface-border)',
-              color: 'var(--foreground)',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all var(--transition-fast)',
-            }}
+            style={s.btnOutline}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981', display: 'inline-block' }} />
+            <CalendarCheck size={15} />
             Mark Attendance
           </a>
 
-          {user.role === 'admin' && (
-            <Link
-              href="/dashboard/monitor"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.25rem',
-                borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                color: '#FFFFFF',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                textDecoration: 'none',
-                boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <Activity size={16} /> Live Radar
+          {isAdmin && (
+            <Link href="/dashboard/monitor" style={s.btnBlue}>
+              <Activity size={15} />
+              Live Monitor
             </Link>
           )}
         </div>
-      </motion.div>
-
-      {/* Radiant Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <motion.div
-              key={stat.id}
-              className="stat-card-radiant"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08, duration: 0.4 }}
-            >
-              <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.08em' }}>
-                  {stat.label}
-                </span>
-                <div style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '10px',
-                  background: stat.glow,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: stat.color,
-                  border: `1px solid ${stat.color}40`
-                }}>
-                  <Icon size={19} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '2.4rem', fontWeight: 800, letterSpacing: '-0.04em', fontFamily: 'var(--font-display)', lineHeight: 1 }}>
-                  {stat.value}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid var(--surface-border)' }}>
-                <span style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: stat.trendPositive ? '#10B981' : '#F59E0B'
-                }}>
-                  {stat.trend}
-                </span>
-                <Link href={stat.href} style={{ color: 'var(--primary-2)', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  View <ArrowRight size={12} />
-                </Link>
-              </div>
-            </motion.div>
-          );
-        })}
       </div>
 
-      {/* Split Widget Row: Quick Access & Live Activity Feed */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
-        {/* Quick Hub Navigation Card */}
-        <div className="glass-card">
-          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Compass size={18} color="var(--primary-2)" /> Workspace Hub
-            </h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {user.role !== 'editor' && (
-              <Link href="/dashboard/leads" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <TrendingUp size={18} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Lead Management & CRM</p>
-                    <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Round-robin leads & call outcome logs</p>
-                  </div>
-                </div>
-                <ArrowRight size={16} color="var(--muted)" />
-              </Link>
-            )}
-
-            <Link href="/dashboard/tasks" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <CheckSquare size={18} />
-                </div>
-                <div>
-                  <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Production & Tasks</p>
-                  <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Active editor queues & deliverables</p>
-                </div>
-              </div>
-              <ArrowRight size={16} color="var(--muted)" />
-            </Link>
-
-            <Link href="/dashboard/attendance" className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', background: 'var(--surface-solid)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Clock size={18} />
-                </div>
-                <div>
-                  <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>Attendance & Leaves</p>
-                  <p className="text-muted" style={{ fontSize: '0.75rem', margin: 0 }}>Monthly report, check-ins, and leave requests</p>
-                </div>
-              </div>
-              <ArrowRight size={16} color="var(--muted)" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Live Activity & Updates */}
-        <div className="glass-card">
-          <div className="flex-between" style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Activity size={18} color="var(--primary-2)" /> Live Activity Stream
-            </h3>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} /> Live
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {data.recentActivity.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--secondary-foreground)' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--surface-solid)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
-                  <Shield size={22} color="var(--muted)" />
-                </div>
-                <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0' }}>All Caught Up</p>
-                <p className="text-muted" style={{ fontSize: '0.78rem', margin: 0 }}>System events and lead conversions will stream here automatically.</p>
-              </div>
-            ) : data.recentActivity.map((item: any, i: number) => (
-              <div 
-                key={i} 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--surface-solid)',
-                  border: '1px solid var(--surface-border)'
+      {/* ── Quick Access Cards ── */}
+      <div>
+        <p style={s.sectionLabel}>Quick Access</p>
+        <div style={s.cardsRow}>
+          {cards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Link
+                key={card.id}
+                href={card.href}
+                style={{ ...s.card, background: card.bg }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.boxShadow =
+                    "0 4px 16px rgba(0,0,0,0.08)";
+                  (e.currentTarget as HTMLElement).style.transform =
+                    "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                  (e.currentTarget as HTMLElement).style.transform = "none";
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color || 'var(--primary)', boxShadow: `0 0 8px ${item.color || 'var(--primary)'}` }} />
-                  <p style={{ fontSize: '0.85rem', margin: 0, fontWeight: 500 }}>
-                    {item.text} <span style={{ color: item.color || 'var(--primary)', fontWeight: 700 }}>{item.highlight}</span>
+                {/* Icon container */}
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 10,
+                    background: card.iconBg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: card.iconColor,
+                  }}
+                >
+                  <Icon size={22} />
+                </div>
+
+                {/* Text */}
+                <div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#111827",
+                      margin: "0 0 0.2rem 0",
+                    }}
+                  >
+                    {card.title}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 11,
+                      color: "#6B7280",
+                      margin: 0,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {card.subtitle}
                   </p>
                 </div>
-                <span className="text-muted" style={{ fontSize: '0.75rem' }}>{item.time}</span>
+
+                {/* Arrow */}
+                <div style={{ marginTop: "auto", display: "flex", justifyContent: "flex-end" }}>
+                  <ArrowRight size={14} color={card.iconColor} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Bottom Panels ── */}
+      <div style={s.panelRow}>
+
+        {/* Recent Activity */}
+        <div style={s.panel}>
+          <p style={s.panelTitle}>Recent Activity</p>
+
+          {data.recentActivity.length === 0 ? (
+            <div style={s.emptyState}>
+              <Clock size={36} color="#D1D5DB" style={{ marginBottom: "0.75rem" }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#374151", margin: "0 0 0.3rem 0" }}>
+                No recent activity
+              </p>
+              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>
+                Team events and lead updates will appear here automatically.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {data.recentActivity.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    ...s.activityRow,
+                    ...(i === data.recentActivity.length - 1
+                      ? { borderBottom: "none" }
+                      : {}),
+                  }}
+                >
+                  <span
+                    style={{
+                      ...s.activityDot,
+                      background: item.color ?? "#1A56DB",
+                    }}
+                  />
+                  <p style={s.activityText}>
+                    {item.text}{" "}
+                    {item.highlight && (
+                      <strong style={{ color: item.color ?? "#1A56DB" }}>
+                        {item.highlight}
+                      </strong>
+                    )}
+                  </p>
+                  {item.time && (
+                    <span style={s.activityTime}>{item.time}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Key Metrics */}
+        <div style={s.panel}>
+          <p style={s.panelTitle}>Key Metrics</p>
+
+          <div style={s.metricGrid}>
+            {/* Active Leads */}
+            {!isEditor && (
+              <div style={{ ...s.metricTile, borderLeft: "3px solid #E8265E" }}>
+                <p style={s.metricValue}>
+                  {loading ? "—" : data.activeLeads}
+                </p>
+                <p style={s.metricLabel}>Active Leads</p>
               </div>
-            ))}
+            )}
+
+            {/* Pending Tasks */}
+            <div style={{ ...s.metricTile, borderLeft: "3px solid #1A56DB" }}>
+              <p style={s.metricValue}>
+                {loading ? "—" : data.pendingTasks}
+              </p>
+              <p style={s.metricLabel}>Pending Tasks</p>
+            </div>
+
+            {/* Team Members — admin only */}
+            {isAdmin && (
+              <div style={{ ...s.metricTile, borderLeft: "3px solid #0E9F6E" }}>
+                <p style={s.metricValue}>
+                  {loading ? "—" : data.teamMembers}
+                </p>
+                <p style={s.metricLabel}>Team Members</p>
+              </div>
+            )}
+
+            {/* Today placeholder tile */}
+            <div style={{ ...s.metricTile, borderLeft: "3px solid #D97706" }}>
+              <p style={s.metricValue}>
+                {new Date().toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                })}
+              </p>
+              <p style={s.metricLabel}>Today</p>
+            </div>
+
+            {/* Role badge tile */}
+            <div style={{ ...s.metricTile, borderLeft: "3px solid #7C3AED", gridColumn: isAdmin ? "1 / -1" : undefined }}>
+              <p
+                style={{
+                  ...s.metricValue,
+                  fontSize: 18,
+                  textTransform: "capitalize" as const,
+                  color: "#7C3AED",
+                }}
+              >
+                {user.role}
+              </p>
+              <p style={s.metricLabel}>Your Role</p>
+            </div>
           </div>
         </div>
+
       </div>
     </div>
   );

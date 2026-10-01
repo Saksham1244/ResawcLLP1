@@ -3,15 +3,27 @@
 import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import {
-  UploadCloud, CheckCircle2, Phone, FileText, Shuffle, X,
-  ChevronDown, ChevronUp, MessageSquare, Clock, Eye, Filter,
-  Search, Plus, Sparkles, User, Calendar, Check, Send, Award
+  UploadCloud, Phone, MessageSquare, X, Search, Shuffle,
+  ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus,
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
 
-const AVATAR_COLORS = ["#6366F1", "#F43F5E", "#10B981", "#F59E0B", "#8B5CF6", "#06B6D4"];
+/* ─── Design tokens ──────────────────────────────────────────── */
+const C = {
+  canvas:    "#F5F7FB",
+  white:     "#FFFFFF",
+  primary:   "#1A56DB",
+  primaryHover: "#1648C0",
+  border:    "#E5E7EB",
+  textPrimary: "#111827",
+  textMuted: "#6B7280",
+  rowHover:  "#F9FAFB",
+} as const;
 
+const AVATAR_COLORS = ["#6366F1","#F43F5E","#10B981","#F59E0B","#8B5CF6","#06B6D4","#EC4899","#14B8A6"];
+
+/* ─── Types ──────────────────────────────────────────────────── */
 type Interaction = {
   id: number;
   outcome: "PICKED_UP" | "NO_ANSWER" | "LEFT_VOICEMAIL" | "WRONG_NUMBER";
@@ -31,72 +43,208 @@ type Lead = {
   [key: string]: any;
 };
 
+/* ─── Metadata maps ──────────────────────────────────────────── */
 const OUTCOME_META: Record<string, { color: string; label: string; icon: any }> = {
-  PICKED_UP: { color: "#10B981", label: "Picked Up", icon: Phone },
-  NO_ANSWER: { color: "#F59E0B", label: "No Answer", icon: Phone },
-  LEFT_VOICEMAIL: { color: "#6366F1", label: "Left Voicemail", icon: MessageSquare },
-  WRONG_NUMBER: { color: "#F43F5E", label: "Wrong Number", icon: X },
+  PICKED_UP:     { color: "#10B981", label: "Picked Up",      icon: Phone },
+  NO_ANSWER:     { color: "#F59E0B", label: "No Answer",      icon: Phone },
+  LEFT_VOICEMAIL:{ color: "#6366F1", label: "Left Voicemail", icon: MessageSquare },
+  WRONG_NUMBER:  { color: "#EF4444", label: "Wrong Number",   icon: X },
 };
 
 const STATUS_META: Record<LeadStatus, { color: string; bg: string; label: string }> = {
-  NEW: { color: "#94A3B8", bg: "rgba(148, 163, 184, 0.12)", label: "New Lead" },
-  CONTACTED: { color: "#6366F1", bg: "rgba(99, 102, 241, 0.15)", label: "Contacted" },
-  INTERESTED: { color: "#8B5CF6", bg: "rgba(139, 92, 246, 0.15)", label: "Interested" },
-  NOT_INTERESTED: { color: "#F43F5E", bg: "rgba(244, 63, 94, 0.15)", label: "Not Interested" },
-  CONVERTED: { color: "#10B981", bg: "rgba(16, 185, 129, 0.15)", label: "Converted ⭐" },
+  NEW:           { color: "#6B7280", bg: "#F3F4F6",         label: "New"         },
+  CONTACTED:     { color: "#1A56DB", bg: "#EFF6FF",         label: "Contacted"   },
+  INTERESTED:    { color: "#7C3AED", bg: "#F5F3FF",         label: "Interested"  },
+  NOT_INTERESTED:{ color: "#EF4444", bg: "#FEF2F2",         label: "Not Interested" },
+  CONVERTED:     { color: "#059669", bg: "#ECFDF5",         label: "Confirmed"   },
 };
 
+const TAB_KEYS = [
+  { key: "ALL",       label: "All Leads"  },
+  { key: "NEW",       label: "New"        },
+  { key: "CONTACTED", label: "Contacted"  },
+  { key: "INTERESTED",label: "Interested" },
+  { key: "CONVERTED", label: "Converted"  },
+] as const;
+
+/* ─── Helpers ────────────────────────────────────────────────── */
+function initials(name: string) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
+
+function Avatar({ name, colorIndex }: { name: string; colorIndex: number }) {
+  const bg = AVATAR_COLORS[colorIndex % AVATAR_COLORS.length];
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: "50%",
+      background: bg, color: "#fff",
+      fontSize: "0.7rem", fontWeight: 700,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0, letterSpacing: "0.03em",
+    }}>
+      {initials(name)}
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: LeadStatus }) {
+  const m = STATUS_META[status] || STATUS_META.NEW;
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "2px 10px", borderRadius: 999,
+      background: m.bg, color: m.color,
+      fontSize: "0.72rem", fontWeight: 600,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+      {m.label}
+    </span>
+  );
+}
+
+/* ─── Row action dropdown ────────────────────────────────────── */
+function ActionMenu({
+  lead,
+  onLogCall,
+}: {
+  lead: Lead;
+  onLogCall: (l: Lead) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          background: "none", border: "1px solid " + C.border,
+          borderRadius: 6, padding: "5px 8px", cursor: "pointer",
+          display: "flex", alignItems: "center", color: C.textMuted,
+        }}
+      >
+        <MoreVertical size={16} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50,
+          background: C.white, border: "1px solid " + C.border,
+          borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+          minWidth: 160, overflow: "hidden",
+        }}>
+          {[
+            { label: "Log Call",     icon: Phone, action: () => { onLogCall(lead); setOpen(false); } },
+            { label: "View Details", icon: Eye,   action: () => setOpen(false) },
+          ].map(item => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "10px 16px",
+                background: "none", border: "none",
+                fontSize: "0.875rem", color: C.textPrimary,
+                cursor: "pointer", textAlign: "left",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.rowHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            >
+              <item.icon size={14} color={C.textMuted} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Content ───────────────────────────────────────────── */
 function LeadsContent() {
   const { user } = useRole();
   if (!user) return null;
   const isAdmin = user.role === "admin";
 
+  /* state */
   const [activeLeads, setActiveLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]         = useState(true);
   const [marketingTeam, setMarketingTeam] = useState<any[]>([]);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [logTarget, setLogTarget] = useState<Lead | null>(null);
-  const [callOutcome, setCallOutcome] = useState<Interaction["outcome"]>("PICKED_UP");
-  const [callNotes, setCallNotes] = useState("");
-  const [callStatus, setCallStatus] = useState<LeadStatus>("CONTACTED");
-  const [previewLeads, setPreviewLeads] = useState<any[]>([]);
-  const [distributed, setDistributed] = useState(false);
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [showFilters, setShowFilters]   = useState(false);
+
+  /* log-call modal */
+  const [logTarget, setLogTarget]       = useState<Lead | null>(null);
+  const [callOutcome, setCallOutcome]   = useState<Interaction["outcome"]>("PICKED_UP");
+  const [callNotes, setCallNotes]       = useState("");
+  const [callStatus, setCallStatus]     = useState<LeadStatus>("CONTACTED");
+  const [saving, setSaving]             = useState(false);
+
+  /* upload modal */
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [previewLeads, setPreviewLeads]       = useState<any[]>([]);
+  const [distributed, setDistributed]         = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /* hover state for rows */
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+  /* add lead modal */
+  const [showAddLeadModal, setShowAddLeadModal] = useState(false);
+  const [newLeadName, setNewLeadName]           = useState("");
+  const [newLeadCompany, setNewLeadCompany]     = useState("");
+  const [newLeadPhone, setNewLeadPhone]         = useState("");
+  const [newLeadEmail, setNewLeadEmail]         = useState("");
+  const [newLeadStatus, setNewLeadStatus]       = useState<LeadStatus>("NEW");
+  const [newLeadAssignee, setNewLeadAssignee]   = useState("");
+  const [newLeadNotes, setNewLeadNotes]         = useState("");
+  const [creatingLead, setCreatingLead]         = useState(false);
+
+  /* ── data fetching ── */
   const fetchLeads = () => {
     setLoading(true);
     fetch(`/api/leads?userId=${user.id}&role=${user.role}`)
       .then(r => r.json())
       .then(data => {
-        if (data.success) {
-          setActiveLeads(data.data);
-        }
+        if (data.success) setActiveLeads(data.data);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => {
-    fetchLeads();
-  }, [user.id, user.role]);
+  useEffect(() => { fetchLeads(); }, [user.id, user.role]);
 
   useEffect(() => {
-    fetch('/api/users')
+    fetch("/api/users")
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          const mktTeam = data.data.filter((u: any) => u.role === 'MARKETING' || u.role === 'marketing');
-          setMarketingTeam(mktTeam);
+          setMarketingTeam(data.data.filter((u: any) =>
+            u.role === "MARKETING" || u.role === "marketing"
+          ));
         }
       })
       .catch(() => {});
   }, []);
 
+  /* ── XLSX parse ── */
   const parseFile = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       try {
         const wb = XLSX.read(e.target?.result, { type: "binary" });
         const ws = wb.Sheets[wb.SheetNames[0]];
@@ -110,20 +258,17 @@ function LeadsContent() {
     reader.readAsBinaryString(file);
   };
 
+  /* ── distribute ── */
   const handleDistribute = async () => {
     if (marketingTeam.length === 0) {
-      alert('No marketing team members found. Please add team members first.');
+      alert("No marketing team members found. Please add team members first.");
       return;
     }
-    
     try {
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leads: previewLeads,
-          teamIds: marketingTeam.map(t => t.id)
-        })
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leads: previewLeads, teamIds: marketingTeam.map(t => t.id) }),
       });
       const data = await res.json();
       if (data.success) {
@@ -132,27 +277,27 @@ function LeadsContent() {
         setShowUploadModal(false);
         fetchLeads();
       } else {
-        alert(data.error || 'Failed to distribute leads');
+        alert(data.error || "Failed to distribute leads");
       }
-    } catch {
-      alert('Network error');
-    }
+    } catch { alert("Network error"); }
   };
 
+  /* ── save interaction ── */
   const handleSaveInteraction = async () => {
     if (!logTarget) return;
+    setSaving(true);
     try {
-      const res = await fetch('/api/leads/interactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/leads/interactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: logTarget._id,
           userId: user.id,
-          type: 'CALL',
+          type: "CALL",
           status: callOutcome,
           notes: callNotes,
-          newLeadStatus: callStatus
-        })
+          newLeadStatus: callStatus,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -160,353 +305,999 @@ function LeadsContent() {
         setCallNotes("");
         fetchLeads();
       } else {
-        alert(data.error || 'Failed to log call');
+        alert(data.error || "Failed to log call");
+      }
+    } catch { alert("Network error"); }
+    finally { setSaving(false); }
+  };
+
+  /* ── add single lead ── */
+  const handleCreateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeadName.trim()) {
+      alert("Please enter a lead name");
+      return;
+    }
+
+    setCreatingLead(true);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newLeadName.trim(),
+          company: newLeadCompany.trim(),
+          phone: newLeadPhone.trim(),
+          email: newLeadEmail.trim(),
+          status: newLeadStatus,
+          assignedToId: newLeadAssignee || null,
+          notes: newLeadNotes.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setShowAddLeadModal(false);
+        setNewLeadName("");
+        setNewLeadCompany("");
+        setNewLeadPhone("");
+        setNewLeadEmail("");
+        setNewLeadStatus("NEW");
+        setNewLeadAssignee("");
+        setNewLeadNotes("");
+        fetchLeads();
+      } else {
+        alert(data.error || "Failed to create lead");
       }
     } catch {
-      alert('Network error');
+      alert("Network error creating lead");
+    } finally {
+      setCreatingLead(false);
     }
   };
 
-  // Funnel Counts
+  /* ── derived counts / filtered ── */
   const counts = {
-    all: activeLeads.length,
-    new: activeLeads.filter(l => l._status === 'NEW').length,
-    contacted: activeLeads.filter(l => l._status === 'CONTACTED').length,
-    interested: activeLeads.filter(l => l._status === 'INTERESTED').length,
-    converted: activeLeads.filter(l => l._status === 'CONVERTED').length,
-  };
+    ALL:       activeLeads.length,
+    NEW:       activeLeads.filter(l => l._status === "NEW").length,
+    CONTACTED: activeLeads.filter(l => l._status === "CONTACTED").length,
+    INTERESTED:activeLeads.filter(l => l._status === "INTERESTED").length,
+    CONVERTED: activeLeads.filter(l => l._status === "CONVERTED").length,
+  } as Record<string, number>;
 
   const filteredLeads = activeLeads.filter(l => {
-    const matchesFilter = filterStatus === 'ALL' || l._status === filterStatus;
-    const matchesSearch = !searchQuery || 
-      (l.Name && l.Name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (l.Phone && String(l.Phone).includes(searchQuery)) ||
-      (l.Company && l.Company.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesFilter = filterStatus === "ALL" || l._status === filterStatus;
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !q
+      || (l.Name    && l.Name.toLowerCase().includes(q))
+      || (l.Phone   && String(l.Phone).includes(q))
+      || (l.Company && l.Company.toLowerCase().includes(q));
     return matchesFilter && matchesSearch;
   });
 
+  /* ── pagination (simple, no routing) ── */
+  const PAGE_SIZE = 15;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
+  const pagedLeads = filteredLeads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const startIdx   = (page - 1) * PAGE_SIZE + 1;
+  const endIdx     = Math.min(page * PAGE_SIZE, filteredLeads.length);
+
+  /* reset page when filter/search changes */
+  useEffect(() => setPage(1), [filterStatus, searchQuery]);
+
+  /* ════════════════════════════════════════════════════════════ */
   return (
-    <div className="animate-fadeIn" style={{ maxWidth: '1360px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-      {/* Top Header */}
-      <div className="flex-between" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+    <div style={{ fontFamily: "Inter, system-ui, sans-serif", color: C.textPrimary }}>
+
+      {/* ── Page Header ── */}
+      <div style={{
+        background: C.white,
+        borderBottom: "1px solid " + C.border,
+        padding: "20px 28px",
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between", gap: 16,
+        flexWrap: "wrap",
+      }}>
         <div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 0.25rem 0' }}>
-            {isAdmin ? "Enterprise Leads & CRM Pipeline" : "My Assigned Leads"}
+          <h1 style={{ margin: 0, fontSize: "1.375rem", fontWeight: 700, color: C.textPrimary, lineHeight: 1.3 }}>
+            Leads &amp; Pipeline
           </h1>
-          <p className="text-muted text-sm" style={{ margin: 0 }}>
-            {isAdmin ? "Round-robin distribution, conversion tracking, and interaction analytics." : "Your personal pipeline queue and call outcome logger."}
+          <p style={{ margin: "4px 0 0", fontSize: "0.875rem", color: C.textMuted }}>
+            {isAdmin
+              ? "Manage, import, and distribute leads across your marketing team."
+              : "Your assigned leads and call interaction history."}
           </p>
         </div>
 
-        {isAdmin && (
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={() => setShowUploadModal(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderRadius: 'var(--radius-md)', padding: '0.7rem 1.25rem' }}>
-              <UploadCloud size={17} /> Bulk Ingest Leads
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Teamgate-Style Pipeline Funnel Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-        {[
-          { key: 'ALL', label: 'TOTAL PIPELINE', count: counts.all, color: '#6366F1' },
-          { key: 'NEW', label: 'NEW LEADS', count: counts.new, color: '#94A3B8' },
-          { key: 'CONTACTED', label: 'IN PROGRESS', count: counts.contacted, color: '#6366F1' },
-          { key: 'INTERESTED', label: 'INTERESTED', count: counts.interested, color: '#8B5CF6' },
-          { key: 'CONVERTED', label: 'WON / CONVERTED', count: counts.converted, color: '#10B981' },
-        ].map((f) => (
-          <div 
-            key={f.key}
-            onClick={() => setFilterStatus(f.key)}
-            className="stat-card-radiant"
-            style={{
-              padding: '1.15rem 1.25rem',
-              cursor: 'pointer',
-              border: filterStatus === f.key ? `1.5px solid ${f.color}` : '1px solid var(--surface-border)',
-              background: filterStatus === f.key ? 'var(--surface-solid)' : 'var(--glass-bg)'
-            }}
-          >
-            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--muted)', letterSpacing: '0.08em' }}>{f.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: f.color, fontFamily: 'var(--font-display)', lineHeight: 1 }}>{f.count}</span>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: f.color, boxShadow: `0 0 8px ${f.color}` }} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="glass-card" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
-          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search by name, company or phone..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input"
-            style={{ paddingLeft: '2.5rem', background: 'var(--surface-solid)' }}
-          />
-        </div>
-
-        <div className="pill-tabs-container">
-          {['ALL', 'NEW', 'CONTACTED', 'INTERESTED', 'CONVERTED'].map((st) => (
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {isAdmin && (
             <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`pill-tab ${filterStatus === st ? 'active' : ''}`}
+              onClick={() => setShowUploadModal(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                padding: "9px 18px", borderRadius: 6,
+                border: "1px solid " + C.border,
+                background: C.white, color: C.textPrimary,
+                fontSize: "0.875rem", fontWeight: 500, cursor: "pointer",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.rowHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = C.white)}
             >
-              {st === 'ALL' ? 'All Leads' : STATUS_META[st as LeadStatus]?.label || st}
+              <UploadCloud size={15} />
+              Bulk Import
             </button>
-          ))}
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setShowAddLeadModal(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                padding: "9px 18px", borderRadius: 6,
+                border: "none",
+                background: C.primary, color: "#fff",
+                fontSize: "0.875rem", fontWeight: 500, cursor: "pointer",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.primaryHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = C.primary)}
+            >
+              <Plus size={15} />
+              Add Lead
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Leads Table */}
-      <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3.5rem', color: 'var(--muted)' }}>
-            <p style={{ fontSize: '0.95rem' }}>Loading pipeline data...</p>
+      <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* ── Tab Row ── */}
+        <div style={{
+          display: "flex", gap: 0, borderBottom: "1px solid " + C.border,
+          background: C.white, borderRadius: "8px 8px 0 0",
+          paddingLeft: 4,
+        }}>
+          {TAB_KEYS.map(tab => {
+            const active = filterStatus === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setFilterStatus(tab.key)}
+                style={{
+                  padding: "13px 18px",
+                  background: "none", border: "none",
+                  borderBottom: active ? "2px solid " + C.primary : "2px solid transparent",
+                  color: active ? C.primary : C.textMuted,
+                  fontSize: "0.875rem", fontWeight: active ? 600 : 400,
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 7,
+                  marginBottom: -1,
+                  whiteSpace: "nowrap",
+                  transition: "color 0.15s",
+                }}
+              >
+                {tab.label}
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 20, height: 20, padding: "0 6px",
+                  borderRadius: 999,
+                  background: active ? C.primary : C.border,
+                  color: active ? "#fff" : C.textMuted,
+                  fontSize: "0.7rem", fontWeight: 700,
+                }}>
+                  {counts[tab.key] ?? 0}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Filter Bar ── */}
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+        }}>
+          {/* Search */}
+          <div style={{ position: "relative", flexGrow: 1, maxWidth: 360 }}>
+            <Search size={15} style={{
+              position: "absolute", left: 12, top: "50%",
+              transform: "translateY(-50%)", color: C.textMuted,
+              pointerEvents: "none",
+            }} />
+            <input
+              type="text"
+              placeholder="Search by name, company or phone…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{
+                width: "100%", padding: "9px 12px 9px 36px",
+                border: "1px solid " + C.border, borderRadius: 6,
+                fontSize: "0.875rem", color: C.textPrimary,
+                background: C.white, outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
           </div>
-        ) : filteredLeads.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '4rem 1.5rem', color: 'var(--secondary-foreground)' }}>
-            <p style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🎯</p>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.25rem 0' }}>No Leads Found</h3>
-            <p className="text-muted text-sm" style={{ margin: 0 }}>There are no leads matching your active filters.</p>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setShowFilters(p => !p)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 14px", borderRadius: 6,
+                border: "1px solid " + C.border, background: C.white,
+                color: C.textMuted, fontSize: "0.875rem", cursor: "pointer",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+              Filters
+            </button>
+            <button
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 14px", borderRadius: 6,
+                border: "1px solid " + C.border, background: C.white,
+                color: C.textMuted, fontSize: "0.875rem", cursor: "pointer",
+              }}
+            >
+              <ChevronDown size={14} />
+              Sorting
+            </button>
           </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ background: 'var(--surface-solid)', borderBottom: '1px solid var(--surface-border)', color: 'var(--muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  <th style={{ padding: '1rem 1.25rem' }}>Lead Name & Company</th>
-                  <th style={{ padding: '1rem 1.25rem' }}>Contact</th>
-                  <th style={{ padding: '1rem 1.25rem' }}>Stage Status</th>
-                  <th style={{ padding: '1rem 1.25rem' }}>Assignee</th>
-                  <th style={{ padding: '1rem 1.25rem' }}>History</th>
-                  <th style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLeads.map((lead, idx) => {
-                  const statusInfo = STATUS_META[lead._status] || STATUS_META.NEW;
-                  const assigneeColor = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+        </div>
 
-                  return (
-                    <tr key={lead._id || idx} style={{ borderBottom: '1px solid var(--surface-border)', transition: 'background 0.2s' }}>
-                      <td style={{ padding: '1.1rem 1.25rem' }}>
-                        <p style={{ fontWeight: 700, fontSize: '0.95rem', margin: 0, color: 'var(--foreground)' }}>
-                          {lead.Name || 'Unnamed Prospect'}
-                        </p>
-                        <p className="text-muted" style={{ fontSize: '0.78rem', margin: '0.15rem 0 0 0' }}>
-                          {lead.Company || 'Direct Client'}
-                        </p>
-                      </td>
-
-                      <td style={{ padding: '1.1rem 1.25rem' }}>
-                        <a href={`tel:${lead.Phone}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--primary-2)', fontWeight: 600, textDecoration: 'none' }}>
-                          <Phone size={14} /> {lead.Phone || '--'}
-                        </a>
-                      </td>
-
-                      <td style={{ padding: '1.1rem 1.25rem' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                          padding: '0.35rem 0.75rem', borderRadius: '999px',
-                          background: statusInfo.bg, color: statusInfo.color,
-                          fontSize: '0.78rem', fontWeight: 700,
-                          border: `1px solid ${statusInfo.color}30`
-                        }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusInfo.color }} />
-                          {statusInfo.label}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '1.1rem 1.25rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: assigneeColor, color: '#fff', fontSize: '0.7rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {(lead._assignee || 'U')[0]}
-                          </div>
-                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{lead._assignee || 'Unassigned'}</span>
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '1.1rem 1.25rem' }}>
-                        <span className="text-muted" style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Clock size={13} /> {lead._interactions?.length || 0} calls
-                        </span>
-                      </td>
-
-                      <td style={{ padding: '1.1rem 1.25rem', textAlign: 'right' }}>
-                        <button
-                          onClick={() => {
-                            setLogTarget(lead);
-                            setCallStatus(lead._status);
-                          }}
-                          className="btn btn-secondary"
+        {/* ── Table Card ── */}
+        <div style={{
+          background: C.white, border: "1px solid " + C.border,
+          borderRadius: 8, overflow: "hidden",
+        }}>
+          {loading ? (
+            <div style={{ padding: "60px 24px", textAlign: "center", color: C.textMuted }}>
+              <div style={{ marginBottom: 12, fontSize: "1.5rem" }}>⏳</div>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>Loading leads…</p>
+            </div>
+          ) : filteredLeads.length === 0 ? (
+            <div style={{ padding: "60px 24px", textAlign: "center", color: C.textMuted }}>
+              <div style={{ fontSize: "2rem", marginBottom: 10 }}>🎯</div>
+              <h3 style={{ margin: "0 0 6px", fontSize: "1rem", fontWeight: 600, color: C.textPrimary }}>
+                No Leads Found
+              </h3>
+              <p style={{ margin: 0, fontSize: "0.875rem" }}>
+                No leads match your current filter or search.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid " + C.border }}>
+                      {[
+                        { label: "", w: 40 },
+                        { label: "Name",         w: "auto" },
+                        { label: "Job Title",    w: 160 },
+                        { label: "Account",      w: 180 },
+                        { label: "Assignee",     w: 160 },
+                        { label: "Interactions", w: 120 },
+                        { label: "Actions",      w: 80, align: "right" as const },
+                      ].map((col, i) => (
+                        <th
+                          key={i}
                           style={{
-                            padding: '0.45rem 0.85rem',
-                            fontSize: '0.8rem',
-                            fontWeight: 700,
-                            borderRadius: 'var(--radius-sm)',
-                            borderColor: 'var(--primary-glow)'
+                            padding: "11px 16px",
+                            textAlign: col.align || "left",
+                            fontSize: "0.75rem", fontWeight: 600,
+                            color: C.textMuted, textTransform: "uppercase",
+                            letterSpacing: "0.05em", background: C.rowHover,
+                            whiteSpace: "nowrap",
+                            ...(col.w !== "auto" ? { width: col.w } : {}),
                           }}
                         >
-                          <Phone size={13} color="var(--primary)" /> Log Call
-                        </button>
-                      </td>
+                          {col.label === "" ? (
+                            <input type="checkbox" style={{ cursor: "pointer" }} />
+                          ) : col.label}
+                        </th>
+                      ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {pagedLeads.map((lead, idx) => {
+                      const globalIdx = (page - 1) * PAGE_SIZE + idx;
+                      const isHovered = hoveredRow === globalIdx;
+                      const lastInteraction = lead._interactions?.[lead._interactions.length - 1];
+
+                      return (
+                        <tr
+                          key={lead._id || idx}
+                          onMouseEnter={() => setHoveredRow(globalIdx)}
+                          onMouseLeave={() => setHoveredRow(null)}
+                          style={{
+                            borderBottom: "1px solid " + C.border,
+                            background: isHovered ? C.rowHover : C.white,
+                            transition: "background 0.12s",
+                          }}
+                        >
+                          {/* Checkbox */}
+                          <td style={{ padding: "14px 16px", width: 40 }}>
+                            <input type="checkbox" style={{ cursor: "pointer" }} />
+                          </td>
+
+                          {/* Name + LinkedIn + Status badge */}
+                          <td style={{ padding: "14px 16px", minWidth: 220 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <Avatar name={lead.Name || "?"} colorIndex={globalIdx} />
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ fontWeight: 600, color: C.textPrimary }}>
+                                    {lead.Name || "Unnamed Prospect"}
+                                  </span>
+                                  {lead.LinkedIn && (
+                                    <a
+                                      href={lead.LinkedIn}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: "#0A66C2", display: "inline-flex" }}
+                                      title="LinkedIn profile"
+                                    >
+                                      <ExternalLink size={13} />
+                                    </a>
+                                  )}
+                                </div>
+                                <div style={{ marginTop: 4 }}>
+                                  <StatusBadge status={lead._status} />
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Job Title */}
+                          <td style={{ padding: "14px 16px", color: C.textMuted, whiteSpace: "nowrap" }}>
+                            {lead.JobTitle || lead["Job Title"] || "—"}
+                          </td>
+
+                          {/* Account = Company + Industry */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ fontWeight: 500, color: C.textPrimary }}>
+                              {lead.Company || "—"}
+                            </div>
+                            {lead.Industry && (
+                              <div style={{ fontSize: "0.75rem", color: C.textMuted, marginTop: 2 }}>
+                                {lead.Industry}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Assignee */}
+                          <td style={{ padding: "14px 16px" }}>
+                            {lead._assignee ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{
+                                  width: 28, height: 28, borderRadius: "50%",
+                                  background: AVATAR_COLORS[globalIdx % AVATAR_COLORS.length],
+                                  color: "#fff", fontSize: "0.68rem", fontWeight: 700,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                }}>
+                                  {initials(lead._assignee)}
+                                </div>
+                                <span style={{ fontSize: "0.85rem", color: C.textPrimary }}>
+                                  {lead._assignee}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: "0.82rem", color: C.textMuted }}>Unassigned</span>
+                            )}
+                          </td>
+
+                          {/* Interactions */}
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 5, color: C.textMuted, fontSize: "0.82rem" }}>
+                              <Clock size={13} />
+                              <span>{lead._interactions?.length || 0} call{lead._interactions?.length !== 1 ? "s" : ""}</span>
+                            </div>
+                            {lastInteraction && (
+                              <div style={{ fontSize: "0.72rem", color: C.textMuted, marginTop: 3 }}>
+                                Last: {OUTCOME_META[lastInteraction.outcome]?.label || lastInteraction.outcome}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Actions ⋮ */}
+                          <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                            <ActionMenu
+                              lead={lead}
+                              onLogCall={l => { setLogTarget(l); setCallStatus(l._status); }}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination footer */}
+              <div style={{
+                padding: "12px 20px",
+                borderTop: "1px solid " + C.border,
+                display: "flex", alignItems: "center",
+                justifyContent: "space-between",
+                background: C.rowHover,
+              }}>
+                <span style={{ fontSize: "0.8rem", color: C.textMuted }}>
+                  Showing {filteredLeads.length === 0 ? 0 : startIdx}–{endIdx} of {filteredLeads.length} leads
+                </span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    style={{
+                      padding: "5px 12px", borderRadius: 6,
+                      border: "1px solid " + C.border, background: C.white,
+                      color: page === 1 ? C.textMuted : C.textPrimary,
+                      fontSize: "0.8rem", cursor: page === 1 ? "default" : "pointer",
+                      opacity: page === 1 ? 0.5 : 1,
+                    }}
+                  >
+                    ← Prev
+                  </button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      style={{
+                        width: 32, height: 32, borderRadius: 6,
+                        border: "1px solid " + (page === p ? C.primary : C.border),
+                        background: page === p ? C.primary : C.white,
+                        color: page === p ? "#fff" : C.textPrimary,
+                        fontSize: "0.8rem", cursor: "pointer", fontWeight: page === p ? 600 : 400,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    disabled={page === totalPages || totalPages === 0}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    style={{
+                      padding: "5px 12px", borderRadius: 6,
+                      border: "1px solid " + C.border, background: C.white,
+                      color: (page === totalPages || totalPages === 0) ? C.textMuted : C.textPrimary,
+                      fontSize: "0.8rem",
+                      cursor: (page === totalPages || totalPages === 0) ? "default" : "pointer",
+                      opacity: (page === totalPages || totalPages === 0) ? 0.5 : 1,
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Log Interaction Modal */}
+      {/* ══════════════════════════════════════════════════════════
+          LOG CALL MODAL
+      ══════════════════════════════════════════════════════════ */}
       {logTarget && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div className="glass-card animate-fadeIn" style={{ maxWidth: '520px', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="flex-between">
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(17,24,39,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            background: C.white, borderRadius: 12, width: "100%", maxWidth: 520,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: "20px 24px 16px",
+              borderBottom: "1px solid " + C.border,
+              display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+            }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Log Call / Interaction</h3>
-                <p className="text-muted text-xs" style={{ margin: '0.2rem 0 0 0' }}>Prospect: {logTarget.Name} ({logTarget.Phone})</p>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>Log Call / Interaction</h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: C.textMuted }}>
+                  {logTarget.Name} {logTarget.Phone ? `· ${logTarget.Phone}` : ""}
+                </p>
               </div>
-              <button onClick={() => setLogTarget(null)} className="btn btn-ghost" style={{ padding: '0.4rem' }}>
+              <button
+                onClick={() => setLogTarget(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, padding: 4 }}
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                Call Outcome
-              </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                {Object.entries(OUTCOME_META).map(([k, v]) => (
-                  <button
-                    key={k}
-                    onClick={() => setCallOutcome(k as any)}
-                    style={{
-                      padding: '0.75rem',
-                      borderRadius: 'var(--radius-md)',
-                      border: callOutcome === k ? `1.5px solid ${v.color}` : '1px solid var(--surface-border)',
-                      background: callOutcome === k ? 'var(--surface-solid)' : 'transparent',
-                      color: callOutcome === k ? v.color : 'var(--secondary-foreground)',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <v.icon size={15} /> {v.label}
-                  </button>
-                ))}
+            {/* Body */}
+            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Outcome chips */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Call Outcome
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {Object.entries(OUTCOME_META).map(([k, v]) => {
+                    const sel = callOutcome === k;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => setCallOutcome(k as any)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          padding: "10px 14px", borderRadius: 8,
+                          border: sel ? `2px solid ${v.color}` : "1px solid " + C.border,
+                          background: sel ? v.color + "12" : C.white,
+                          color: sel ? v.color : C.textPrimary,
+                          fontWeight: sel ? 600 : 400,
+                          fontSize: "0.85rem", cursor: "pointer",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        <v.icon size={14} />
+                        {v.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Stage dropdown */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Update Pipeline Stage
+                </label>
+                <select
+                  value={callStatus}
+                  onChange={e => setCallStatus(e.target.value as LeadStatus)}
+                  style={{
+                    width: "100%", padding: "9px 12px",
+                    border: "1px solid " + C.border, borderRadius: 6,
+                    fontSize: "0.875rem", color: C.textPrimary,
+                    background: C.white, outline: "none", cursor: "pointer",
+                  }}
+                >
+                  <option value="NEW">New Lead</option>
+                  <option value="CONTACTED">Contacted (In Progress)</option>
+                  <option value="INTERESTED">Interested (High Potential)</option>
+                  <option value="NOT_INTERESTED">Not Interested (Closed)</option>
+                  <option value="CONVERTED">Converted ⭐ (Won)</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Notes &amp; Summary
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="What did the prospect say? Any scheduled follow-up?"
+                  value={callNotes}
+                  onChange={e => setCallNotes(e.target.value)}
+                  style={{
+                    width: "100%", padding: "9px 12px",
+                    border: "1px solid " + C.border, borderRadius: 6,
+                    fontSize: "0.875rem", color: C.textPrimary,
+                    background: C.white, resize: "none", outline: "none",
+                    boxSizing: "border-box", fontFamily: "inherit",
+                  }}
+                />
               </div>
             </div>
 
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                Update Pipeline Stage
-              </label>
-              <select 
-                value={callStatus} 
-                onChange={(e) => setCallStatus(e.target.value as any)}
-                className="input"
-                style={{ background: 'var(--surface-solid)', fontWeight: 600 }}
+            {/* Footer */}
+            <div style={{
+              padding: "16px 24px",
+              borderTop: "1px solid " + C.border,
+              display: "flex", gap: 10,
+            }}>
+              <button
+                onClick={() => setLogTarget(null)}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: 6,
+                  border: "1px solid " + C.border, background: C.white,
+                  color: C.textPrimary, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
+                }}
               >
-                <option value="NEW">New Lead</option>
-                <option value="CONTACTED">Contacted (In Progress)</option>
-                <option value="INTERESTED">Interested (High Potential)</option>
-                <option value="NOT_INTERESTED">Not Interested (Closed)</option>
-                <option value="CONVERTED">Converted ⭐ (Won)</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block' }}>
-                Call Notes & Summary
-              </label>
-              <textarea
-                rows={3}
-                placeholder="What did the prospect say? Any scheduled follow-up?"
-                value={callNotes}
-                onChange={(e) => setCallNotes(e.target.value)}
-                className="input"
-                style={{ background: 'var(--surface-solid)', resize: 'none' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <button onClick={() => setLogTarget(null)} className="btn btn-secondary" style={{ flex: 1, padding: '0.85rem' }}>
                 Cancel
               </button>
-              <button onClick={handleSaveInteraction} className="btn btn-primary" style={{ flex: 1, padding: '0.85rem' }}>
-                Save & Update
+              <button
+                onClick={handleSaveInteraction}
+                disabled={saving}
+                style={{
+                  flex: 2, padding: "10px 0", borderRadius: 6,
+                  border: "none", background: C.primary,
+                  color: "#fff", fontSize: "0.875rem", cursor: saving ? "wait" : "pointer",
+                  fontWeight: 600, opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? "Saving…" : "Save & Update Stage"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bulk Upload Modal */}
+      {/* ══════════════════════════════════════════════════════════
+          BULK UPLOAD MODAL
+      ══════════════════════════════════════════════════════════ */}
       {showUploadModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}>
-          <div className="glass-card animate-fadeIn" style={{ maxWidth: '560px', width: '100%', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="flex-between">
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(17,24,39,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            background: C.white, borderRadius: 12, width: "100%", maxWidth: 560,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "20px 24px 16px",
+              borderBottom: "1px solid " + C.border,
+              display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+            }}>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Bulk Import & Distribute Leads</h3>
-                <p className="text-muted text-xs" style={{ margin: '0.2rem 0 0 0' }}>Upload a .csv or .xlsx spreadsheet with Name, Phone, and Company.</p>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>
+                  Bulk Import &amp; Distribute Leads
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "0.82rem", color: C.textMuted }}>
+                  Upload a .csv or .xlsx with columns: Name, Phone, Company, Industry, Job Title
+                </p>
               </div>
-              <button onClick={() => setShowUploadModal(false)} className="btn btn-ghost" style={{ padding: '0.4rem' }}>
+              <button
+                onClick={() => setShowUploadModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, padding: 4 }}
+              >
                 <X size={20} />
               </button>
             </div>
 
-            <div 
-              onClick={() => fileRef.current?.click()}
-              style={{
-                border: '2px dashed var(--primary-glow)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '2.5rem 1.5rem',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: 'rgba(99, 102, 241, 0.04)'
-              }}
-            >
-              <UploadCloud size={36} color="var(--primary)" style={{ margin: '0 auto 0.75rem' }} />
-              <p style={{ fontWeight: 700, margin: '0 0 0.25rem 0' }}>Click to select spreadsheet</p>
-              <p className="text-muted text-xs" style={{ margin: 0 }}>Supports .xlsx and .csv files</p>
-              <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && parseFile(e.target.files[0])} />
+            {/* Body */}
+            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Drop zone */}
+              <div
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  border: "2px dashed " + C.border,
+                  borderRadius: 8, padding: "36px 24px",
+                  textAlign: "center", cursor: "pointer",
+                  background: C.canvas, transition: "border-color 0.15s",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = C.primary)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
+              >
+                <UploadCloud size={36} color={C.primary} style={{ margin: "0 auto 12px", display: "block" }} />
+                <p style={{ margin: "0 0 6px", fontWeight: 600, color: C.textPrimary }}>
+                  Click to select spreadsheet
+                </p>
+                <p style={{ margin: 0, fontSize: "0.8rem", color: C.textMuted }}>
+                  Supports .xlsx and .csv files
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.csv"
+                  style={{ display: "none" }}
+                  onChange={e => e.target.files?.[0] && parseFile(e.target.files[0])}
+                />
+              </div>
+
+              {/* Preview info */}
+              {previewLeads.length > 0 && (
+                <div style={{
+                  padding: "14px 16px", borderRadius: 8,
+                  background: "#ECFDF5", border: "1px solid #A7F3D0",
+                  display: "flex", alignItems: "flex-start", gap: 10,
+                }}>
+                  <div style={{ color: "#059669", marginTop: 1 }}>✓</div>
+                  <div>
+                    <p style={{ margin: "0 0 2px", fontWeight: 600, fontSize: "0.875rem", color: "#065F46" }}>
+                      {previewLeads.length} leads parsed and ready for distribution
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.78rem", color: "#047857" }}>
+                      Will be distributed evenly across {marketingTeam.length || "—"} marketing team member{marketingTeam.length !== 1 ? "s" : ""} (round-robin).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Marketing team info */}
+              {marketingTeam.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", marginRight: 4 }}>
+                    {marketingTeam.slice(0, 4).map((m, i) => (
+                      <div
+                        key={m.id}
+                        title={m.name}
+                        style={{
+                          width: 26, height: 26, borderRadius: "50%",
+                          background: AVATAR_COLORS[i % AVATAR_COLORS.length],
+                          color: "#fff", fontSize: "0.65rem", fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          marginLeft: i > 0 ? -6 : 0,
+                          border: "2px solid " + C.white,
+                        }}
+                      >
+                        {initials(m.name || m.email || "?")}
+                      </div>
+                    ))}
+                    {marketingTeam.length > 4 && (
+                      <div style={{
+                        width: 26, height: 26, borderRadius: "50%",
+                        background: C.border, color: C.textMuted,
+                        fontSize: "0.65rem", fontWeight: 700,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        marginLeft: -6, border: "2px solid " + C.white,
+                      }}>
+                        +{marketingTeam.length - 4}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: "0.8rem", color: C.textMuted }}>
+                    {marketingTeam.length} assignable marketing member{marketingTeam.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {previewLeads.length > 0 && (
-              <div style={{ background: 'var(--surface-solid)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-                <p style={{ fontWeight: 700, fontSize: '0.85rem', color: '#10B981', margin: '0 0 0.25rem 0' }}>
-                  ✓ {previewLeads.length} leads parsed ready for round-robin allocation.
-                </p>
-                <p className="text-muted text-xs" style={{ margin: 0 }}>
-                  Will be distributed evenly across {marketingTeam.length} active marketing members.
-                </p>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={() => setShowUploadModal(false)} className="btn btn-secondary" style={{ flex: 1, padding: '0.85rem' }}>
+            {/* Footer */}
+            <div style={{
+              padding: "16px 24px",
+              borderTop: "1px solid " + C.border,
+              display: "flex", gap: 10,
+            }}>
+              <button
+                onClick={() => { setShowUploadModal(false); setPreviewLeads([]); }}
+                style={{
+                  flex: 1, padding: "10px 0", borderRadius: 6,
+                  border: "1px solid " + C.border, background: C.white,
+                  color: C.textPrimary, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
+                }}
+              >
                 Cancel
               </button>
-              <button 
-                onClick={handleDistribute} 
+              <button
+                onClick={handleDistribute}
                 disabled={previewLeads.length === 0}
-                className="btn btn-primary" 
-                style={{ flex: 1, padding: '0.85rem', opacity: previewLeads.length === 0 ? 0.5 : 1 }}
+                style={{
+                  flex: 2, padding: "10px 0", borderRadius: 6,
+                  border: "none",
+                  background: previewLeads.length === 0 ? C.border : C.primary,
+                  color: previewLeads.length === 0 ? C.textMuted : "#fff",
+                  fontSize: "0.875rem",
+                  cursor: previewLeads.length === 0 ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}
               >
+                <Shuffle size={15} />
                 Distribute Now
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          ADD SINGLE LEAD MODAL
+      ══════════════════════════════════════════════════════════ */}
+      {showAddLeadModal && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(17,24,39,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20,
+        }}>
+          <div style={{
+            background: C.white, borderRadius: 12, width: "100%", maxWidth: 520,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+            overflow: "hidden",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "18px 24px",
+              borderBottom: "1px solid " + C.border,
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: C.textPrimary }}>
+                  Add New Lead
+                </h3>
+                <p style={{ margin: "3px 0 0", fontSize: "0.8rem", color: C.textMuted }}>
+                  Enter lead contact details to add them to your CRM pipeline.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddLeadModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCreateLead}>
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
+                {/* Name */}
+                <div>
+                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Full Name <span style={{ color: "#EF4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Rahul Sharma"
+                    value={newLeadName}
+                    onChange={e => setNewLeadName(e.target.value)}
+                    style={{
+                      width: "100%", padding: "9px 12px",
+                      border: "1px solid " + C.border, borderRadius: 6,
+                      fontSize: "0.875rem", color: C.textPrimary,
+                      background: C.white, outline: "none", boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+
+                {/* Company & Phone */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Company
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Acme Corp"
+                      value={newLeadCompany}
+                      onChange={e => setNewLeadCompany(e.target.value)}
+                      style={{
+                        width: "100%", padding: "9px 12px",
+                        border: "1px solid " + C.border, borderRadius: 6,
+                        fontSize: "0.875rem", color: C.textPrimary,
+                        background: C.white, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Phone
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. +91 98765 43210"
+                      value={newLeadPhone}
+                      onChange={e => setNewLeadPhone(e.target.value)}
+                      style={{
+                        width: "100%", padding: "9px 12px",
+                        border: "1px solid " + C.border, borderRadius: 6,
+                        fontSize: "0.875rem", color: C.textPrimary,
+                        background: C.white, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Email & Pipeline Stage */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="e.g. rahul@example.com"
+                      value={newLeadEmail}
+                      onChange={e => setNewLeadEmail(e.target.value)}
+                      style={{
+                        width: "100%", padding: "9px 12px",
+                        border: "1px solid " + C.border, borderRadius: 6,
+                        fontSize: "0.875rem", color: C.textPrimary,
+                        background: C.white, outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Pipeline Stage
+                    </label>
+                    <select
+                      value={newLeadStatus}
+                      onChange={e => setNewLeadStatus(e.target.value as LeadStatus)}
+                      style={{
+                        width: "100%", padding: "9px 12px",
+                        border: "1px solid " + C.border, borderRadius: 6,
+                        fontSize: "0.875rem", color: C.textPrimary,
+                        background: C.white, outline: "none", cursor: "pointer",
+                      }}
+                    >
+                      <option value="NEW">New</option>
+                      <option value="CONTACTED">Contacted</option>
+                      <option value="INTERESTED">Interested</option>
+                      <option value="NOT_INTERESTED">Not Interested</option>
+                      <option value="CONVERTED">Converted</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Assign To */}
+                <div>
+                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Assign To
+                  </label>
+                  <select
+                    value={newLeadAssignee}
+                    onChange={e => setNewLeadAssignee(e.target.value)}
+                    style={{
+                      width: "100%", padding: "9px 12px",
+                      border: "1px solid " + C.border, borderRadius: 6,
+                      fontSize: "0.875rem", color: C.textPrimary,
+                      background: C.white, outline: "none", cursor: "pointer",
+                    }}
+                  >
+                    <option value="">Unassigned</option>
+                    {marketingTeam.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.name || m.email} ({m.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Initial Notes
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Any background information, requirements, or referral notes..."
+                    value={newLeadNotes}
+                    onChange={e => setNewLeadNotes(e.target.value)}
+                    style={{
+                      width: "100%", padding: "9px 12px",
+                      border: "1px solid " + C.border, borderRadius: 6,
+                      fontSize: "0.875rem", color: C.textPrimary,
+                      background: C.white, resize: "none", outline: "none",
+                      boxSizing: "border-box", fontFamily: "inherit",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: "16px 24px",
+                borderTop: "1px solid " + C.border,
+                display: "flex", gap: 10,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddLeadModal(false)}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 6,
+                    border: "1px solid " + C.border, background: C.white,
+                    color: C.textPrimary, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingLead}
+                  style={{
+                    flex: 2, padding: "10px 0", borderRadius: 6,
+                    border: "none", background: C.primary,
+                    color: "#fff", fontSize: "0.875rem", cursor: creatingLead ? "wait" : "pointer",
+                    fontWeight: 600, opacity: creatingLead ? 0.7 : 1,
+                  }}
+                >
+                  {creatingLead ? "Creating…" : "Create Lead"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -514,6 +1305,7 @@ function LeadsContent() {
   );
 }
 
+/* ─── Page Export ────────────────────────────────────────────── */
 export default function LeadsPage() {
   return (
     <RoleGuard allowedRoles={["admin", "marketing"]}>
