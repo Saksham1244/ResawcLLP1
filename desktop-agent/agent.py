@@ -13,14 +13,20 @@ import requests
 import winreg
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
-AGENT_SECRET = "0000d81c2073c909c7283e5678a840564b9ef501af9a0ddc2c42287ef32f66ed"
+AGENT_SECRET = "fe3f34420dd77f7a20018c30023aefe55d0a9663467991a40ec4b594e23e4d97"
 ENDPOINTS = [
     "http://localhost:3000/api/monitor/sync",
     "https://resawc-llp-1-rt4y.vercel.app/api/monitor/sync",
 ]
+ATTENDANCE_ENDPOINTS = [
+    "http://localhost:3000/api/attendance",
+    "https://resawc-llp-1-rt4y.vercel.app/api/attendance",
+]
 CONFIG_FILE = os.path.join(os.path.expanduser("~"), ".resawc-agent.json")
 PROTOCOL = "resawc-agent"
 MUTEX_NAME = "ResawcDesktopAgentSingleInstanceMutex"
+STARTUP_REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+STARTUP_ENTRY_NAME = "ResawcDesktopAgent"
 
 # Global state for UI updates
 app_state = {
@@ -30,6 +36,7 @@ app_state = {
     "current_app": "Detecting...",
     "idle_time": "0s",
     "last_sync": "Never",
+    "checkin_status": "",
     "running": True,
 }
 
@@ -130,6 +137,82 @@ def register_protocol():
         print(f"Registered protocol {PROTOCOL}:// to {command}")
     except Exception as e:
         print(f"Failed to register protocol: {e}")
+
+
+# ─── Windows Startup Registration ────────────────────────────────────────────
+def register_startup():
+    """Add agent to Windows startup so it auto-launches on PC login."""
+    exe_path = os.path.abspath(sys.argv[0])
+    if exe_path.endswith(".py"):
+        command = f'"{sys.executable}" "{exe_path}"'
+    else:
+        command = f'"{exe_path}"'
+
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_REG_KEY, 0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(key, STARTUP_ENTRY_NAME, 0, winreg.REG_SZ, command)
+        winreg.CloseKey(key)
+        print(f"[Startup] Registered to auto-launch: {command}")
+    except Exception as e:
+        print(f"[Startup] Failed to register startup: {e}")
+
+
+def unregister_startup():
+    """Remove agent from Windows startup."""
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, STARTUP_REG_KEY, 0, winreg.KEY_SET_VALUE)
+        winreg.DeleteValue(key, STARTUP_ENTRY_NAME)
+        winreg.CloseKey(key)
+        print("[Startup] Removed from auto-launch.")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"[Startup] Failed to remove startup: {e}")
+
+
+# ─── System Check-In on Agent Launch ────────────────────────────────────────
+def record_system_checkin(user_id: str):
+    """Called once on startup — records systemLoginTime in attendance if not already set today."""
+    if not user_id:
+        return
+
+    now = time.localtime()
+    date_str = time.strftime("%Y-%m-%d", now)
+    time_str = time.strftime("%I:%M %p", now)
+
+    payload = {
+        "userId": user_id,
+        "date": date_str,
+        "timeIn": time_str,
+        "source": "system",
+    }
+
+    for url in ATTENDANCE_ENDPOINTS:
+        try:
+            resp = requests.post(url, json=payload, timeout=5)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("success"):
+                    msg = f"System check-in recorded at {time_str}"
+                    app_state["checkin_status"] = msg
+                    print(f"[Attendance] {msg}")
+                    return
+                else:
+                    err = data.get("error", "Unknown error")
+                    # If mobile check-in is required first, show message
+                    app_state["checkin_status"] = f"⚠ {err}"
+                    print(f"[Attendance] Check-in warning: {err}")
+                    return
+            elif resp.status_code == 404:
+                # No mobile check-in found yet for today
+                app_state["checkin_status"] = "⚠ Mark attendance from phone first!"
+                print("[Attendance] No mobile check-in found — phone check-in required first.")
+                return
+        except requests.RequestException:
+            continue  # Try next endpoint
+
+    app_state["checkin_status"] = "⚠ Could not connect to attendance server"
+    print("[Attendance] Could not reach attendance server on startup.")
 
 
 # ─── Telemetry Sync Engine ────────────────────────────────────────────────────
@@ -266,6 +349,7 @@ def run_app_gui(initial_user_id=None):
     lbl_app_val = make_row(content, "Current App:")
     lbl_idle_val = make_row(content, "Idle Time:")
     lbl_sync_val = make_row(content, "Last Sync:")
+    lbl_checkin_val = make_row(content, "Attendance:")
 
     # Footer Action Buttons
     btn_frame = tk.Frame(root, bg="#F8FAFC")
@@ -325,6 +409,9 @@ def run_app_gui(initial_user_id=None):
         lbl_app_val.config(text=app_state["current_app"])
         lbl_idle_val.config(text=app_state["idle_time"])
         lbl_sync_val.config(text=app_state["last_sync"])
+        checkin_txt = app_state["checkin_status"] or "Pending..."
+        checkin_color = "#059669" if "recorded" in checkin_txt else ("#DC2626" if "⚠" in checkin_txt else "#D97706")
+        lbl_checkin_val.config(text=checkin_txt, fg=checkin_color)
 
         if app_state["running"]:
             root.after(1000, update_ui)
@@ -341,8 +428,11 @@ def run_app_gui(initial_user_id=None):
 
 # ─── Main Entry Point ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Always register protocol handler on startup
+    # Register Windows protocol handler for browser login redirect
     register_protocol()
+
+    # Auto-register to Windows startup so agent launches on PC login
+    register_startup()
 
     # Parse potential URI command line (resawc-agent://login?userId=...)
     uri_user_id = None
@@ -368,6 +458,17 @@ if __name__ == "__main__":
     saved_cfg = load_config()
     target_user_id = uri_user_id or saved_cfg.get("userId", "")
     app_state["user_id"] = target_user_id
+
+    # ── Auto system check-in on startup ──────────────────────────────────────
+    # If we have a user ID, immediately try to record systemLoginTime in attendance.
+    # This requires mobile check-in to have already happened — if not, agent shows a warning.
+    if target_user_id:
+        checkin_thread = threading.Thread(
+            target=record_system_checkin,
+            args=(target_user_id,),
+            daemon=True
+        )
+        checkin_thread.start()
 
     # Start telemetry worker thread
     sync_thread = threading.Thread(target=sync_loop, daemon=True)

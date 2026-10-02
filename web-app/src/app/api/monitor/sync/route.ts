@@ -65,12 +65,11 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
   try {
     const agentToken = req.headers.get('Authorization');
-    const validSecret = process.env.AGENT_SECRET || "0000d81c2073c909c7283e5678a840564b9ef501af9a0ddc2c42287ef32f66ed";
+    const validSecret = process.env.AGENT_SECRET;
     const isDev = process.env.NODE_ENV !== 'production';
 
     const isValidToken =
-      agentToken === `Bearer ${validSecret}` ||
-      agentToken === `Bearer 0000d81c2073c909c7283e5678a840564b9ef501af9a0ddc2c42287ef32f66ed` ||
+      (validSecret && agentToken === `Bearer ${validSecret}`) ||
       agentToken === `Bearer undefined` ||
       isDev;
 
