@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     let role = searchParams.get('role')?.toLowerCase() || 'marketing';
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (decoded.role) role = decoded.role.toLowerCase();
       } catch (err) {
         // Fallback to query role if token is expired/invalid
@@ -170,10 +170,10 @@ export async function DELETE(req: Request) {
 
     if (token) {
       try {
-        const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET);
         userRole = decoded.role?.toLowerCase() || '';
       } catch (e) {
-        console.warn('JWT verification fallback in DELETE /api/leads');
+        console.warn('JWT verification failed in DELETE /api/leads');
       }
     }
 

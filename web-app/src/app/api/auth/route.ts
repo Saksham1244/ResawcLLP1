@@ -45,9 +45,13 @@ export async function POST(req: Request) {
     }
 
     // Generate JWT Token
+    if (!process.env.JWT_SECRET) {
+      console.error('[Auth] JWT_SECRET environment variable is not set');
+      return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
+    }
     const token = jwt.sign(
       { userId: user.id, role: user.role.toLowerCase() },
-      process.env.JWT_SECRET || 'fallback_secret',
+      process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );
 

@@ -9,8 +9,14 @@ export async function GET(req: Request) {
     const userId = searchParams.get('userId');
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
+    if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });
+    }
     const role = decoded.role;
 
     if (!userId || !role) {
