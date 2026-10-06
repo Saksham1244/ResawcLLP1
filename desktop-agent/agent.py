@@ -326,8 +326,26 @@ def run_app_gui(initial_user_id=None):
     header = tk.Frame(root, bg="#1A56DB", height=60)
     header.pack(fill="x", side="top")
 
-    lbl_logo = tk.Label(header, text="◆  Resawc Desktop Agent", bg="#1A56DB", fg="#FFFFFF", font=font_title)
-    lbl_logo.pack(pady=14, padx=16, anchor="w")
+    # Header: try to show logo image, fall back to text
+    try:
+        from PIL import Image, ImageTk  # type: ignore
+        import urllib.request as _req
+        _logo_path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "resawc-logo.png")
+        if not os.path.exists(_logo_path):
+            _logo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resawc-logo.png")
+        if os.path.exists(_logo_path):
+            _img = Image.open(_logo_path).resize((32, 32), Image.LANCZOS)
+            _photo = ImageTk.PhotoImage(_img)
+            lbl_logo_img = tk.Label(header, image=_photo, bg="#1A56DB")
+            lbl_logo_img.image = _photo  # prevent GC
+            lbl_logo_img.pack(side="left", pady=14, padx=(16, 6))
+            lbl_logo = tk.Label(header, text="Resawc Desktop Agent", bg="#1A56DB", fg="#FFFFFF", font=font_title)
+            lbl_logo.pack(side="left", pady=14, anchor="w")
+        else:
+            raise FileNotFoundError
+    except Exception:
+        lbl_logo = tk.Label(header, text="Resawc Desktop Agent", bg="#1A56DB", fg="#FFFFFF", font=font_title)
+        lbl_logo.pack(pady=14, padx=16, anchor="w")
 
     # Status Container
     content = tk.Frame(root, bg="#FFFFFF", highlightbackground="#E2E8F0", highlightthickness=1)

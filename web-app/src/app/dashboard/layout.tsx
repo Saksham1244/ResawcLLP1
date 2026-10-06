@@ -230,18 +230,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div style={{
               width: "36px",
               height: "36px",
-              borderRadius: "10px",
-              backgroundColor: "rgba(255,255,255,0.18)",
+              borderRadius: "50%",
+              overflow: "hidden",
+              flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontWeight: 800,
-              fontSize: "18px",
-              color: "#fff",
-              flexShrink: 0,
-              letterSpacing: "-0.5px",
             }}>
-              R
+              <img src="/resawc-logo.png" alt="Resawc" style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "50%" }} />
             </div>
             {!isCollapsed && (
               <div>

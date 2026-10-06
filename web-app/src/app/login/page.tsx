@@ -91,17 +91,13 @@ export default function LoginPage() {
             display:         "inline-flex",
             alignItems:      "center",
             justifyContent:  "center",
-            width:           "52px",
-            height:          "52px",
-            borderRadius:    "14px",
-            backgroundColor: "#1A56DB",
+            width:           "72px",
+            height:          "72px",
+            borderRadius:    "50%",
+            overflow:        "hidden",
             marginBottom:    "16px",
-            fontWeight:      800,
-            fontSize:        "22px",
-            color:           "#fff",
-            letterSpacing:   "-1px",
           }}>
-            R
+            <img src="/resawc-logo.png" alt="Resawc" style={{ width: "72px", height: "72px", objectFit: "cover" }} />
           </div>
           <h1 style={{
             fontSize:    "20px",

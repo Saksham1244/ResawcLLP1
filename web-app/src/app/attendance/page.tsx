@@ -221,7 +221,7 @@ export default function StandaloneAttendancePage() {
       <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '0 1.5rem', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* Logo mark */}
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#1A56DB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px', color: '#fff' }}>R</div>
+          <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}><img src="/resawc-logo.png" alt="Resawc" style={{ width: '36px', height: '36px', objectFit: 'cover' }} /></div>
           <span style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>Resawc CRM</span>
           <span style={{ fontSize: '13px', color: '#9CA3AF', marginLeft: '4px' }}>/ Attendance Portal</span>
         </div>
