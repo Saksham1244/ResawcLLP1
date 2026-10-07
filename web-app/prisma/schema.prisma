@@ -13,6 +13,7 @@ model User {
   passwordHash  String
   name          String
   role          String    // ADMIN, MARKETING, EDITOR
+  phone         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -467,6 +468,13 @@ model EmployeeSalaryStructure {
   ifscCode            String?
   panNumber           String?
   upiId               String?
+  
+  dob                 String?  // Date of Birth (YYYY-MM-DD or DD-MMM-YY)
+  doj                 String?  // Date of Joining (YYYY-MM-DD or DD-MMM-YY)
+  designation         String?  // Official Designation (e.g. Lead Video Editor)
+  location            String?  // Work Location (e.g. Delhi NCR)
+  uanNumber           String?  // Universal Account Number
+  esiNumber           String?  // ESI Number
   
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

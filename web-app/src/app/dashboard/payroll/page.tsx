@@ -40,6 +40,12 @@ interface Payslip {
       ifscCode?: string;
       panNumber?: string;
       upiId?: string;
+      dob?: string | null;
+      doj?: string | null;
+      designation?: string | null;
+      location?: string | null;
+      uanNumber?: string | null;
+      esiNumber?: string | null;
     };
   };
   monthYear: string;
@@ -113,8 +119,44 @@ export default function PayrollPage() {
     ifscCode: "",
     panNumber: "",
     upiId: "",
+    dob: "",
+    doj: "",
+    designation: "",
+    location: "",
+    uanNumber: "",
+    esiNumber: "",
   });
   const [savingStructure, setSavingStructure] = useState(false);
+
+  const loadUserStructure = async (targetUserId: string) => {
+    if (!targetUserId) return;
+    try {
+      const res = await fetch(`/api/finance/salary-structure?userId=${targetUserId}`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        const s = data.data;
+        setStructureForm({
+          userId: targetUserId,
+          baseSalary: s.baseSalary ?? 25000,
+          hourlyOvertimeRate: s.hourlyOvertimeRate ?? 150,
+          allowance: s.allowance ?? 0,
+          bankName: s.bankName ?? "HDFC Bank",
+          bankAccountNumber: s.bankAccountNumber ?? "",
+          ifscCode: s.ifscCode ?? "",
+          panNumber: s.panNumber ?? "",
+          upiId: s.upiId ?? "",
+          dob: s.dob ?? "",
+          doj: s.doj ?? "",
+          designation: s.designation ?? "",
+          location: s.location ?? "",
+          uanNumber: s.uanNumber ?? "",
+          esiNumber: s.esiNumber ?? "",
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Payment Mark State
   const [payForm, setPayForm] = useState({
@@ -154,6 +196,7 @@ export default function PayrollPage() {
         setTeamMembers(nonAdmins);
         if (nonAdmins.length > 0 && !structureForm.userId) {
           setStructureForm(prev => ({ ...prev, userId: nonAdmins[0].id }));
+          loadUserStructure(nonAdmins[0].id);
         }
       }
     } catch (e) {}
@@ -281,7 +324,13 @@ export default function PayrollPage() {
           {isAdmin && (
             <div style={{ display: "flex", gap: "10px" }}>
               <button
-                onClick={() => setShowStructureModal(true)}
+                onClick={async () => {
+                  const targetId = structureForm.userId || (teamMembers[0]?.id ?? "");
+                  if (targetId) {
+                    await loadUserStructure(targetId);
+                  }
+                  setShowStructureModal(true);
+                }}
                 style={{
                   display: "flex", alignItems: "center", gap: "6px",
                   background: "#FFFFFF", color: C.text,
@@ -489,6 +538,23 @@ export default function PayrollPage() {
                           <Printer size={13} /> View Payslip
                         </button>
 
+                        {isAdmin && (
+                          <button
+                            onClick={async () => {
+                              await loadUserStructure(pay.userId);
+                              setShowStructureModal(true);
+                            }}
+                            title="Edit Employee Profile, Statutory IDs & Salary Structure"
+                            style={{
+                              background: "#FFFFFF", color: C.text, border: `1px solid ${C.border}`,
+                              padding: "4px 8px", borderRadius: "4px", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer",
+                              display: "inline-flex", alignItems: "center", gap: "4px"
+                            }}
+                          >
+                            <Edit3 size={13} color={C.muted} /> Settings
+                          </button>
+                        )}
+
                         {isAdmin && pay.status !== "PAID" && (
                           <button
                             onClick={() => {
@@ -594,7 +660,7 @@ export default function PayrollPage() {
           </div>
         )}
 
-        {/* ═════════ MODAL 2: SALARY STRUCTURE CONFIG ═════════ */}
+        {/* ═════════ MODAL 2: SALARY & STATUTORY PROFILE CONFIG ═════════ */}
         {showStructureModal && (
           <div style={{
             position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)",
@@ -602,150 +668,254 @@ export default function PayrollPage() {
             alignItems: "center", justifyContent: "center", padding: "1rem"
           }}>
             <div style={{
-              background: C.card, borderRadius: C.radius, width: "100%", maxWidth: "520px",
+              background: C.card, borderRadius: C.radius, width: "100%", maxWidth: "640px",
+              maxHeight: "92vh", overflowY: "auto",
               padding: "1.75rem", boxShadow: "0 20px 40px rgba(0,0,0,0.15)", border: `1px solid ${C.border}`
             }}>
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: C.text, margin: "0 0 4px" }}>
-                Configure Employee Salary Structure
-              </h2>
-              <p style={{ color: C.muted, fontSize: "0.82rem", margin: "0 0 1.25rem" }}>
-                Set monthly base salary (₹), overtime rate, and bank payout credentials
-              </p>
-
-              <form onSubmit={handleSaveStructure} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: C.text, marginBottom: "4px" }}>Employee *</label>
+                  <h2 style={{ fontSize: "1.2rem", fontWeight: 800, color: C.text, margin: 0 }}>
+                    Employee Profile &amp; Salary Structure
+                  </h2>
+                  <p style={{ color: C.muted, fontSize: "0.82rem", margin: "3px 0 0" }}>
+                    Configure official statutory IDs, joining date, banking, and monthly compensation
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowStructureModal(false)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: C.muted, padding: "4px" }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveStructure} style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+                {/* Employee Selector */}
+                <div style={{ background: "#F8FAFC", padding: "0.75rem 1rem", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: C.text, marginBottom: "4px" }}>
+                    Select Team Member *
+                  </label>
                   <select
                     value={structureForm.userId}
-                    onChange={(e) => setStructureForm({ ...structureForm, userId: e.target.value })}
-                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#fff" }}
+                    onChange={(e) => {
+                      const uid = e.target.value;
+                      setStructureForm({ ...structureForm, userId: uid });
+                      loadUserStructure(uid);
+                    }}
+                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#fff", fontWeight: 600 }}
                   >
                     {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+                      <option key={m.id} value={m.id}>{m.name} ({m.role}) - {m.email}</option>
                     ))}
                   </select>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      Monthly Base Salary (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={structureForm.baseSalary}
-                      onChange={(e) => setStructureForm({ ...structureForm, baseSalary: parseFloat(e.target.value) || 0 })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
+                {/* Section 1: Statutory & Personal Profile */}
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: C.primary, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px", borderBottom: `1px solid ${C.border}`, paddingBottom: "4px" }}>
+                    1. Statutory &amp; Personal Profile
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Date of Joining (DOJ)
+                      </label>
+                      <input
+                        type="date"
+                        value={structureForm.doj}
+                        onChange={(e) => setStructureForm({ ...structureForm, doj: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Date of Birth (DOB)
+                      </label>
+                      <input
+                        type="date"
+                        value={structureForm.dob}
+                        onChange={(e) => setStructureForm({ ...structureForm, dob: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      Hourly Overtime Rate (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={structureForm.hourlyOvertimeRate}
-                      onChange={(e) => setStructureForm({ ...structureForm, hourlyOvertimeRate: parseFloat(e.target.value) || 0 })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      Special Allowance (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={structureForm.allowance}
-                      onChange={(e) => setStructureForm({ ...structureForm, allowance: parseFloat(e.target.value) || 0 })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.6rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Official Designation
+                      </label>
+                      <input
+                        placeholder="e.g. Lead Video Editor"
+                        value={structureForm.designation}
+                        onChange={(e) => setStructureForm({ ...structureForm, designation: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Work Location / Branch
+                      </label>
+                      <input
+                        placeholder="e.g. Delhi NCR"
+                        value={structureForm.location}
+                        onChange={(e) => setStructureForm({ ...structureForm, location: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      Bank Name
-                    </label>
-                    <input
-                      placeholder="e.g. HDFC Bank"
-                      value={structureForm.bankName}
-                      onChange={(e) => setStructureForm({ ...structureForm, bankName: e.target.value })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      Bank Account Number
-                    </label>
-                    <input
-                      placeholder="Account Number"
-                      value={structureForm.bankAccountNumber}
-                      onChange={(e) => setStructureForm({ ...structureForm, bankAccountNumber: e.target.value })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      IFSC Code
-                    </label>
-                    <input
-                      placeholder="e.g. HDFC0001234"
-                      value={structureForm.ifscCode}
-                      onChange={(e) => setStructureForm({ ...structureForm, ifscCode: e.target.value })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      PAN Card Number
-                    </label>
-                    <input
-                      placeholder="e.g. ABCDE1234F"
-                      value={structureForm.panNumber}
-                      onChange={(e) => setStructureForm({ ...structureForm, panNumber: e.target.value })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                      UPI ID
-                    </label>
-                    <input
-                      placeholder="e.g. employee@okaxis"
-                      value={structureForm.upiId}
-                      onChange={(e) => setStructureForm({ ...structureForm, upiId: e.target.value })}
-                      style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
-                    />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginTop: "0.6rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        PAN Card No
+                      </label>
+                      <input
+                        placeholder="e.g. ABCDE1234F"
+                        value={structureForm.panNumber}
+                        onChange={(e) => setStructureForm({ ...structureForm, panNumber: e.target.value.toUpperCase() })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        UAN No (PF)
+                      </label>
+                      <input
+                        placeholder="e.g. 101234567890"
+                        value={structureForm.uanNumber}
+                        onChange={(e) => setStructureForm({ ...structureForm, uanNumber: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        ESI No
+                      </label>
+                      <input
+                        placeholder="e.g. 1234567890"
+                        value={structureForm.esiNumber}
+                        onChange={(e) => setStructureForm({ ...structureForm, esiNumber: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "0.5rem" }}>
+                {/* Section 2: Banking & Payout Credentials */}
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: C.primary, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px", borderBottom: `1px solid ${C.border}`, paddingBottom: "4px" }}>
+                    2. Banking &amp; Payout Credentials
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Bank Name
+                      </label>
+                      <input
+                        placeholder="e.g. HDFC Bank / ICICI Bank"
+                        value={structureForm.bankName}
+                        onChange={(e) => setStructureForm({ ...structureForm, bankName: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Bank Account Number
+                      </label>
+                      <input
+                        placeholder="e.g. 50100234567890"
+                        value={structureForm.bankAccountNumber}
+                        onChange={(e) => setStructureForm({ ...structureForm, bankAccountNumber: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.6rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        IFSC Code
+                      </label>
+                      <input
+                        placeholder="e.g. HDFC0001234"
+                        value={structureForm.ifscCode}
+                        onChange={(e) => setStructureForm({ ...structureForm, ifscCode: e.target.value.toUpperCase() })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        UPI ID (Optional)
+                      </label>
+                      <input
+                        placeholder="e.g. name@okhdfcbank"
+                        value={structureForm.upiId}
+                        onChange={(e) => setStructureForm({ ...structureForm, upiId: e.target.value })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Compensation & Overtime */}
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: C.primary, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px", borderBottom: `1px solid ${C.border}`, paddingBottom: "4px" }}>
+                    3. Monthly Compensation &amp; Rates (₹ INR)
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Monthly Base (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={structureForm.baseSalary}
+                        onChange={(e) => setStructureForm({ ...structureForm, baseSalary: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Allowance (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.allowance}
+                        onChange={(e) => setStructureForm({ ...structureForm, allowance: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Overtime (₹/hr) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={structureForm.hourlyOvertimeRate}
+                        onChange={(e) => setStructureForm({ ...structureForm, hourlyOvertimeRate: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "0.5rem", borderTop: `1px solid ${C.border}`, paddingTop: "1rem" }}>
                   <button
                     type="button"
                     onClick={() => setShowStructureModal(false)}
-                    style={{ background: "#F3F4F6", color: "#374151", padding: "0.5rem 1rem", borderRadius: C.radiusSm, border: "none", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                    style={{ background: "#F3F4F6", color: "#374151", padding: "0.55rem 1.1rem", borderRadius: C.radiusSm, border: "none", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={savingStructure}
-                    style={{ background: C.primary, color: "#fff", padding: "0.5rem 1.25rem", borderRadius: C.radiusSm, border: "none", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
+                    style={{ background: C.primary, color: "#fff", padding: "0.55rem 1.4rem", borderRadius: C.radiusSm, border: "none", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
                   >
-                    {savingStructure ? "Saving..." : "Save Salary Settings"}
+                    {savingStructure ? "Saving..." : "Save Employee Settings"}
                   </button>
                 </div>
               </form>
@@ -924,19 +1094,16 @@ export default function PayrollPage() {
                         <div style={{
                           background: "#002D62",
                           color: "#FFFFFF",
-                          padding: "6px 16px",
-                          borderRadius: "2px",
+                          padding: "7px 18px",
+                          borderRadius: "3px",
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "4px",
                           fontWeight: 800,
-                          fontSize: "17px",
+                          fontSize: "16px",
                           letterSpacing: "1px",
                           fontFamily: "Arial, sans-serif"
                         }}>
-                          <span>{(companySettings?.gstTradeName || companySettings?.gstLegalName || "RESAWC").split(" ")[0].toUpperCase()}</span>
-                          <span style={{ color: "#38BDF8", fontSize: "18px", margin: "0 2px" }}>•</span>
-                          <span>STUDIO</span>
+                          {companySettings?.gstLegalName || companySettings?.gstTradeName || "RESAWC LLP"}
                         </div>
                       </div>
 
@@ -976,31 +1143,53 @@ export default function PayrollPage() {
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "18%" }}>Location</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "32%" }}>
-                              {companySettings?.gstState || "Delhi NCR"}
+                              {selectedPayslip.user.salaryStructure?.location || companySettings?.gstState || "Delhi NCR"}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Joining</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"—"}
+                              {(() => {
+                                const val = selectedPayslip.user.salaryStructure?.doj;
+                                if (!val) return "—";
+                                const p = val.split("-");
+                                if (p.length === 3) {
+                                  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                                  const idx = parseInt(p[1], 10) - 1;
+                                  return `${p[2]}-${m[idx] || p[1]}-${p[0]}`;
+                                }
+                                return val;
+                              })()}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Designation</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {selectedPayslip.user.role === "admin"
-                                ? "Managing Director"
-                                : selectedPayslip.user.role === "photo_editor"
-                                ? "Photo Retouching Artist"
-                                : selectedPayslip.user.role === "video_editor"
-                                ? "Lead Video Editor"
-                                : selectedPayslip.user.role === "marketing"
-                                ? "Client Growth Specialist"
-                                : "Creative Executive"}
+                              {selectedPayslip.user.salaryStructure?.designation || (
+                                selectedPayslip.user.role === "admin"
+                                  ? "Managing Director"
+                                  : selectedPayslip.user.role === "photo_editor"
+                                  ? "Photo Retouching Artist"
+                                  : selectedPayslip.user.role === "video_editor"
+                                  ? "Lead Video Editor"
+                                  : selectedPayslip.user.role === "marketing"
+                                  ? "Client Growth Specialist"
+                                  : "Creative Executive"
+                              )}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Birth</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"—"}
+                              {(() => {
+                                const val = selectedPayslip.user.salaryStructure?.dob;
+                                if (!val) return "—";
+                                const p = val.split("-");
+                                if (p.length === 3) {
+                                  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                                  const idx = parseInt(p[1], 10) - 1;
+                                  return `${p[2]}-${m[idx] || p[1]}-${p[0]}`;
+                                }
+                                return val;
+                              })()}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>PAN No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
@@ -1020,11 +1209,11 @@ export default function PayrollPage() {
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>UAN No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"NA"}
+                              {selectedPayslip.user.salaryStructure?.uanNumber || "NA"}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>ESI No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"NA"}
+                              {selectedPayslip.user.salaryStructure?.esiNumber || "NA"}
                             </td>
                           </tr>
                         </tbody>

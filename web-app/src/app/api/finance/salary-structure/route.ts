@@ -71,6 +71,12 @@ export async function POST(req: Request) {
       ifscCode,
       panNumber,
       upiId,
+      dob,
+      doj,
+      designation,
+      location,
+      uanNumber,
+      esiNumber,
     } = body;
 
     if (!userId) {
@@ -89,6 +95,12 @@ export async function POST(req: Request) {
         ifscCode: ifscCode || '',
         panNumber: panNumber || '',
         upiId: upiId || '',
+        dob: dob || '',
+        doj: doj || '',
+        designation: designation || '',
+        location: location || '',
+        uanNumber: uanNumber || '',
+        esiNumber: esiNumber || '',
       },
       update: {
         baseSalary: parseFloat(baseSalary) || 25000,
@@ -99,6 +111,12 @@ export async function POST(req: Request) {
         ifscCode: ifscCode !== undefined ? ifscCode : undefined,
         panNumber: panNumber !== undefined ? panNumber : undefined,
         upiId: upiId !== undefined ? upiId : undefined,
+        dob: dob !== undefined ? dob : undefined,
+        doj: doj !== undefined ? doj : undefined,
+        designation: designation !== undefined ? designation : undefined,
+        location: location !== undefined ? location : undefined,
+        uanNumber: uanNumber !== undefined ? uanNumber : undefined,
+        esiNumber: esiNumber !== undefined ? esiNumber : undefined,
       },
       include: {
         user: { select: { id: true, name: true, email: true, role: true } },
