@@ -235,7 +235,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div style={{
       display: "flex",
-      minHeight: "100vh",
+      height: "100vh",
+      maxHeight: "100vh",
+      overflow: "hidden",
       backgroundColor: "#F5F7FB",
       fontFamily: "Inter, system-ui, -apple-system, sans-serif",
     }}>
@@ -247,10 +249,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         display: "flex",
         flexDirection: "column",
         backgroundColor: "var(--bg-sidebar, #1A56DB)",
-        position: "sticky",
-        top: 0,
         height: "100vh",
+        maxHeight: "100vh",
         overflowY: "auto",
+        overflowX: "hidden",
         zIndex: 40,
         transition: "width 0.2s ease, background-color 0.2s ease",
       }}>
@@ -478,7 +480,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── MAIN COLUMN ──────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        maxHeight: "100vh",
+        minWidth: 0,
+        overflow: "hidden",
+      }}>
 
         {/* ── TOP NAV BAR ────────────────────────────────────────────────── */}
         <header style={{
@@ -746,9 +756,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
         <main style={{
           flex:       1,
+          height:     "calc(100vh - 60px)",
+          minHeight:  0,
           padding:    "24px",
           overflowY:  "auto",
+          overflowX:  "hidden",
           backgroundColor: "#F5F7FB",
+          WebkitOverflowScrolling: "touch",
         }}>
           {children}
         </main>
