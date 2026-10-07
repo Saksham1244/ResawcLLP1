@@ -81,11 +81,11 @@ d:\Resawc LLP\
 --------------------------------------------------------------------------------
 Admin (Full Access):
   Email:    mukul@resawc.com
-  Password: Admin@1234
+  Password: Mukul@123 or Admin@1234
 
 Admin (Full Access):
   Email:    mukesh@resawc.com
-  Password: Admin@1234
+  Password: Mukesh@123 or Admin@1234
 
 Marketing:
   Email:    pooja@resawc.com

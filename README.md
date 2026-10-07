@@ -128,8 +128,8 @@ python agent.py
 
 | Role | Name | Email | Password |
 | :--- | :--- | :--- | :--- |
-| **Admin** | Mukul | `mukul@resawc.com` | `Admin@1234` |
-| **Admin** | Mukesh | `mukesh@resawc.com` | `Admin@1234` |
+| **Admin** | Mukul | `mukul@resawc.com` | `Mukul@123` or `Admin@1234` |
+| **Admin** | Mukesh | `mukesh@resawc.com` | `Mukesh@123` or `Admin@1234` |
 | **Marketing** | Pooja | `pooja@resawc.com` | `Admin@1234` |
 | **Photo Editor** | Vikram | `vikram@resawc.com` | `Admin@1234` |
 | **Video Editor** | Aman | `aman@resawc.com` | `Admin@1234` |
