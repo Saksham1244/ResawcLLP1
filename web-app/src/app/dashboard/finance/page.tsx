@@ -128,7 +128,7 @@ export default function FinancePage() {
     notes: "Thank you for partnering with Resawc LLP!",
     termsAndConditions: "1. Payment is due within 15 days of invoice date.\n2. All payments must be made in Indian Rupees (INR ₹) via Bank Transfer / UPI.\n3. GST applied as per Indian Tax regulations.",
     items: [
-      { description: "Wedding Photo Editing & Retouching", quantity: 500, unit: "photos", unitPrice: 12, amount: 6000 },
+      { description: "", quantity: 1, unit: "photos", unitPrice: 0, amount: 0 },
     ],
   });
 
@@ -202,7 +202,7 @@ export default function FinancePage() {
       ...invoiceForm,
       items: [
         ...invoiceForm.items,
-        { description: "Creative Service Deliverables", quantity: 1, unit: "units", unitPrice: 1000, amount: 1000 },
+        { description: "", quantity: 1, unit: "photos", unitPrice: 0, amount: 0 },
       ],
     });
   };
@@ -404,9 +404,18 @@ export default function FinancePage() {
 
             <button
               onClick={() => {
-                if (clients.length > 0 && !invoiceForm.clientId) {
-                  setInvoiceForm(prev => ({ ...prev, clientId: clients[0].id }));
-                }
+                setInvoiceForm({
+                  clientId: clients[0]?.id || "",
+                  issueDate: new Date().toISOString().split("T")[0],
+                  dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split("T")[0],
+                  taxRate: 18,
+                  discountAmount: 0,
+                  notes: "Thank you for partnering with Resawc LLP!",
+                  termsAndConditions: "1. Payment is due within 15 days of invoice date.\n2. All payments must be made in Indian Rupees (INR ₹) via Bank Transfer / UPI.\n3. GST applied as per Indian Tax regulations.",
+                  items: [
+                    { description: "", quantity: 1, unit: "photos", unitPrice: 0, amount: 0 },
+                  ],
+                });
                 setShowCreateModal(true);
               }}
               style={{
