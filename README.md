@@ -123,16 +123,13 @@ python agent.py
 
 ---
 
-## 👥 Default Credentials
+## 👥 System Access & Roles
+Access roles are managed securely via the Team Management portal:
+- **Admin**: Full system management, Team, Attendance, Payroll & Settings.
+- **Marketing**: Leads pipeline, client management, and tasks.
+- **Production / Video / Photo Editors**: Editing jobs queue, attendance, and tasks.
 
-| Role | Name | Email | Password |
-| :--- | :--- | :--- | :--- |
-| **Admin** | Mukul | `mukul@resawc.com` | `Mukul@123` or `Admin@1234` |
-| **Admin** | Mukesh | `mukesh@resawc.com` | `Mukesh@123` or `Admin@1234` |
-| **Marketing** | Pooja | `pooja@resawc.com` | `Admin@1234` |
-| **Photo Editor** | Vikram | `vikram@resawc.com` | `Admin@1234` |
-| **Video Editor** | Aman | `aman@resawc.com` | `Admin@1234` |
-| **Video Editor** | Rahul | `rahul@resawc.com` | `Admin@1234` |
+*Note: Initial user credentials are created during database seeding or via the Admin Team Management page (`/dashboard/team`). For security, passwords should be managed through the settings portal.*
 
 ---
 

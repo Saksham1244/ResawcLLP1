@@ -76,31 +76,15 @@ d:\Resawc LLP\
   * Production job queues and GST Invoices.
 
 --------------------------------------------------------------------------------
-3. DEFAULT LOGIN CREDENTIALS
+3. SYSTEM ACCESS & ROLES
 --------------------------------------------------------------------------------
-Admin (Full Access):
-  Email:    mukul@resawc.com
-  Password: Mukul@123 or Admin@1234
+Access roles are managed securely via the Team Management portal (/dashboard/team).
+Roles supported:
+  - Admin: Full system management, Team, Attendance, Payroll & Settings.
+  - Marketing: Leads pipeline, client management, and tasks.
+  - Production / Video / Photo Editors: Editing jobs queue, attendance, and tasks.
 
-Admin (Full Access):
-  Email:    mukesh@resawc.com
-  Password: Mukesh@123 or Admin@1234
-
-Marketing:
-  Email:    pooja@resawc.com
-  Password: Admin@1234
-
-Photo Editor:
-  Email:    vikram@resawc.com
-  Password: Admin@1234
-
-Video Editor:
-  Email:    aman@resawc.com
-  Password: Admin@1234
-
-Video Editor:
-  Email:    rahul@resawc.com
-  Password: Admin@1234
+Passwords should be managed directly through the user profile settings.
 
 --------------------------------------------------------------------------------
 4. HOW TO RUN THE PROJECT
