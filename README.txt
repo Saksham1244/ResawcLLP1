@@ -16,7 +16,6 @@ d:\Resawc LLP\
   │    ├── src/app/       Pages, Components, and REST API Endpoints
   │    ├── e2e/           Playwright End-to-End Test Suite (21 Tests)
   │    └── .github/       GitHub Actions CI/CD Pipeline
-  ├── mobile-app/         React Native Expo Mobile App (Attendance & Tasks)
   └── desktop-agent/      Python Desktop PC Tracker Background Service
 
 --------------------------------------------------------------------------------

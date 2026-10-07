@@ -11,13 +11,12 @@ d:\Resawc LLP\
 ├── web-app/               # Next.js 14 Web Application (Desktop & Admin Dashboard)
 │   ├── prisma/            # Neon PostgreSQL Schema & Client
 │   ├── src/app/           # App Router Pages & API Routes
-│   │   ├── dashboard/     # Management Dashboard (Overview, Clients, Jobs, Finance, Payroll, Leads, Tasks, Attendance, Monitor, Team, Activity, Settings)
-│   │   ├── attendance/    # Standalone Geofenced Attendance Portal
+│   │   ├── dashboard/     # Management Dashboard (Overview, Clients, Jobs, Invoicing, Payroll, Leads, Tasks, Attendance, Monitor, Team, Activity, Settings)
+│   │   ├── attendance/    # Standalone Geofenced Mobile/Web Attendance Portal
 │   │   ├── login/         # Authentication & Access Control
 │   │   └── api/           # Secured REST Endpoints (Rate-limited, JWT-protected)
 │   ├── e2e/               # Playwright End-to-End Test Suite (21 Tests)
 │   └── .github/workflows/ # GitHub Actions CI/CD Pipeline
-├── mobile-app/            # React Native Expo Application (Field attendance & tasks)
 └── desktop-agent/         # Python Windows PC Productivity Background Service
 ```
 
