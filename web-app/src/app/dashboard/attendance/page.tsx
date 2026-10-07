@@ -1784,7 +1784,7 @@ export default function AttendancePage() {
             padding: "1rem",
           }}
         >
-          <div style={{ ...cardStyle, width: "100%", maxWidth: 440, padding: "2rem", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+          <div style={{ ...cardStyle, width: "100%", maxWidth: 440, padding: "2rem", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", colorScheme: "light" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
               <h3 style={{ fontSize: "1.125rem", fontWeight: 700, color: C.text, margin: 0 }}>
                 Apply for Leave
@@ -1822,7 +1822,7 @@ export default function AttendancePage() {
                     type="date"
                     value={leaveForm.startDate}
                     onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })}
-                    style={inputStyle}
+                    style={{ ...inputStyle, colorScheme: "light", color: "#111827", background: "#FFFFFF" }}
                     required
                   />
                 </div>
@@ -1834,7 +1834,7 @@ export default function AttendancePage() {
                     type="date"
                     value={leaveForm.endDate}
                     onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
-                    style={inputStyle}
+                    style={{ ...inputStyle, colorScheme: "light", color: "#111827", background: "#FFFFFF" }}
                     required
                   />
                 </div>
