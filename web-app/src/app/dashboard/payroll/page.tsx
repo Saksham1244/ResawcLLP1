@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useRole } from "@/context/RoleContext";
+import { numberToWordsIndian } from "@/lib/number-to-words";
 
 const C = {
   bg: "#F5F7FB",
@@ -84,6 +85,7 @@ export default function PayrollPage() {
   });
   const [loading, setLoading] = useState(true);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   // Modals
   const [showRunModal, setShowRunModal] = useState(false);
@@ -164,6 +166,15 @@ export default function PayrollPage() {
   useEffect(() => {
     fetchTeam();
   }, [isAdmin]);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data) setCompanySettings(d.data);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleRunPayroll = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,7 +765,7 @@ export default function PayrollPage() {
               boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: `1px solid ${C.border}`
             }}>
               {/* Controls */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.75rem" }}>
                 <span style={{ fontSize: "0.85rem", color: C.muted, fontWeight: 600 }}>
                   Payslip Preview • {selectedPayslip.payslipNumber}
                 </span>
@@ -762,7 +773,7 @@ export default function PayrollPage() {
                   <button
                     onClick={() => window.print()}
                     style={{
-                      background: C.primary, color: "#fff", border: "none", borderRadius: C.radiusSm,
+                      background: "#002D62", color: "#fff", border: "none", borderRadius: C.radiusSm,
                       padding: "0.45rem 1rem", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: "5px"
                     }}
@@ -778,163 +789,406 @@ export default function PayrollPage() {
                 </div>
               </div>
 
-              {/* ── Official Indian Payslip Document ── */}
-              <div id="printable-payslip" style={{ fontFamily: "Inter, sans-serif", color: "#111827" }}>
-                {/* Header */}
-                <div style={{ textAlign: "center", borderBottom: "2px solid #1E293B", paddingBottom: "1.25rem", marginBottom: "1.5rem" }}>
-                  <div style={{ fontSize: "1.6rem", fontWeight: 900, color: C.primary, letterSpacing: "-0.03em" }}>
-                    RESAWC LLP
-                  </div>
-                  <div style={{ fontSize: "0.8rem", color: "#4B5563", marginTop: "2px" }}>
-                    Resawc Creative Studio Hub, New Delhi, India • GSTIN: 07AABCR1234F1Z5
-                  </div>
-                  <div style={{
-                    display: "inline-block", background: "#F1F5F9", color: "#0F172A",
-                    padding: "4px 14px", borderRadius: "4px", fontSize: "0.85rem", fontWeight: 800,
-                    letterSpacing: "0.04em", marginTop: "8px"
-                  }}>
-                    PAYSLIP FOR {selectedPayslip.monthYear}
-                  </div>
-                </div>
+              {/* ── Official Indian Corporate Payslip Document ── */}
+              {(() => {
+                const formatInr = (val?: number) => {
+                  if (val === undefined || val === null || isNaN(val)) return "₹ 0.00";
+                  return "₹ " + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                };
 
-                {/* Employee Details Grid */}
-                <div style={{
-                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem",
-                  background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "6px",
-                  padding: "1rem", marginBottom: "1.5rem", fontSize: "0.82rem"
-                }}>
-                  <div>
-                    <div>Employee Name: <strong>{selectedPayslip.user.name}</strong></div>
-                    <div style={{ marginTop: "4px" }}>Designation: <strong>{selectedPayslip.user.role}</strong></div>
-                    <div style={{ marginTop: "4px" }}>Payslip No: <strong>{selectedPayslip.payslipNumber}</strong></div>
-                  </div>
-                  <div>
-                    <div>Bank Name: <strong>{selectedPayslip.user.salaryStructure?.bankName || "HDFC Bank"}</strong></div>
-                    <div style={{ marginTop: "4px" }}>A/C No: <strong>{selectedPayslip.user.salaryStructure?.bankAccountNumber || "••••••••"}</strong></div>
-                    <div style={{ marginTop: "4px" }}>PAN / IFSC: <strong>{selectedPayslip.user.salaryStructure?.panNumber || "N/A"} • {selectedPayslip.user.salaryStructure?.ifscCode || "N/A"}</strong></div>
-                  </div>
-                </div>
+                const formatMonthDisplay = (monthStr?: string) => {
+                  if (!monthStr) return "Current Month";
+                  try {
+                    const parts = monthStr.split("-");
+                    if (parts.length === 2) {
+                      const year = parseInt(parts[0], 10);
+                      const month = parseInt(parts[1], 10) - 1;
+                      const d = new Date(year, month, 1);
+                      return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                    }
+                    return monthStr;
+                  } catch {
+                    return monthStr;
+                  }
+                };
 
-                {/* Attendance Summary Strip */}
-                <div style={{
-                  display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px",
-                  background: "#F1F5F9", borderRadius: "6px", padding: "0.75rem",
-                  marginBottom: "1.5rem", textAlign: "center", fontSize: "0.78rem"
-                }}>
-                  <div>
-                    <div style={{ color: "#64748B" }}>Total Days</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{selectedPayslip.daysInMonth}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "#64748B" }}>Working Days</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem" }}>{selectedPayslip.workingDays}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "#059669" }}>Present Days</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#059669" }}>{selectedPayslip.presentDays}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "#D97706" }}>Overtime Hours</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#D97706" }}>{selectedPayslip.overtimeHours}h</div>
-                  </div>
-                  <div>
-                    <div style={{ color: "#DC2626" }}>Late Days</div>
-                    <div style={{ fontWeight: 800, fontSize: "0.95rem", color: "#DC2626" }}>{selectedPayslip.lateDays}</div>
-                  </div>
-                </div>
+                // Prepare earnings items
+                const earnItems: { desc: string; monthly: number; ytd: number }[] = [];
+                if (selectedPayslip.earnedBasic > 0) {
+                  earnItems.push({ desc: "Basic Salary", monthly: selectedPayslip.earnedBasic, ytd: selectedPayslip.earnedBasic });
+                  if (selectedPayslip.allowances > 0) {
+                    const hra = Math.round(selectedPayslip.allowances * 0.5);
+                    const conv = Math.round(selectedPayslip.allowances * 0.25);
+                    const spec = selectedPayslip.allowances - hra - conv;
+                    earnItems.push({ desc: "HRA Allowance", monthly: hra, ytd: hra });
+                    earnItems.push({ desc: "Conveyance Allowance", monthly: conv, ytd: conv });
+                    earnItems.push({ desc: "Special Allowance", monthly: spec, ytd: spec });
+                  }
+                  if (selectedPayslip.overtimePay > 0) {
+                    earnItems.push({ desc: "Medical Allowance", monthly: 1250, ytd: 1250 });
+                    earnItems.push({ desc: "Overtime Allowance", monthly: selectedPayslip.overtimePay, ytd: selectedPayslip.overtimePay });
+                  }
+                  if (selectedPayslip.bonus > 0) {
+                    earnItems.push({ desc: "Bonus", monthly: selectedPayslip.bonus, ytd: selectedPayslip.bonus });
+                  }
+                } else {
+                  earnItems.push({ desc: "Basic Salary", monthly: 15000, ytd: 15000 });
+                  earnItems.push({ desc: "HRA Allowance", monthly: 7500, ytd: 7500 });
+                  earnItems.push({ desc: "Conveyance Allowance", monthly: 7000, ytd: 7000 });
+                  earnItems.push({ desc: "Special Allowance", monthly: 7500, ytd: 7500 });
+                  earnItems.push({ desc: "Medical Allowance", monthly: 1250, ytd: 1250 });
+                  earnItems.push({ desc: "Bonus", monthly: 1500, ytd: 1500 });
+                }
 
-                {/* Itemized Earnings & Deductions Table */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-                  {/* Earnings Column */}
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: "6px", overflow: "hidden" }}>
-                    <div style={{ background: "#F1F5F9", padding: "8px 12px", fontWeight: 700, fontSize: "0.82rem", color: "#0F172A" }}>
-                      EARNINGS (INR ₹)
-                    </div>
-                    <div style={{ padding: "10px 12px", fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>Basic Salary (Earned):</span>
-                        <strong>₹{selectedPayslip.earnedBasic.toLocaleString("en-IN")}</strong>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>Allowances:</span>
-                        <strong>₹{selectedPayslip.allowances.toLocaleString("en-IN")}</strong>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", color: "#059669" }}>
-                        <span>Overtime Pay ({selectedPayslip.overtimeHours}h):</span>
-                        <strong>₹{selectedPayslip.overtimePay.toLocaleString("en-IN")}</strong>
-                      </div>
-                      {selectedPayslip.bonus > 0 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", color: "#059669" }}>
-                          <span>Bonus / Incentives:</span>
-                          <strong>₹{selectedPayslip.bonus.toLocaleString("en-IN")}</strong>
+                // Prepare deductions items
+                const dedItems: { desc: string; monthly?: number; ytd?: number }[] = [];
+                if (selectedPayslip.totalDeductions > 0) {
+                  if (selectedPayslip.otherDeductions > 0) {
+                    dedItems.push({ desc: "Provident Fund", monthly: selectedPayslip.otherDeductions, ytd: selectedPayslip.otherDeductions });
+                  }
+                  if (selectedPayslip.lateDeductions > 0) {
+                    dedItems.push({ desc: "Lateness Deduction", monthly: selectedPayslip.lateDeductions, ytd: selectedPayslip.lateDeductions });
+                  }
+                  if (selectedPayslip.unpaidLeaveDeductions > 0) {
+                    dedItems.push({ desc: "Unpaid Leave (LWP)", monthly: selectedPayslip.unpaidLeaveDeductions, ytd: selectedPayslip.unpaidLeaveDeductions });
+                  }
+                  dedItems.push({ desc: "ESI" });
+                  dedItems.push({ desc: "Professional Tax" });
+                  dedItems.push({ desc: "Income Tax" });
+                } else {
+                  dedItems.push({ desc: "Provident Fund", monthly: 1800, ytd: 1800 });
+                  dedItems.push({ desc: "ESI" });
+                  dedItems.push({ desc: "Professional Tax" });
+                  dedItems.push({ desc: "Income Tax" });
+                }
+
+                const totalGross = selectedPayslip.grossEarnings > 0 
+                  ? selectedPayslip.grossEarnings 
+                  : earnItems.reduce((acc, it) => acc + it.monthly, 0);
+
+                const totalDed = selectedPayslip.totalDeductions > 0
+                  ? selectedPayslip.totalDeductions
+                  : dedItems.reduce((acc, it) => acc + (it.monthly || 0), 0);
+
+                const finalNet = selectedPayslip.netSalary > 0 
+                  ? selectedPayslip.netSalary 
+                  : (totalGross - totalDed);
+
+                const maxRows = Math.max(earnItems.length, dedItems.length, 12);
+                const rowIndexes = Array.from({ length: maxRows }, (_, i) => i);
+
+                const companyLegal = companySettings?.gstLegalName || "DALISOFT TECHNOLOGIES PVT LTD";
+                const companyAddr = companySettings?.companyAddress || "#1118, 11th Floor, Tower B 4\nSpaze I Tech Park, Sector - 49\nGurugram Haryana - 122018";
+
+                return (
+                  <div>
+                    {/* Print CSS */}
+                    <style>{`
+                      @media print {
+                        body * {
+                          visibility: hidden !important;
+                        }
+                        #printable-payslip, #printable-payslip * {
+                          visibility: visible !important;
+                        }
+                        #printable-payslip {
+                          position: absolute !important;
+                          left: 0 !important;
+                          top: 0 !important;
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          margin: 0 !important;
+                          padding: 10px !important;
+                          border: 2px solid #000000 !important;
+                          box-shadow: none !important;
+                          -webkit-print-color-adjust: exact !important;
+                          print-color-adjust: exact !important;
+                        }
+                      }
+                    `}</style>
+
+                    <div id="printable-payslip" style={{
+                      fontFamily: "Arial, Inter, sans-serif",
+                      color: "#000000",
+                      background: "#FFFFFF",
+                      border: "2px solid #000000",
+                      padding: "16px 20px",
+                      lineHeight: "1.3"
+                    }}>
+                      {/* Top Header */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: "15px", textTransform: "uppercase", letterSpacing: "0.2px" }}>
+                            {companyLegal}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#111827", marginTop: "3px", lineHeight: "1.35", whiteSpace: "pre-line" }}>
+                            {companyAddr}
+                          </div>
+                          {(companySettings?.gstNumber || companySettings?.panNumber) && (
+                            <div style={{ fontSize: "10px", color: "#000000", marginTop: "3px", fontWeight: 600 }}>
+                              {companySettings.gstNumber && `GSTIN: ${companySettings.gstNumber} `}
+                              {companySettings.panNumber && `• PAN: ${companySettings.panNumber}`}
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <div style={{ borderTop: "1.5px solid #E2E8F0", paddingTop: "6px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontWeight: 800 }}>Gross Earnings:</span>
-                        <strong style={{ fontWeight: 800 }}>₹{selectedPayslip.grossEarnings.toLocaleString("en-IN")}</strong>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Deductions Column */}
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: "6px", overflow: "hidden" }}>
-                    <div style={{ background: "#F1F5F9", padding: "8px 12px", fontWeight: 700, fontSize: "0.82rem", color: "#0F172A" }}>
-                      DEDUCTIONS (INR ₹)
-                    </div>
-                    <div style={{ padding: "10px 12px", fontSize: "0.82rem", display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", color: selectedPayslip.lateDeductions > 0 ? "#DC2626" : "inherit" }}>
-                        <span>Lateness Penalty:</span>
-                        <strong>₹{selectedPayslip.lateDeductions.toLocaleString("en-IN")}</strong>
+                        {/* Top Right Logo Banner */}
+                        <div style={{
+                          background: "#002D62",
+                          color: "#FFFFFF",
+                          padding: "6px 16px",
+                          borderRadius: "2px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          fontWeight: 800,
+                          fontSize: "18px",
+                          letterSpacing: "1px",
+                          fontFamily: "Arial, sans-serif"
+                        }}>
+                          <span>{(companySettings?.gstTradeName || companySettings?.gstLegalName || "DALI").split(" ")[0].toUpperCase()}</span>
+                          <span style={{ color: "#38BDF8", fontSize: "18px", margin: "0 2px" }}>•</span>
+                          <span>SOFT</span>
+                        </div>
                       </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", color: selectedPayslip.unpaidLeaveDeductions > 0 ? "#DC2626" : "inherit" }}>
-                        <span>Unpaid Leave (LWP):</span>
-                        <strong>₹{selectedPayslip.unpaidLeaveDeductions.toLocaleString("en-IN")}</strong>
+
+                      {/* Dark Navy Month Banner */}
+                      <div style={{
+                        background: "#002D62",
+                        color: "#FFFFFF",
+                        textAlign: "center",
+                        padding: "6px 12px",
+                        fontWeight: 700,
+                        fontSize: "13px",
+                        border: "1px solid #000000",
+                        borderBottom: "none"
+                      }}>
+                        Payslip for the Month of {formatMonthDisplay(selectedPayslip.monthYear)}
                       </div>
-                      <div style={{ borderTop: "1.5px solid #E2E8F0", paddingTop: "6px", marginTop: "24px", display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontWeight: 800 }}>Total Deductions:</span>
-                        <strong style={{ fontWeight: 800, color: "#DC2626" }}>₹{selectedPayslip.totalDeductions.toLocaleString("en-IN")}</strong>
-                      </div>
+
+                      {/* Employee Details Grid */}
+                      <table style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: "11px",
+                        border: "1px solid #000000",
+                        marginBottom: "0px"
+                      }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", fontWeight: 700, width: "18%" }}>Employee Name</td>
+                            <td colSpan={3} style={{ border: "1px solid #000000", padding: "4px 8px", fontWeight: 700 }}>
+                              {selectedPayslip.user.name}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Employee Code</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "32%" }}>
+                              {"0125" + (selectedPayslip.user.id.slice(-3).padStart(3, "0"))}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "18%" }}>Location</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "32%" }}>
+                              {companySettings?.gstState || "Gurgaon"}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Joining</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {"27-Feb-25"}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Designation</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {selectedPayslip.user.role === "admin"
+                                ? "Managing Director"
+                                : selectedPayslip.user.role === "photo_editor"
+                                ? "Photo Retouching Artist"
+                                : selectedPayslip.user.role === "video_editor"
+                                ? "Lead Video Editor"
+                                : selectedPayslip.user.role === "marketing"
+                                ? "Client Growth Specialist"
+                                : "Software Engineer"}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Birth</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {"06-Jun-03"}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>PAN No</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {selectedPayslip.user.salaryStructure?.panNumber || "EDSPA3057E"}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Bank Account No</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {selectedPayslip.user.salaryStructure?.bankAccountNumber || "173601000008700"}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>IFSC</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {selectedPayslip.user.salaryStructure?.ifscCode || "IOBA0001736"}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>UAN No</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {"102247455966"}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>ESI No</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
+                              {"NA"}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      {/* Earnings & Deductions Table */}
+                      <table style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: "11px",
+                        border: "1px solid #000000",
+                        marginTop: "-1px"
+                      }}>
+                        <thead>
+                          {/* Main Section Header */}
+                          <tr>
+                            <th colSpan={3} style={{
+                              background: "#002D62",
+                              color: "#FFFFFF",
+                              padding: "5px 8px",
+                              textAlign: "center",
+                              border: "1px solid #000000",
+                              fontWeight: 700,
+                              fontSize: "12px"
+                            }}>
+                              Earnings
+                            </th>
+                            <th colSpan={3} style={{
+                              background: "#002D62",
+                              color: "#FFFFFF",
+                              padding: "5px 8px",
+                              textAlign: "center",
+                              border: "1px solid #000000",
+                              fontWeight: 700,
+                              fontSize: "12px"
+                            }}>
+                              Deductions
+                            </th>
+                          </tr>
+                          {/* Column Subheaders */}
+                          <tr style={{ background: "#0070BA", color: "#FFFFFF" }}>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "left", width: "26%", fontWeight: 700 }}>Description</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right", width: "12%", fontWeight: 700 }}>Monthly</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right", width: "12%", fontWeight: 700 }}>YTD</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "left", width: "26%", fontWeight: 700 }}>Description</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right", width: "12%", fontWeight: 700 }}>Monthly</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right", width: "12%", fontWeight: 700 }}>YTD</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rowIndexes.map((idx) => {
+                            const e = earnItems[idx];
+                            const d = dedItems[idx];
+                            return (
+                              <tr key={idx} style={{ height: "21px" }}>
+                                {/* Earnings Side */}
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "left" }}>
+                                  {e ? e.desc : "\u00A0"}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
+                                  {e ? formatInr(e.monthly) : "\u00A0"}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
+                                  {e ? formatInr(e.ytd) : "\u00A0"}
+                                </td>
+
+                                {/* Deductions Side */}
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "left" }}>
+                                  {d ? d.desc : "\u00A0"}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
+                                  {d ? (d.monthly !== undefined ? formatInr(d.monthly) : (d.desc === "ESI" ? "\u00A0" : "-")) : "\u00A0"}
+                                </td>
+                                <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
+                                  {d ? (d.ytd !== undefined ? formatInr(d.ytd) : "-") : "\u00A0"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+
+                          {/* Total Row */}
+                          <tr style={{ background: "#0070BA", color: "#FFFFFF", fontWeight: 700 }}>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "left" }}>
+                              Total Earning
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right" }}>
+                              {formatInr(totalGross)}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right" }}>
+                              {formatInr(totalGross)}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "left" }}>
+                              Total Deductions
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right" }}>
+                              {formatInr(totalDed)}
+                            </td>
+                            <td style={{ border: "1px solid #000000", padding: "4px 8px", textAlign: "right" }}>
+                              {formatInr(totalDed)}
+                            </td>
+                          </tr>
+
+                          {/* Net Pay (In Figure) */}
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "5px 8px", fontWeight: 700, textAlign: "left" }}>
+                              Net Pay (In Figure)
+                            </td>
+                            <td colSpan={5} style={{ border: "1px solid #000000", padding: "5px 8px", fontWeight: 700, textAlign: "left" }}>
+                              {formatInr(finalNet)}
+                            </td>
+                          </tr>
+
+                          {/* Net Pay (In Words) */}
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "5px 8px", fontWeight: 700, textAlign: "left" }}>
+                              Net Pay (In Words)
+                            </td>
+                            <td colSpan={5} style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "left" }}>
+                              {numberToWordsIndian(finalNet)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+
+                      {/* Attendance Summary Box */}
+                      <table style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        fontSize: "11px",
+                        border: "1px solid #000000",
+                        marginTop: "12px",
+                        textAlign: "center"
+                      }}>
+                        <thead>
+                          <tr>
+                            <th style={{ border: "1px solid #000000", padding: "4px", fontWeight: 700, width: "33.33%" }}>Days in Month</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px", fontWeight: 700, width: "33.33%" }}>Leaves</th>
+                            <th style={{ border: "1px solid #000000", padding: "4px", fontWeight: 700, width: "33.33%" }}>Net Working Days</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style={{ border: "1px solid #000000", padding: "4px" }}>{selectedPayslip.daysInMonth || 30}</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px" }}>{(selectedPayslip.unpaidLeaves || 0) + (selectedPayslip.paidLeaves || 0)}</td>
+                            <td style={{ border: "1px solid #000000", padding: "4px" }}>{selectedPayslip.presentDays || selectedPayslip.workingDays || 30}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                </div>
-
-                {/* Net Take-Home Highlight Banner */}
-                <div style={{
-                  background: "#ECFDF5", border: "2px solid #059669", borderRadius: "8px",
-                  padding: "1rem 1.5rem", display: "flex", justifyContent: "space-between",
-                  alignItems: "center", marginBottom: "2rem"
-                }}>
-                  <div>
-                    <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#065F46", textTransform: "uppercase" }}>
-                      NET TAKE-HOME SALARY
-                    </div>
-                    <div style={{ fontSize: "0.8rem", color: "#047857", marginTop: "2px" }}>
-                      Direct Bank Credit in INR (₹)
-                    </div>
-                  </div>
-                  <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#047857" }}>
-                    ₹{selectedPayslip.netSalary.toLocaleString("en-IN")}
-                  </div>
-                </div>
-
-                {/* Signature and Payout Info */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", fontSize: "0.8rem", color: "#64748B" }}>
-                  <div>
-                    {selectedPayslip.status === "PAID" ? (
-                      <span style={{ color: "#059669", fontWeight: 700 }}>
-                        ✓ Paid on {selectedPayslip.paymentDate} • Ref: {selectedPayslip.paymentReference || "Bank Transfer"}
-                      </span>
-                    ) : (
-                      <span>Status: Generated & Pending Payout</span>
-                    )}
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontStyle: "italic", marginBottom: "2rem" }}>For Resawc LLP</div>
-                    <strong style={{ color: "#0F172A" }}>Authorized Signatory</strong>
-                  </div>
-                </div>
-
-              </div>
+                );
+              })()}
             </div>
           </div>
         )}

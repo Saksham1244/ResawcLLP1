@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useRole } from "@/context/RoleContext";
+import { numberToWordsIndian } from "@/lib/number-to-words";
 
 const C = {
   bg: "#F5F7FB",
@@ -131,6 +132,7 @@ export default function FinancePage() {
   const [selectedForPayment, setSelectedForPayment] = useState<Invoice | null>(null);
   const [showRateModal, setShowRateModal] = useState(false);
   const [selectedRateCard, setSelectedRateCard] = useState<RateCard | null>(null);
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   // Create Form State
   const [invoiceForm, setInvoiceForm] = useState<{
@@ -181,12 +183,13 @@ export default function FinancePage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [invRes, rcRes, clRes, jbRes, svRes] = await Promise.all([
+      const [invRes, rcRes, clRes, jbRes, svRes, setRes] = await Promise.all([
         fetch(`/api/finance/invoices?status=${statusFilter}&search=${encodeURIComponent(search)}`),
         fetch("/api/finance/rate-cards"),
         fetch("/api/clients"),
         fetch("/api/jobs?status=DELIVERED"),
         fetch("/api/services"),
+        fetch("/api/settings"),
       ]);
 
       const invData = await invRes.json();
@@ -194,6 +197,7 @@ export default function FinancePage() {
       const clData = await clRes.json();
       const jbData = await jbRes.json();
       const svData = await svRes.json();
+      const setData = await setRes.json();
 
       if (invData.success) {
         setInvoices(invData.data);
@@ -203,6 +207,7 @@ export default function FinancePage() {
       if (clData.success) setClients(clData.data);
       if (jbData.success) setCompletedJobs(jbData.data);
       if (svData.success && Array.isArray(svData.data)) setCompanyServices(svData.data);
+      if (setData.success && setData.data) setCompanySettings(setData.data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -1066,15 +1071,15 @@ export default function FinancePage() {
               boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: `1px solid ${C.border}`
             }}>
               {/* Top Controls */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid #E5E7EB", paddingBottom: "0.75rem" }}>
                 <span style={{ fontSize: "0.85rem", color: C.muted, fontWeight: 600 }}>
-                  Tax Invoice Preview • {selectedInvoice.invoiceNumber}
+                  GST Tax Invoice Preview • {selectedInvoice.invoiceNumber}
                 </span>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     onClick={() => window.print()}
                     style={{
-                      background: C.primary, color: "#fff", border: "none", borderRadius: C.radiusSm,
+                      background: "#002D62", color: "#fff", border: "none", borderRadius: C.radiusSm,
                       padding: "0.45rem 1rem", fontSize: "0.82rem", fontWeight: 700, cursor: "pointer",
                       display: "flex", alignItems: "center", gap: "5px"
                     }}
@@ -1090,154 +1095,298 @@ export default function FinancePage() {
                 </div>
               </div>
 
-              {/* ── Official Indian Tax Invoice Document Template ── */}
-              <div id="printable-invoice" style={{ fontFamily: "Inter, sans-serif", color: "#111827" }}>
-                
-                {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
-                  <div>
-                    <div style={{ fontSize: "1.6rem", fontWeight: 900, color: C.primary, letterSpacing: "-0.04em" }}>
-                      RESAWC LLP
-                    </div>
-                    <div style={{ fontSize: "0.82rem", color: "#4B5563", marginTop: "3px" }}>
-                      Creative Post-Production & Media Editing Studio
-                    </div>
-                    <div style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: "4px", lineHeight: "1.4" }}>
-                      Resawc Creative Studio Hub, New Delhi, India<br />
-                      <strong>GSTIN:</strong> 07AABCR1234F1Z5 • <strong>PAN:</strong> AABCR1234F<br />
-                      <strong>Email:</strong> accounts@resawc.com
-                    </div>
-                  </div>
+              {/* ── Official Indian Executive GST Tax Invoice Document ── */}
+              {(() => {
+                const companyLegal = companySettings?.gstLegalName || "RESAWC LLP";
+                const companyTrade = companySettings?.gstTradeName || "Post-Production & Creative Media Studio";
+                const companyAddress = companySettings?.companyAddress || "#1118, 11th Floor, Tower B 4, Spaze I Tech Park, Sector - 49, Gurugram Haryana - 122018";
+                const gstNumber = companySettings?.gstNumber || "07AABCR1234F1Z5";
+                const panNumber = companySettings?.panNumber || "AABCR1234F";
+                const gstState = companySettings?.gstState || "Haryana";
+                const gstStateCode = companySettings?.gstStateCode || "06";
+                const bankName = companySettings?.bankName || "HDFC Bank Ltd.";
+                const bankAccount = companySettings?.bankAccount || "50200012345678";
+                const bankIfsc = companySettings?.bankIfsc || "HDFC0001234";
+                const bankBranch = companySettings?.bankBranch || "Connaught Place, New Delhi";
+                const upiId = companySettings?.upiId || "resawc@hdfcbank";
+                const signatory = companySettings?.authorizedSignatory || "Mukul";
+                const designation = companySettings?.authorizedDesignation || "Designated Partner";
+                const defaultSac = companySettings?.defaultSacCode || "998314";
 
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{
-                      display: "inline-block", background: "#EFF6FF", color: C.primary,
-                      border: "1px solid #BFDBFE", padding: "4px 12px", borderRadius: "4px",
-                      fontSize: "0.85rem", fontWeight: 800, letterSpacing: "0.05em", marginBottom: "8px"
+                const formatInr = (val?: number) => {
+                  if (val === undefined || val === null || isNaN(val)) return "₹ 0.00";
+                  return "₹ " + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                };
+
+                return (
+                  <div>
+                    {/* Print CSS */}
+                    <style>{`
+                      @media print {
+                        body * {
+                          visibility: hidden !important;
+                        }
+                        #printable-invoice, #printable-invoice * {
+                          visibility: visible !important;
+                        }
+                        #printable-invoice {
+                          position: absolute !important;
+                          left: 0 !important;
+                          top: 0 !important;
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          margin: 0 !important;
+                          padding: 14px !important;
+                          border: 2px solid #000000 !important;
+                          box-shadow: none !important;
+                          -webkit-print-color-adjust: exact !important;
+                          print-color-adjust: exact !important;
+                        }
+                      }
+                    `}</style>
+
+                    <div id="printable-invoice" style={{
+                      fontFamily: "Arial, Inter, sans-serif",
+                      color: "#111827",
+                      background: "#FFFFFF",
+                      border: "2px solid #000000",
+                      padding: "20px 24px",
+                      lineHeight: "1.35"
                     }}>
-                      TAX INVOICE
-                    </div>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#111827" }}>
-                      {selectedInvoice.invoiceNumber}
-                    </div>
-                    <div style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: "3px" }}>
-                      Date: <strong>{selectedInvoice.issueDate}</strong><br />
-                      Due Date: <strong>{selectedInvoice.dueDate}</strong>
-                    </div>
-                  </div>
-                </div>
+                      {/* Top Header */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", borderBottom: "2px solid #002D62", paddingBottom: "14px" }}>
+                        <div>
+                          <div style={{ fontWeight: 900, fontSize: "19px", color: "#002D62", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                            {companyLegal}
+                          </div>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: "#4B5563", marginTop: "2px" }}>
+                            {companyTrade}
+                          </div>
+                          <div style={{ fontSize: "10.5px", color: "#374151", marginTop: "4px", lineHeight: "1.35", whiteSpace: "pre-line" }}>
+                            {companyAddress}
+                          </div>
+                          <div style={{ fontSize: "10.5px", color: "#111827", marginTop: "4px", fontWeight: 700 }}>
+                            GSTIN: {gstNumber} • PAN: {panNumber}
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#4B5563" }}>
+                            State: {gstState} (Code: {gstStateCode})
+                          </div>
+                        </div>
 
-                {/* Billed To Box */}
-                <div style={{
-                  background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "6px",
-                  padding: "1rem", marginBottom: "1.75rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem"
-                }}>
-                  <div>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" }}>
-                      BILLED TO:
-                    </div>
-                    <div style={{ fontSize: "0.95rem", fontWeight: 800, color: "#111827", marginTop: "2px" }}>
-                      {selectedInvoice.client.companyName}
-                    </div>
-                    <div style={{ fontSize: "0.8rem", color: "#4B5563", marginTop: "2px" }}>
-                      Attn: {selectedInvoice.client.contactPerson}<br />
-                      {selectedInvoice.client.email && <span>Email: {selectedInvoice.client.email}<br /></span>}
-                      {selectedInvoice.client.phone && <span>Phone: {selectedInvoice.client.phone}<br /></span>}
-                      {selectedInvoice.client.address || "India"}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right", fontSize: "0.8rem", color: "#4B5563" }}>
-                    <div><strong>Place of Supply:</strong> India (Domestic)</div>
-                    <div><strong>Currency:</strong> INR (₹)</div>
-                    <div><strong>Payment Terms:</strong> Due on Receipt</div>
-                  </div>
-                </div>
-
-                {/* Items Table */}
-                <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "1.5rem", fontSize: "0.82rem" }}>
-                  <thead>
-                    <tr style={{ background: "#F3F4F6", borderBottom: "1.5px solid #D1D5DB" }}>
-                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700 }}>#</th>
-                      <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: 700 }}>Description of Service</th>
-                      <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700 }}>SAC Code</th>
-                      <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>Qty</th>
-                      <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>Rate (₹)</th>
-                      <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>Amount (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedInvoice.items?.map((it, idx) => (
-                      <tr key={it.id || idx} style={{ borderBottom: "1px solid #E5E7EB" }}>
-                        <td style={{ padding: "10px", color: "#6B7280" }}>{idx + 1}</td>
-                        <td style={{ padding: "10px", fontWeight: 600 }}>{it.description}</td>
-                        <td style={{ padding: "10px", textAlign: "center", color: "#6B7280" }}>998311</td>
-                        <td style={{ padding: "10px", textAlign: "right" }}>{it.quantity} {it.unit}</td>
-                        <td style={{ padding: "10px", textAlign: "right" }}>₹{it.unitPrice.toLocaleString("en-IN")}</td>
-                        <td style={{ padding: "10px", textAlign: "right", fontWeight: 700 }}>₹{it.amount.toLocaleString("en-IN")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* Subtotal, GST & Total */}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "2rem" }}>
-                  <div style={{ width: "300px", fontSize: "0.85rem", display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#4B5563" }}>Subtotal:</span>
-                      <strong style={{ color: "#111827" }}>₹{selectedInvoice.subtotal.toLocaleString("en-IN")}</strong>
-                    </div>
-
-                    {selectedInvoice.discountAmount > 0 && (
-                      <div style={{ display: "flex", justifyContent: "space-between", color: "#059669" }}>
-                        <span>Discount:</span>
-                        <strong>-₹{selectedInvoice.discountAmount.toLocaleString("en-IN")}</strong>
+                        {/* Invoice Header Details */}
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{
+                            background: "#002D62",
+                            color: "#FFFFFF",
+                            padding: "6px 18px",
+                            fontWeight: 800,
+                            fontSize: "13px",
+                            letterSpacing: "2px",
+                            borderRadius: "2px",
+                            display: "inline-block",
+                            marginBottom: "6px"
+                          }}>
+                            TAX INVOICE
+                          </div>
+                          <div style={{ fontSize: "15px", fontWeight: 800, color: "#111827" }}>
+                            {selectedInvoice.invoiceNumber}
+                          </div>
+                          <div style={{ fontSize: "10.5px", color: "#374151", marginTop: "4px", lineHeight: "1.4" }}>
+                            Invoice Date: <strong>{selectedInvoice.issueDate}</strong><br />
+                            Due Date: <strong>{selectedInvoice.dueDate}</strong><br />
+                            Place of Supply: <strong>{gstState} ({gstStateCode})</strong><br />
+                            Reverse Charge: <strong>No</strong>
+                          </div>
+                        </div>
                       </div>
-                    )}
 
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#7C3AED" }}>
-                      <span>CGST (9.0%):</span>
-                      <strong>₹{(selectedInvoice.taxAmount / 2).toLocaleString("en-IN")}</strong>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#7C3AED" }}>
-                      <span>SGST (9.0%):</span>
-                      <strong>₹{(selectedInvoice.taxAmount / 2).toLocaleString("en-IN")}</strong>
-                    </div>
+                      {/* Billed To / Recipient Box */}
+                      <div style={{
+                        background: "#F9FAFB",
+                        border: "1px solid #D1D5DB",
+                        borderRadius: "4px",
+                        padding: "10px 14px",
+                        marginBottom: "14px",
+                        display: "grid",
+                        gridTemplateColumns: "1.4fr 1fr",
+                        gap: "12px",
+                        fontSize: "11px"
+                      }}>
+                        <div>
+                          <div style={{ fontSize: "10px", fontWeight: 700, color: "#002D62", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                            BILLED TO / RECIPIENT
+                          </div>
+                          <div style={{ fontSize: "13px", fontWeight: 800, color: "#111827", marginTop: "2px" }}>
+                            {selectedInvoice.client.companyName}
+                          </div>
+                          <div style={{ color: "#374151", marginTop: "2px", lineHeight: "1.35" }}>
+                            Attn: <strong>{selectedInvoice.client.contactPerson}</strong><br />
+                            {selectedInvoice.client.address || "India"}<br />
+                            {selectedInvoice.client.email && <span>Email: {selectedInvoice.client.email}<br /></span>}
+                            {selectedInvoice.client.phone && <span>Phone: {selectedInvoice.client.phone}<br /></span>}
+                            GSTIN: <strong>{(selectedInvoice.client as any).gstNumber || "Unregistered Buyer / Consumer"}</strong>
+                          </div>
+                        </div>
 
-                    <div style={{ borderTop: "2px solid #111827", paddingTop: "8px", marginTop: "4px", display: "flex", justifyContent: "space-between", fontSize: "1.1rem" }}>
-                      <span style={{ fontWeight: 900 }}>Total (INR):</span>
-                      <strong style={{ fontWeight: 900, color: C.primary }}>₹{selectedInvoice.totalAmount.toLocaleString("en-IN")}</strong>
+                        <div style={{ textAlign: "right", color: "#374151", lineHeight: "1.4" }}>
+                          <div style={{ fontSize: "10px", fontWeight: 700, color: "#002D62", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                            INVOICE SPECIFICATIONS
+                          </div>
+                          <div style={{ marginTop: "4px" }}>
+                            Payment Terms: <strong>Due on Receipt</strong><br />
+                            Currency: <strong>INR (₹)</strong><br />
+                            Supply Type: <strong>Domestic Services (B2B)</strong><br />
+                            Category: <strong>Post-Production Media Services</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Itemized Table */}
+                      <table style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        marginBottom: "14px",
+                        fontSize: "11px",
+                        border: "1px solid #000000"
+                      }}>
+                        <thead>
+                          <tr style={{ background: "#002D62", color: "#FFFFFF" }}>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "center", width: "4%", fontWeight: 700 }}>#</th>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "left", width: "44%", fontWeight: 700 }}>Description of Service / Deliverable</th>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "center", width: "12%", fontWeight: 700 }}>SAC Code</th>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "right", width: "10%", fontWeight: 700 }}>Qty</th>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "right", width: "14%", fontWeight: 700 }}>Rate (₹)</th>
+                            <th style={{ border: "1px solid #000000", padding: "6px 8px", textAlign: "right", width: "16%", fontWeight: 700 }}>Amount (₹)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedInvoice.items?.map((it, idx) => (
+                            <tr key={it.id || idx} style={{ height: "24px" }}>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "center", color: "#6B7280" }}>{idx + 1}</td>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", fontWeight: 600 }}>{it.description}</td>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "center", color: "#374151" }}>{defaultSac}</td>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "right" }}>{it.quantity} {it.unit}</td>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "right" }}>{formatInr(it.unitPrice)}</td>
+                              <td style={{ border: "1px solid #000000", padding: "5px 8px", textAlign: "right", fontWeight: 700 }}>{formatInr(it.amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Calculations and Amount in Words */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: "14px", marginBottom: "14px" }}>
+                        {/* Left: Amount in Words */}
+                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div style={{
+                            background: "#F0FDF4",
+                            border: "1px solid #BBF7D0",
+                            borderRadius: "4px",
+                            padding: "10px 12px",
+                            fontSize: "11px"
+                          }}>
+                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#166534", textTransform: "uppercase" }}>
+                              Amount Chargeable (in words):
+                            </div>
+                            <div style={{ fontSize: "11.5px", fontWeight: 700, color: "#14532D", marginTop: "3px" }}>
+                              {numberToWordsIndian(selectedInvoice.totalAmount)}
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: "9.5px", color: "#6B7280", fontStyle: "italic", marginTop: "8px" }}>
+                            Declaration: Certified that all particulars are true and correct, and the amount indicated represents the actual price of services provided.
+                          </div>
+                        </div>
+
+                        {/* Right: Tax Breakdown */}
+                        <div style={{
+                          border: "1px solid #000000",
+                          borderRadius: "3px",
+                          fontSize: "11px",
+                          background: "#FFFFFF"
+                        }}>
+                          <div style={{ padding: "6px 10px", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB" }}>
+                            <span>Taxable Subtotal:</span>
+                            <strong>{formatInr(selectedInvoice.subtotal)}</strong>
+                          </div>
+                          {selectedInvoice.discountAmount > 0 && (
+                            <div style={{ padding: "6px 10px", display: "flex", justifyContent: "space-between", color: "#059669", borderBottom: "1px solid #E5E7EB" }}>
+                              <span>Discount:</span>
+                              <strong>-{formatInr(selectedInvoice.discountAmount)}</strong>
+                            </div>
+                          )}
+                          <div style={{ padding: "6px 10px", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB" }}>
+                            <span>CGST (9.0%):</span>
+                            <strong>{formatInr(selectedInvoice.taxAmount / 2)}</strong>
+                          </div>
+                          <div style={{ padding: "6px 10px", display: "flex", justifyContent: "space-between", borderBottom: "1px solid #E5E7EB" }}>
+                            <span>SGST (9.0%):</span>
+                            <strong>{formatInr(selectedInvoice.taxAmount / 2)}</strong>
+                          </div>
+                          <div style={{
+                            background: "#002D62",
+                            color: "#FFFFFF",
+                            padding: "7px 10px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: "13px",
+                            fontWeight: 800
+                          }}>
+                            <span>Total (INR ₹):</span>
+                            <span>{formatInr(selectedInvoice.totalAmount)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bank Details & Authorized Signatory Box */}
+                      <div style={{
+                        border: "1px solid #000000",
+                        padding: "10px 14px",
+                        display: "grid",
+                        gridTemplateColumns: "1.4fr 1fr",
+                        gap: "14px",
+                        fontSize: "11px",
+                        background: "#F8FAFC"
+                      }}>
+                        <div>
+                          <div style={{ fontWeight: 800, color: "#002D62", marginBottom: "4px" }}>
+                            🏦 Bank Remittance Details (NEFT / RTGS / IMPS)
+                          </div>
+                          <div style={{ lineHeight: "1.4", color: "#1E293B" }}>
+                            Account Name: <strong>{companyLegal}</strong><br />
+                            Bank Name: <strong>{bankName}</strong><br />
+                            Account No: <strong>{bankAccount}</strong><br />
+                            IFSC Code: <strong>{bankIfsc}</strong><br />
+                            Branch: <strong>{bankBranch}</strong><br />
+                            UPI ID: <strong>{upiId}</strong>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: "right", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                          <div style={{ color: "#374151" }}>
+                            For <strong>{companyLegal}</strong>
+                          </div>
+                          <div style={{ marginTop: "28px" }}>
+                            <div style={{ fontWeight: 800, color: "#002D62", textTransform: "uppercase" }}>
+                              {signatory}
+                            </div>
+                            <div style={{ fontSize: "10px", color: "#6B7280" }}>
+                              {designation}
+                            </div>
+                            <div style={{ fontSize: "9px", color: "#9CA3AF", marginTop: "2px" }}>
+                              (Authorized Signatory)
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Footer Note */}
+                      <div style={{ marginTop: "10px", fontSize: "9px", color: "#6B7280", textAlign: "center" }}>
+                        This is a computer-generated tax invoice issued in accordance with GST Rules. Subject to local jurisdiction.
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Bank Account Details */}
-                <div style={{
-                  background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "6px",
-                  padding: "1rem", display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "1rem", fontSize: "0.78rem"
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, color: "#1E293B", marginBottom: "4px" }}>
-                      🏦 Bank Transfer / NEFT / IMPS Details
-                    </div>
-                    <div>Account Name: <strong>Resawc LLP</strong></div>
-                    <div>Bank: <strong>HDFC Bank Ltd.</strong></div>
-                    <div>Account No: <strong>50200012345678</strong></div>
-                    <div>IFSC Code: <strong>HDFC0001234</strong></div>
-                    <div>UPI ID: <strong>resawc@hdfcbank</strong></div>
-                  </div>
-
-                  <div style={{ textAlign: "right", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-                    <div style={{ fontStyle: "italic", color: "#64748B", marginBottom: "2rem" }}>
-                      For Resawc LLP
-                    </div>
-                    <div style={{ fontWeight: 700, color: "#0F172A" }}>
-                      Authorized Signatory
-                    </div>
-                  </div>
-                </div>
-
-              </div>
+                );
+              })()}
             </div>
           </div>
         )}
