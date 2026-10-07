@@ -99,16 +99,14 @@ export default function EditingJobsPage() {
       ]
     : isVideoEditor
     ? [
-        { label: "All Video Projects", value: "ALL" },
-        { label: "My Assigned", value: "MY_ASSIGNED" },
+        { label: "My Assigned Projects", value: "ALL" },
         { label: "In Editing", value: "EDITING" },
         { label: "Awaiting Review", value: "QC" },
         { label: "In Revision", value: "REVISION" },
         { label: "Delivered", value: "DELIVERED" },
       ]
     : [
-        { label: "All Photo Jobs", value: "ALL" },
-        { label: "My Assigned", value: "MY_ASSIGNED" },
+        { label: "My Assigned Jobs", value: "ALL" },
         { label: "In Editing", value: "EDITING" },
         { label: "Awaiting QC", value: "QC" },
         { label: "In Revision", value: "REVISION" },
@@ -190,11 +188,12 @@ export default function EditingJobsPage() {
       const params = new URLSearchParams();
 
       if (!isAdmin) {
-        // Strict role segregation: photo editors ONLY see PHOTO, video editors ONLY see VIDEO
-        params.set("category", isVideoEditor ? "VIDEO" : "PHOTO");
-        if (activeTab === "MY_ASSIGNED" && user?.id) {
+        // Strict role segregation & privacy: editors ONLY see jobs assigned to them!
+        if (user?.id) {
           params.set("editorId", user.id);
-        } else if (activeTab !== "ALL" && activeTab !== "MY_ASSIGNED") {
+        }
+        params.set("category", isVideoEditor ? "VIDEO" : "PHOTO");
+        if (activeTab !== "ALL" && activeTab !== "MY_ASSIGNED") {
           params.set("status", activeTab);
         }
       } else {
@@ -213,7 +212,8 @@ export default function EditingJobsPage() {
       const res = await fetch(endpoint);
       const data = await res.json();
       if (data.success) {
-        setJobs(data.data);
+        const fetched = data.data || [];
+        setJobs(isAdmin ? fetched : fetched.filter((j: EditingJob) => j.assignedEditorId === user?.id));
       }
     } catch (e) {
       console.error(e);

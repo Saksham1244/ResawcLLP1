@@ -23,11 +23,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
     }
 
-    const isAdmin = role === 'admin' || role === 'ADMIN';
-
-    const isPhotoEditor = role === 'photo_editor';
-    const isVideoEditor = role === 'video_editor';
-    const isEditor = isPhotoEditor || isVideoEditor || role === 'editor';
+    const rLower = (role || '').toLowerCase();
+    const isAdmin = rLower === 'admin';
+    const isPhotoEditor = rLower === 'photo_editor';
+    const isVideoEditor = rLower === 'video_editor';
+    const isEditor = isPhotoEditor || isVideoEditor || rLower === 'editor';
 
     // Base query logic
     const leadsQuery = isAdmin ? { status: { not: 'CONVERTED' } } : { assignedToId: userId, status: { not: 'CONVERTED' } };

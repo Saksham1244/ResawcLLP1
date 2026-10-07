@@ -55,12 +55,11 @@ export async function GET(req: Request) {
       andConditions.push({ category: category.toUpperCase() });
     }
     if (editorId) {
-      andConditions.push({
-        OR: [
-          { assignedEditorId: editorId },
-          { assignedEditorId: null },
-        ]
-      });
+      if (editorId === 'unassigned') {
+        andConditions.push({ assignedEditorId: null });
+      } else {
+        andConditions.push({ assignedEditorId: editorId });
+      }
     }
     if (clientId) {
       andConditions.push({ clientId });
