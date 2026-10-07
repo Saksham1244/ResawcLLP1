@@ -87,6 +87,12 @@ a {
 button {
   font-family: inherit;
   cursor: pointer;
+  color: inherit;
+}
+
+/* Force all buttons to show text in light mode — prevents Brave dark shields from making text white on white */
+button:not([style*="color"]) {
+  color: #111827 !important;
 }
 
 input:not([type="checkbox"]), textarea, select {
@@ -97,6 +103,17 @@ input:not([type="checkbox"]), textarea, select {
   color-scheme: light !important;
 }
 
+select {
+  color: #111827 !important;
+  background-color: #FFFFFF !important;
+  color-scheme: light !important;
+}
+
+select option {
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
+}
+
 input[type="date"], input[type="month"], input[type="time"] {
   color-scheme: light !important;
   background-color: #FFFFFF !important;
@@ -104,8 +121,8 @@ input[type="date"], input[type="month"], input[type="time"] {
 }
 
 ::-webkit-calendar-picker-indicator {
-  filter: invert(0) !important;
-  opacity: 0.65 !important;
+  filter: invert(0) brightness(0.3) !important;
+  opacity: 1 !important;
   cursor: pointer;
 }
 
