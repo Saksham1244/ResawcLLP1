@@ -874,7 +874,7 @@ export default function AttendancePage() {
                               <option value="Late">Late</option>
                               <option value="Half Day">Half Day</option>
                               <option value="On Leave">On Leave</option>
-                              <option value="WFH">WFH</option>
+                              
                               <option value="Absent">Absent</option>
                             </select>
                           </td>
@@ -1808,7 +1808,7 @@ export default function AttendancePage() {
                   <option value="Sick Leave (SL)">🩺 Sick Leave (SL)</option>
                   <option value="Paid Leave (PL)">💼 Paid Leave (PL)</option>
                   <option value="Half Day">🌓 Half Day</option>
-                  <option value="Work From Home (WFH)">🏠 Work From Home (WFH)</option>
+
                   <option value="Unpaid Leave (LWP)">Unpaid Leave (LWP)</option>
                 </select>
               </div>
