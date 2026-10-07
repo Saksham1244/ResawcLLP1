@@ -35,6 +35,15 @@ type SalaryStructure = {
   baseSalary?: number;
   hourlyOvertimeRate?: number;
   allowance?: number;
+  hraAllowance?: number;
+  conveyanceAllowance?: number;
+  medicalAllowance?: number;
+  specialAllowance?: number;
+  bonus?: number;
+  pfAmount?: number;
+  esiAmount?: number;
+  professionalTax?: number;
+  incomeTax?: number;
 };
 
 type Member = {
@@ -206,6 +215,15 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
     baseSalary: 25000,
     hourlyOvertimeRate: 150,
     allowance: 0,
+    hraAllowance: 0,
+    conveyanceAllowance: 0,
+    medicalAllowance: 0,
+    specialAllowance: 0,
+    bonus: 0,
+    pfAmount: 0,
+    esiAmount: 0,
+    professionalTax: 0,
+    incomeTax: 0,
   });
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
@@ -291,7 +309,7 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Phone</label>
-                <input style={inputStyle} placeholder="+91 9800000000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <input style={inputStyle} placeholder="+91 98000 00000" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
             </div>
 
@@ -332,7 +350,7 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
                 <input style={inputStyle} placeholder="ABCDE1234F" value={form.panNumber} onChange={(e) => setForm({ ...form, panNumber: e.target.value.toUpperCase() })} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>UAN Number</label>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>UAN Number (PF)</label>
                 <input style={inputStyle} placeholder="101234567890" value={form.uanNumber} onChange={(e) => setForm({ ...form, uanNumber: e.target.value })} />
               </div>
               <div>
@@ -342,9 +360,9 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
             </div>
           </div>
 
-          {/* Section 3: Banking & Compensation */}
+          {/* Section 3: Banking Credentials */}
           <div>
-            <div style={sectionTitleStyle}>3. Banking &amp; Compensation (₹ INR)</div>
+            <div style={sectionTitleStyle}>3. Banking Credentials</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Bank Name</label>
@@ -366,19 +384,71 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
                 <input style={inputStyle} placeholder="name@okaxis" value={form.upiId} onChange={(e) => setForm({ ...form, upiId: e.target.value })} />
               </div>
             </div>
+          </div>
+
+          {/* Section 4: Monthly Earnings Breakdown (₹ INR) */}
+          <div>
+            <div style={sectionTitleStyle}>4. Monthly Earnings Breakdown (₹ INR)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Basic Salary (₹) *</label>
+                <input style={inputStyle} type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: parseFloat(e.target.value) || 0 })} required />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>HRA Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.hraAllowance} onChange={(e) => setForm({ ...form, hraAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Conveyance Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.conveyanceAllowance} onChange={(e) => setForm({ ...form, conveyanceAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Medical Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.medicalAllowance} onChange={(e) => setForm({ ...form, medicalAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Base Salary (₹)</label>
-                <input style={inputStyle} type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: parseFloat(e.target.value) || 0 })} />
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Special Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.specialAllowance} onChange={(e) => setForm({ ...form, specialAllowance: parseFloat(e.target.value) || 0 })} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Allowance (₹)</label>
-                <input style={inputStyle} type="number" value={form.allowance} onChange={(e) => setForm({ ...form, allowance: parseFloat(e.target.value) || 0 })} />
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Bonus / Incentive (₹)</label>
+                <input style={inputStyle} type="number" value={form.bonus} onChange={(e) => setForm({ ...form, bonus: parseFloat(e.target.value) || 0 })} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Overtime (₹/hr)</label>
                 <input style={inputStyle} type="number" value={form.hourlyOvertimeRate} onChange={(e) => setForm({ ...form, hourlyOvertimeRate: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Statutory Deductions (₹ Fixed Monthly) */}
+          <div>
+            <div style={sectionTitleStyle}>5. Statutory Deductions (₹ Fixed Monthly)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Provident Fund / PF (₹)</label>
+                <input style={inputStyle} type="number" value={form.pfAmount} onChange={(e) => setForm({ ...form, pfAmount: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>ESI (₹)</label>
+                <input style={inputStyle} type="number" value={form.esiAmount} onChange={(e) => setForm({ ...form, esiAmount: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Professional Tax (₹)</label>
+                <input style={inputStyle} type="number" value={form.professionalTax} onChange={(e) => setForm({ ...form, professionalTax: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Income Tax / TDS (₹)</label>
+                <input style={inputStyle} type="number" value={form.incomeTax} onChange={(e) => setForm({ ...form, incomeTax: parseFloat(e.target.value) || 0 })} />
               </div>
             </div>
           </div>
@@ -428,6 +498,15 @@ function EditMemberModal({
     baseSalary: s.baseSalary ?? 25000,
     hourlyOvertimeRate: s.hourlyOvertimeRate ?? 150,
     allowance: s.allowance ?? 0,
+    hraAllowance: s.hraAllowance ?? 0,
+    conveyanceAllowance: s.conveyanceAllowance ?? 0,
+    medicalAllowance: s.medicalAllowance ?? 0,
+    specialAllowance: s.specialAllowance ?? 0,
+    bonus: s.bonus ?? 0,
+    pfAmount: s.pfAmount ?? 0,
+    esiAmount: s.esiAmount ?? 0,
+    professionalTax: s.professionalTax ?? 0,
+    incomeTax: s.incomeTax ?? 0,
   });
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
@@ -460,6 +539,15 @@ function EditMemberModal({
         baseSalary: form.baseSalary,
         hourlyOvertimeRate: form.hourlyOvertimeRate,
         allowance: form.allowance,
+        hraAllowance: form.hraAllowance,
+        conveyanceAllowance: form.conveyanceAllowance,
+        medicalAllowance: form.medicalAllowance,
+        specialAllowance: form.specialAllowance,
+        bonus: form.bonus,
+        pfAmount: form.pfAmount,
+        esiAmount: form.esiAmount,
+        professionalTax: form.professionalTax,
+        incomeTax: form.incomeTax,
       };
       if (form.password) payload.password = form.password;
 
@@ -579,9 +667,9 @@ function EditMemberModal({
             </div>
           </div>
 
-          {/* Section 3: Banking & Compensation */}
+          {/* Section 3: Banking Credentials */}
           <div>
-            <div style={sectionTitleStyle}>3. Banking &amp; Compensation (₹ INR)</div>
+            <div style={sectionTitleStyle}>3. Banking Credentials</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Bank Name</label>
@@ -603,19 +691,71 @@ function EditMemberModal({
                 <input style={inputStyle} placeholder="name@okaxis" value={form.upiId} onChange={(e) => setForm({ ...form, upiId: e.target.value })} />
               </div>
             </div>
+          </div>
+
+          {/* Section 4: Monthly Earnings Breakdown (₹ INR) */}
+          <div>
+            <div style={sectionTitleStyle}>4. Monthly Earnings Breakdown (₹ INR)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Basic Salary (₹) *</label>
+                <input style={inputStyle} type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: parseFloat(e.target.value) || 0 })} required />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>HRA Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.hraAllowance} onChange={(e) => setForm({ ...form, hraAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Conveyance Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.conveyanceAllowance} onChange={(e) => setForm({ ...form, conveyanceAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Medical Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.medicalAllowance} onChange={(e) => setForm({ ...form, medicalAllowance: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Base Salary (₹)</label>
-                <input style={inputStyle} type="number" value={form.baseSalary} onChange={(e) => setForm({ ...form, baseSalary: parseFloat(e.target.value) || 0 })} />
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Special Allowance (₹)</label>
+                <input style={inputStyle} type="number" value={form.specialAllowance} onChange={(e) => setForm({ ...form, specialAllowance: parseFloat(e.target.value) || 0 })} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Allowance (₹)</label>
-                <input style={inputStyle} type="number" value={form.allowance} onChange={(e) => setForm({ ...form, allowance: parseFloat(e.target.value) || 0 })} />
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Bonus / Incentive (₹)</label>
+                <input style={inputStyle} type="number" value={form.bonus} onChange={(e) => setForm({ ...form, bonus: parseFloat(e.target.value) || 0 })} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Overtime (₹/hr)</label>
                 <input style={inputStyle} type="number" value={form.hourlyOvertimeRate} onChange={(e) => setForm({ ...form, hourlyOvertimeRate: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 5: Statutory Deductions (₹ Fixed Monthly) */}
+          <div>
+            <div style={sectionTitleStyle}>5. Statutory Deductions (₹ Fixed Monthly)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Provident Fund / PF (₹)</label>
+                <input style={inputStyle} type="number" value={form.pfAmount} onChange={(e) => setForm({ ...form, pfAmount: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>ESI (₹)</label>
+                <input style={inputStyle} type="number" value={form.esiAmount} onChange={(e) => setForm({ ...form, esiAmount: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.5rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Professional Tax (₹)</label>
+                <input style={inputStyle} type="number" value={form.professionalTax} onChange={(e) => setForm({ ...form, professionalTax: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>Income Tax / TDS (₹)</label>
+                <input style={inputStyle} type="number" value={form.incomeTax} onChange={(e) => setForm({ ...form, incomeTax: parseFloat(e.target.value) || 0 })} />
               </div>
             </div>
           </div>
@@ -646,7 +786,7 @@ function ViewMemberModal({
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: C.radius, width: "100%", maxWidth: 540, padding: "1.75rem", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: C.radius, width: "100%", maxWidth: 540, maxHeight: "90vh", overflowY: "auto", padding: "1.75rem", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.25rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             <div style={{ width: 46, height: 46, borderRadius: "50%", background: C.primary, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem" }}>
@@ -709,25 +849,75 @@ function ViewMemberModal({
             </div>
           </div>
 
-          {/* Banking & Salary */}
+          {/* Banking Credentials */}
           <div style={{ border: `1px solid ${C.border}`, borderRadius: C.radiusSm, padding: "0.75rem 1rem" }}>
-            <div style={{ fontWeight: 700, color: C.primary, fontSize: "0.78rem", textTransform: "uppercase", marginBottom: "8px" }}>Banking &amp; Compensation</div>
+            <div style={{ fontWeight: 700, color: C.primary, fontSize: "0.78rem", textTransform: "uppercase", marginBottom: "8px" }}>Banking Credentials</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <div>
                 <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Bank &amp; Account</span>
-                <span style={{ fontWeight: 600, color: C.text }}>{s.bankName || "HDFC Bank"} • {s.bankAccountNumber || "—"}</span>
+                <span style={{ fontWeight: 600, color: C.text }}>{s.bankName || "—"} • {s.bankAccountNumber || "—"}</span>
               </div>
               <div>
                 <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>IFSC / UPI</span>
                 <span style={{ fontWeight: 600, color: C.text }}>{s.ifscCode || "—"} {s.upiId ? `(${s.upiId})` : ""}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Monthly Earnings Breakdown */}
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: C.radiusSm, padding: "0.75rem 1rem" }}>
+            <div style={{ fontWeight: 700, color: C.primary, fontSize: "0.78rem", textTransform: "uppercase", marginBottom: "8px" }}>Monthly Earnings Breakdown (₹ INR)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               <div>
-                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Base Salary</span>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Basic Salary</span>
                 <span style={{ fontWeight: 700, color: "#059669" }}>₹{(s.baseSalary ?? 25000).toLocaleString("en-IN")} / mo</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>HRA Allowance</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.hraAllowance ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Conveyance Allowance</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.conveyanceAllowance ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Medical Allowance</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.medicalAllowance ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Special Allowance</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.specialAllowance ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Bonus / Incentive</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.bonus ?? 0).toLocaleString("en-IN")}</span>
               </div>
               <div>
                 <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Overtime Rate</span>
                 <span style={{ fontWeight: 600, color: C.text }}>₹{(s.hourlyOvertimeRate ?? 150)} / hr</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Statutory Deductions */}
+          <div style={{ border: `1px solid ${C.border}`, borderRadius: C.radiusSm, padding: "0.75rem 1rem" }}>
+            <div style={{ fontWeight: 700, color: "#DC2626", fontSize: "0.78rem", textTransform: "uppercase", marginBottom: "8px" }}>Statutory Deductions (₹ Fixed Monthly)</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Provident Fund (PF)</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.pfAmount ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>ESI</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.esiAmount ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Professional Tax (PT)</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.professionalTax ?? 0).toLocaleString("en-IN")}</span>
+              </div>
+              <div>
+                <span style={{ color: C.muted, fontSize: "0.75rem", display: "block" }}>Income Tax (TDS)</span>
+                <span style={{ fontWeight: 600, color: C.text }}>₹{(s.incomeTax ?? 0).toLocaleString("en-IN")}</span>
               </div>
             </div>
           </div>

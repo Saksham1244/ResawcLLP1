@@ -1436,7 +1436,7 @@ export default function PayrollPage() {
                                   {d ? d.desc : "\u00A0"}
                                 </td>
                                 <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
-                                  {d ? (d.monthly !== undefined ? formatInr(d.monthly) : (d.desc === "ESI" ? "\u00A0" : "-")) : "\u00A0"}
+                                  {d ? (d.monthly !== undefined ? formatInr(d.monthly) : "-") : "\u00A0"}
                                 </td>
                                 <td style={{ border: "1px solid #000000", padding: "3px 8px", textAlign: "right" }}>
                                   {d ? (d.ytd !== undefined ? formatInr(d.ytd) : "-") : "\u00A0"}

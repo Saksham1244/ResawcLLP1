@@ -145,6 +145,15 @@ export async function POST(req: Request) {
         baseSalary: 25000,
         hourlyOvertimeRate: 150,
         allowance: 0,
+        hraAllowance: 0,
+        conveyanceAllowance: 0,
+        medicalAllowance: 0,
+        specialAllowance: 0,
+        bonus: 0,
+        pfAmount: 0,
+        esiAmount: 0,
+        professionalTax: 0,
+        incomeTax: 0,
       };
 
       // 1. Fetch attendance records for this month
@@ -212,17 +221,31 @@ export async function POST(req: Request) {
       const dailyRate = baseSalary / workingDays;
       const effectiveDays = Math.min(workingDays, presentDays + paidLeaves);
       const earnedBasic = Math.round(effectiveDays * dailyRate);
-      const allowances = salaryStruct.allowance || 0;
+
+      // Earnings Breakdown
+      const hraAllowance = salaryStruct.hraAllowance || 0;
+      const conveyanceAllowance = salaryStruct.conveyanceAllowance || 0;
+      const medicalAllowance = salaryStruct.medicalAllowance || 0;
+      const specialAllowance = salaryStruct.specialAllowance || 0;
+      const totalAllowances = (salaryStruct.allowance || 0) + hraAllowance + conveyanceAllowance + medicalAllowance + specialAllowance;
+
       const overtimePay = Math.round(overtimeHours * salaryStruct.hourlyOvertimeRate);
-      const bonus = bonusOverrides[emp.id] || 0;
-      const grossEarnings = earnedBasic + allowances + overtimePay + bonus;
+      const bonus = bonusOverrides[emp.id] || salaryStruct.bonus || 0;
+      const grossEarnings = earnedBasic + totalAllowances + overtimePay + bonus;
+
+      // Statutory Deductions
+      const pfAmount = salaryStruct.pfAmount || 0;
+      const esiAmount = salaryStruct.esiAmount || 0;
+      const professionalTax = salaryStruct.professionalTax || 0;
+      const incomeTax = salaryStruct.incomeTax || 0;
+      const statutoryDeductions = pfAmount + esiAmount + professionalTax + incomeTax;
 
       // Deductions
       // Lateness: 3 lates grace, then 0.5 day deduction per extra late
       const excessLateDays = Math.max(0, lateDays - 3);
       const lateDeductions = Math.round(excessLateDays * (dailyRate * 0.5));
       const unpaidLeaveDeductions = Math.round(unpaidLeaves * dailyRate);
-      const totalDeductions = lateDeductions + unpaidLeaveDeductions;
+      const totalDeductions = lateDeductions + unpaidLeaveDeductions + statutoryDeductions;
       const netSalary = Math.max(0, grossEarnings - totalDeductions);
 
       // Check if payslip already exists for this user and month
@@ -247,18 +270,19 @@ export async function POST(req: Request) {
             lateDays,
             baseSalary,
             earnedBasic,
-            allowances,
+            allowances: totalAllowances,
             overtimePay,
             bonus,
             grossEarnings,
             lateDeductions,
             unpaidLeaveDeductions,
+            otherDeductions: statutoryDeductions,
             totalDeductions,
             netSalary,
             notes: notes || existing.notes,
           },
           include: {
-            user: { select: { id: true, name: true, email: true, role: true } },
+            user: { select: { id: true, name: true, email: true, role: true, salaryStructure: true } },
           },
         });
       } else {
@@ -277,19 +301,20 @@ export async function POST(req: Request) {
             lateDays,
             baseSalary,
             earnedBasic,
-            allowances,
+            allowances: totalAllowances,
             overtimePay,
             bonus,
             grossEarnings,
             lateDeductions,
             unpaidLeaveDeductions,
+            otherDeductions: statutoryDeductions,
             totalDeductions,
             netSalary,
             status: 'GENERATED',
             notes: notes || 'Standard monthly payroll run',
           },
           include: {
-            user: { select: { id: true, name: true, email: true, role: true } },
+            user: { select: { id: true, name: true, email: true, role: true, salaryStructure: true } },
           },
         });
       }
