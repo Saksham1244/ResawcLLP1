@@ -37,120 +37,6 @@ export async function GET(req: Request) {
       },
     });
 
-    // If activity logs table has few records, dynamically synthesize timeline from existing records
-    if (logs.length < 15 && !search && (!category || category === 'ALL')) {
-      const synthesized: any[] = [];
-
-      // 1. Invoices
-      const invoices = await prisma.invoice.findMany({
-        where: clientId ? { clientId } : {},
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: { client: { select: { id: true, companyName: true, clientId: true } } },
-      });
-      for (const inv of invoices) {
-        synthesized.push({
-          id: `syn-inv-${inv.id}`,
-          action: inv.status === 'PAID' ? 'PAYMENT_RECEIVED' : 'INVOICE_GENERATED',
-          category: 'FINANCE',
-          entityType: 'INVOICE',
-          entityId: inv.id,
-          entityTitle: inv.invoiceNumber,
-          clientId: inv.clientId,
-          client: inv.client,
-          description: inv.status === 'PAID'
-            ? `Payment of ₹${inv.amountPaid.toLocaleString('en-IN')} received for invoice ${inv.invoiceNumber} (${inv.client?.companyName})`
-            : `Invoice ${inv.invoiceNumber} generated for ${inv.client?.companyName} totaling ₹${inv.totalAmount.toLocaleString('en-IN')}`,
-          createdAt: inv.updatedAt || inv.createdAt,
-          userName: 'Finance Team',
-          userRole: 'ADMIN',
-        });
-      }
-
-      // 2. Editing Jobs
-      const jobs = await prisma.editingJob.findMany({
-        where: clientId ? { clientId } : {},
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          client: { select: { id: true, companyName: true, clientId: true } },
-          assignedEditor: { select: { id: true, name: true, role: true } },
-        },
-      });
-      for (const j of jobs) {
-        synthesized.push({
-          id: `syn-job-${j.id}`,
-          action: j.status === 'DELIVERED' ? 'JOB_DELIVERED' : 'JOB_CREATED',
-          category: 'PROJECTS',
-          entityType: 'JOB',
-          entityId: j.id,
-          entityTitle: j.jobNumber,
-          clientId: j.clientId,
-          client: j.client,
-          description: j.status === 'DELIVERED'
-            ? `Editing Job ${j.jobNumber} ("${j.title}") was successfully delivered to ${j.client?.companyName}`
-            : `New editing job ${j.jobNumber} ("${j.title}") created for ${j.client?.companyName} (${j.totalImages} images)`,
-          createdAt: j.updatedAt || j.createdAt,
-          userName: j.assignedEditor?.name || 'Production Coordinator',
-          userRole: j.assignedEditor?.role || 'EDITOR',
-        });
-      }
-
-      // 3. Leads
-      if (!clientId) {
-        const leads = await prisma.lead.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-        });
-        for (const l of leads) {
-          synthesized.push({
-            id: `syn-lead-${l.id}`,
-            action: l.status === 'CONVERTED' ? 'LEAD_CONVERTED' : 'LEAD_CREATED',
-            category: 'MARKETING',
-            entityType: 'LEAD',
-            entityId: l.id,
-            entityTitle: l.name,
-            description: l.status === 'CONVERTED'
-              ? `Lead "${l.name}" (${l.company || 'Photography'}) was converted to active client!`
-              : `New inquiry / lead added: "${l.name}" from ${l.company || 'Studio'}`,
-            createdAt: l.updatedAt || l.createdAt,
-            userName: 'Marketing Team',
-            userRole: 'MARKETING',
-          });
-        }
-      }
-
-      // 4. Payslips
-      if (!clientId) {
-        const payslips = await prisma.payslip.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          include: { user: { select: { name: true, role: true } } },
-        });
-        for (const p of payslips) {
-          synthesized.push({
-            id: `syn-pay-${p.id}`,
-            action: 'PAYROLL_GENERATED',
-            category: 'HR',
-            entityType: 'PAYSLIP',
-            entityId: p.id,
-            entityTitle: p.payslipNumber,
-            description: `Generated ${p.monthYear} Payslip ${p.payslipNumber} for ${p.user.name} (Net: ₹${p.netSalary.toLocaleString('en-IN')})`,
-            createdAt: p.createdAt,
-            userName: 'HR / Payroll',
-            userRole: 'ADMIN',
-          });
-        }
-      }
-
-      // Merge existing with synthesized without duplicate IDs
-      const existingIds = new Set(logs.map(l => l.id));
-      const newItems = synthesized.filter(s => !existingIds.has(s.id));
-      logs = [...logs, ...newItems].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ).slice(0, limit);
-    }
-
     return NextResponse.json({
       success: true,
       data: logs,
@@ -159,6 +45,30 @@ export async function GET(req: Request) {
   } catch (error) {
     console.error('Error fetching activity logs:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch activity logs' }, { status: 500 });
+  }
+}
+
+// DELETE /api/activity-logs (Delete specific or all activity logs)
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const all = searchParams.get('all');
+
+    if (all === 'true') {
+      const deleted = await prisma.activityLog.deleteMany({});
+      return NextResponse.json({ success: true, count: deleted.count });
+    }
+
+    if (id) {
+      await prisma.activityLog.delete({ where: { id } });
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ success: false, error: 'Provide id or all=true' }, { status: 400 });
+  } catch (error) {
+    console.error('Error deleting activity log:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete activity log' }, { status: 500 });
   }
 }
 

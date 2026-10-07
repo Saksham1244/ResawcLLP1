@@ -339,14 +339,20 @@ export async function PATCH(req: Request) {
   }
 }
 
-// DELETE /api/finance/payroll?id=...
+// DELETE /api/finance/payroll?id=... or ?all=true
 export async function DELETE(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const all = searchParams.get('all');
+
+    if (all === 'true') {
+      const deleted = await prisma.payslip.deleteMany({});
+      return NextResponse.json({ success: true, count: deleted.count });
+    }
 
     if (!id) {
-      return NextResponse.json({ success: false, error: 'Payslip ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Payslip ID is required or use all=true' }, { status: 400 });
     }
 
     await prisma.payslip.delete({ where: { id } });
