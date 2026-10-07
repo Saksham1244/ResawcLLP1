@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import * as XLSX from "xlsx";
 import {
   UploadCloud, Phone, MessageSquare, X, Search, Shuffle,
-  ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus, Trash2, AlertTriangle,
+  ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus, Trash2, AlertTriangle, Building2,
+  Sparkles, CheckCircle2, Video, Image as ImageIcon,
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -110,12 +111,16 @@ function StatusBadge({ status }: { status: LeadStatus }) {
 function ActionMenu({
   lead,
   isAdmin,
+  openUpward,
   onLogCall,
+  onConvertToClient,
   onDelete,
 }: {
   lead: Lead;
   isAdmin?: boolean;
+  openUpward?: boolean;
   onLogCall: (l: Lead) => void;
+  onConvertToClient?: (l: Lead) => void;
   onDelete?: (l: Lead) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -145,14 +150,21 @@ function ActionMenu({
 
       {open && (
         <div style={{
-          position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 50,
-          background: C.white, border: "1px solid " + C.border,
-          borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
-          minWidth: 160, overflow: "hidden",
+          position: "absolute",
+          right: 0,
+          ...(openUpward ? { bottom: "calc(100% + 4px)" } : { top: "calc(100% + 4px)" }),
+          zIndex: 9999,
+          background: C.white,
+          border: "1px solid " + C.border,
+          borderRadius: 8,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+          minWidth: 180,
+          overflow: "hidden",
         }}>
           {[
-            { label: "Log Call",     icon: Phone, action: () => { onLogCall(lead); setOpen(false); } },
-            { label: "View Details", icon: Eye,   action: () => setOpen(false) },
+            { label: "Log Call",          icon: Phone,     action: () => { onLogCall(lead); setOpen(false); } },
+            { label: "Convert to Client", icon: Building2, action: () => { onConvertToClient?.(lead); setOpen(false); } },
+            { label: "View Details",      icon: Eye,       action: () => setOpen(false) },
           ].map(item => (
             <button
               key={item.label}
@@ -245,6 +257,27 @@ function LeadsContent() {
   const [newLeadNotes, setNewLeadNotes]         = useState("");
   const [creatingLead, setCreatingLead]         = useState(false);
 
+  /* production team for job editor assignment */
+  const [productionTeam, setProductionTeam] = useState<any[]>([]);
+
+  /* convert modal state */
+  const [convertTarget, setConvertTarget] = useState<Lead | null>(null);
+  const [convertOrderType, setConvertOrderType] = useState<"SAMPLE" | "ORDER" | "NONE">("SAMPLE");
+  const [convertCategory, setConvertCategory] = useState<"PHOTO" | "VIDEO">("PHOTO");
+  const [convertForm, setConvertForm] = useState({
+    companyName: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    serviceType: "Trial Photo Edit (Culling & Color)",
+    totalImages: 25,
+    assignedEditorId: "",
+    deadlineDate: new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0],
+    notes: "",
+  });
+  const [converting, setConverting] = useState(false);
+  const [convertSuccessMsg, setConvertSuccessMsg] = useState("");
+
   /* ── data fetching ── */
   const fetchLeads = () => {
     setLoading(true);
@@ -266,6 +299,11 @@ function LeadsContent() {
         if (data.success) {
           setMarketingTeam(data.data.filter((u: any) =>
             u.role === "MARKETING" || u.role === "marketing"
+          ));
+          setProductionTeam(data.data.filter((u: any) =>
+            u.role.toLowerCase().includes("photo") ||
+            u.role.toLowerCase().includes("video") ||
+            u.role.toLowerCase().includes("editor")
           ));
         }
       })
@@ -476,6 +514,75 @@ function LeadsContent() {
       alert("Network error while deleting leads");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  /* ── convert lead modal opener ───────────────────────────── */
+  const openConvertModal = (lead: Lead, mode: "SAMPLE" | "ORDER" | "NONE" = "SAMPLE") => {
+    const comp = lead.Company || lead.Name;
+    setConvertTarget(lead);
+    setConvertOrderType(mode);
+    setConvertCategory("PHOTO");
+    setConvertForm({
+      companyName: comp,
+      contactPerson: lead.Name,
+      phone: lead.Phone || "",
+      email: lead.Email || "",
+      serviceType: mode === "SAMPLE" ? "Trial Photo Edit (Culling & Color)" : "Wedding Photo Batch Editing",
+      totalImages: mode === "SAMPLE" ? 25 : 500,
+      assignedEditorId: "",
+      deadlineDate: new Date(Date.now() + (mode === "SAMPLE" ? 2 : 4) * 86400000).toISOString().split("T")[0],
+      notes: mode === "SAMPLE" ? "Client requested a trial editing sample." : "Direct production order.",
+    });
+    setConvertSuccessMsg("");
+  };
+
+  const handleConvertToClient = (lead: Lead) => {
+    openConvertModal(lead, "SAMPLE");
+  };
+
+  const submitConvert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertTarget) return;
+
+    setConverting(true);
+    try {
+      const res = await fetch("/api/leads/convert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: String(convertTarget._id || convertTarget.id),
+          userId: user?.id,
+          companyName: convertForm.companyName,
+          contactPerson: convertForm.contactPerson,
+          phone: convertForm.phone,
+          email: convertForm.email,
+          orderType: convertOrderType,
+          createSampleJob: convertOrderType !== "NONE",
+          sampleJobCategory: convertCategory,
+          sampleJobService: convertForm.serviceType,
+          sampleJobImages: convertForm.totalImages,
+          sampleJobEditorId: convertForm.assignedEditorId || null,
+          sampleJobDeadline: convertForm.deadlineDate,
+          notes: convertForm.notes,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setConvertSuccessMsg(data.message || `Client registered and order placed!`);
+        fetchLeads();
+        setTimeout(() => {
+          setConvertTarget(null);
+          setConvertSuccessMsg("");
+        }, 1800);
+      } else {
+        alert(data.error || "Failed to convert lead");
+      }
+    } catch {
+      alert("Network error converting lead");
+    } finally {
+      setConverting(false);
     }
   };
 
@@ -727,7 +834,7 @@ function LeadsContent() {
             </div>
           ) : (
             <>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", minHeight: 340 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid " + C.border }}>
@@ -880,12 +987,62 @@ function LeadsContent() {
 
                           {/* Actions ⋮ */}
                           <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                            <ActionMenu
-                              lead={lead}
-                              isAdmin={isAdmin}
-                              onLogCall={l => { setLogTarget(l); setCallStatus(l._status); }}
-                              onDelete={l => setDeleteConfirmTarget({ type: "single", lead: l })}
-                            />
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+                              {lead._status !== "CONVERTED" ? (
+                                <>
+                                  <button
+                                    onClick={() => openConvertModal(lead, "SAMPLE")}
+                                    title="Create Sample / Trial Job"
+                                    style={{
+                                      display: "inline-flex", alignItems: "center", gap: 4,
+                                      padding: "5px 10px", borderRadius: 6,
+                                      background: "#F5F3FF", border: "1px solid #DDD6FE",
+                                      color: "#7C3AED", fontSize: "0.75rem", fontWeight: 700,
+                                      cursor: "pointer", whiteSpace: "nowrap",
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}
+                                  >
+                                    <Sparkles size={13} />
+                                    Need Sample
+                                  </button>
+
+                                  <button
+                                    onClick={() => openConvertModal(lead, "ORDER")}
+                                    title="Direct Production Order"
+                                    style={{
+                                      display: "inline-flex", alignItems: "center", gap: 4,
+                                      padding: "5px 10px", borderRadius: 6,
+                                      background: "#ECFDF5", border: "1px solid #A7F3D0",
+                                      color: "#059669", fontSize: "0.75rem", fontWeight: 700,
+                                      cursor: "pointer", whiteSpace: "nowrap",
+                                    }}
+                                    onMouseEnter={e => (e.currentTarget.style.background = "#D1FAE5")}
+                                    onMouseLeave={e => (e.currentTarget.style.background = "#ECFDF5")}
+                                  >
+                                    <Building2 size={13} />
+                                    Direct Order
+                                  </button>
+                                </>
+                              ) : (
+                                <span style={{
+                                  display: "inline-flex", alignItems: "center", gap: 4,
+                                  padding: "3px 8px", borderRadius: 6,
+                                  background: "#ECFDF5", color: "#059669",
+                                  fontSize: "0.75rem", fontWeight: 600, border: "1px solid #A7F3D0"
+                                }}>
+                                  <CheckCircle2 size={12} /> Client Added
+                                </span>
+                              )}
+                              <ActionMenu
+                                lead={lead}
+                                isAdmin={isAdmin}
+                                openUpward={pagedLeads.length > 5 && idx >= pagedLeads.length - 2}
+                                onLogCall={l => { setLogTarget(l); setCallStatus(l._status); }}
+                                onConvertToClient={l => openConvertModal(l, "SAMPLE")}
+                                onDelete={l => setDeleteConfirmTarget({ type: "single", lead: l })}
+                              />
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1564,6 +1721,475 @@ function LeadsContent() {
                 {isDeleting ? "Deleting…" : (deleteConfirmTarget.type === "bulk" ? `Delete ${deleteConfirmTarget.count} Leads` : "Delete Lead")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          CONVERT LEAD TO CLIENT / ORDER MODAL
+      ══════════════════════════════════════════════════════════ */}
+      {convertTarget && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 220,
+          background: "rgba(17,24,39,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 16, backdropFilter: "blur(2px)",
+        }}>
+          <div style={{
+            background: C.white, borderRadius: 12, width: "100%", maxWidth: 580,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+            overflow: "hidden", display: "flex", flexDirection: "column",
+            maxHeight: "92vh",
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: "18px 24px",
+              borderBottom: "1px solid " + C.border,
+              display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+              background: "#F8FAFC",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  background: convertOrderType === "SAMPLE" ? "#F5F3FF" : convertOrderType === "ORDER" ? "#ECFDF5" : "#EFF6FF",
+                  color: convertOrderType === "SAMPLE" ? "#7C3AED" : convertOrderType === "ORDER" ? "#059669" : "#1A56DB",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {convertOrderType === "SAMPLE" ? <Sparkles size={20} /> : convertOrderType === "ORDER" ? <Building2 size={20} /> : <CheckCircle2 size={20} />}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700, color: C.textPrimary }}>
+                    {convertOrderType === "SAMPLE" ? "Create Sample / Trial Job" : convertOrderType === "ORDER" ? "Direct Production Order" : "Convert Lead to Client"}
+                  </h3>
+                  <p style={{ margin: "3px 0 0", fontSize: "0.8rem", color: C.textMuted }}>
+                    {convertOrderType === "SAMPLE"
+                      ? "Converts lead to a Trial Client & dispatches a free sample task to your editors."
+                      : convertOrderType === "ORDER"
+                      ? "Converts lead to an Active Client & books a production editing order."
+                      : "Registers this lead in your permanent client directory."}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setConvertTarget(null); setConvertSuccessMsg(""); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted, padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={submitConvert} style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+              <div style={{ padding: "20px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* Success Message Banner */}
+                {convertSuccessMsg && (
+                  <div style={{
+                    padding: "12px 16px", borderRadius: 8,
+                    background: "#ECFDF5", border: "1px solid #A7F3D0",
+                    color: "#065F46", fontSize: "0.875rem", fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: 8,
+                  }}>
+                    <CheckCircle2 size={18} color="#059669" />
+                    <span>{convertSuccessMsg}</span>
+                  </div>
+                )}
+
+                {/* Workflow Mode Switcher */}
+                <div>
+                  <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Select Workflow Path
+                  </label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConvertOrderType("SAMPLE");
+                        setConvertForm(f => ({
+                          ...f,
+                          serviceType: convertCategory === "PHOTO" ? "Trial Photo Edit (Culling & Color)" : "Trial Video Teaser Reel",
+                          totalImages: convertCategory === "PHOTO" ? 25 : 1,
+                          deadlineDate: new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0],
+                          notes: "Client requested a trial editing sample.",
+                        }));
+                      }}
+                      style={{
+                        padding: "10px 8px", borderRadius: 8, textAlign: "center",
+                        border: convertOrderType === "SAMPLE" ? "2px solid #7C3AED" : "1px solid " + C.border,
+                        background: convertOrderType === "SAMPLE" ? "#F5F3FF" : C.white,
+                        color: convertOrderType === "SAMPLE" ? "#6D28D9" : C.textPrimary,
+                        cursor: "pointer", fontWeight: 600, fontSize: "0.82rem",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      <Sparkles size={16} color={convertOrderType === "SAMPLE" ? "#7C3AED" : C.textMuted} />
+                      Need Sample
+                      <span style={{ fontSize: "0.7rem", fontWeight: 400, color: convertOrderType === "SAMPLE" ? "#7C3AED" : C.textMuted }}>
+                        Trial Client
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConvertOrderType("ORDER");
+                        setConvertForm(f => ({
+                          ...f,
+                          serviceType: convertCategory === "PHOTO" ? "Wedding Photo Batch Editing" : "Cinematic Wedding Film Editing",
+                          totalImages: convertCategory === "PHOTO" ? 500 : 3,
+                          deadlineDate: new Date(Date.now() + 4 * 86400000).toISOString().split("T")[0],
+                          notes: "Direct production order.",
+                        }));
+                      }}
+                      style={{
+                        padding: "10px 8px", borderRadius: 8, textAlign: "center",
+                        border: convertOrderType === "ORDER" ? "2px solid #059669" : "1px solid " + C.border,
+                        background: convertOrderType === "ORDER" ? "#ECFDF5" : C.white,
+                        color: convertOrderType === "ORDER" ? "#065F46" : C.textPrimary,
+                        cursor: "pointer", fontWeight: 600, fontSize: "0.82rem",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      <Building2 size={16} color={convertOrderType === "ORDER" ? "#059669" : C.textMuted} />
+                      Direct Order
+                      <span style={{ fontSize: "0.7rem", fontWeight: 400, color: convertOrderType === "ORDER" ? "#059669" : C.textMuted }}>
+                        Active Client
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setConvertOrderType("NONE")}
+                      style={{
+                        padding: "10px 8px", borderRadius: 8, textAlign: "center",
+                        border: convertOrderType === "NONE" ? "2px solid " + C.primary : "1px solid " + C.border,
+                        background: convertOrderType === "NONE" ? "#EFF6FF" : C.white,
+                        color: convertOrderType === "NONE" ? C.primary : C.textPrimary,
+                        cursor: "pointer", fontWeight: 600, fontSize: "0.82rem",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      <CheckCircle2 size={16} color={convertOrderType === "NONE" ? C.primary : C.textMuted} />
+                      Client Only
+                      <span style={{ fontSize: "0.7rem", fontWeight: 400, color: convertOrderType === "NONE" ? C.primary : C.textMuted }}>
+                        No Job Created
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Department Selection (Photo vs Video) if creating a job */}
+                {convertOrderType !== "NONE" && (
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.74rem", fontWeight: 700, color: C.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Editing Department
+                    </label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConvertCategory("PHOTO");
+                          setConvertForm(f => ({
+                            ...f,
+                            serviceType: convertOrderType === "SAMPLE" ? "Trial Photo Edit (Culling & Color)" : "Wedding Photo Batch Editing",
+                            totalImages: convertOrderType === "SAMPLE" ? 25 : 500,
+                            assignedEditorId: "",
+                          }));
+                        }}
+                        style={{
+                          padding: "10px 14px", borderRadius: 8,
+                          border: convertCategory === "PHOTO" ? "2px solid #1A56DB" : "1px solid " + C.border,
+                          background: convertCategory === "PHOTO" ? "#EFF6FF" : C.white,
+                          color: convertCategory === "PHOTO" ? "#1A56DB" : C.textPrimary,
+                          cursor: "pointer", fontWeight: 600, fontSize: "0.85rem",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        }}
+                      >
+                        <ImageIcon size={16} />
+                        Photo Editing (Production)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConvertCategory("VIDEO");
+                          setConvertForm(f => ({
+                            ...f,
+                            serviceType: convertOrderType === "SAMPLE" ? "Trial Video Teaser Reel" : "Cinematic Wedding Film Editing",
+                            totalImages: convertOrderType === "SAMPLE" ? 1 : 3,
+                            assignedEditorId: "",
+                          }));
+                        }}
+                        style={{
+                          padding: "10px 14px", borderRadius: 8,
+                          border: convertCategory === "VIDEO" ? "2px solid #7C3AED" : "1px solid " + C.border,
+                          background: convertCategory === "VIDEO" ? "#F5F3FF" : C.white,
+                          color: convertCategory === "VIDEO" ? "#7C3AED" : C.textPrimary,
+                          cursor: "pointer", fontWeight: 600, fontSize: "0.85rem",
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        }}
+                      >
+                        <Video size={16} />
+                        Video Editing
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Client Basic Details */}
+                <div style={{ borderTop: "1px solid " + C.border, paddingTop: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontSize: "0.78rem", fontWeight: 700, color: C.textPrimary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Client Profile Details
+                    </span>
+                    <span style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      padding: "2px 8px", borderRadius: 12, background: "#EFF6FF",
+                      color: "#1E40AF", fontSize: "0.72rem", fontWeight: 600,
+                    }}>
+                      🇮🇳 India • Currency: INR (₹)
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                        Company / Studio Name <span style={{ color: "#EF4444" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={convertForm.companyName}
+                        onChange={e => setConvertForm({ ...convertForm, companyName: e.target.value })}
+                        placeholder="e.g. Dream Wedding Films"
+                        style={{
+                          width: "100%", padding: "8px 10px",
+                          border: "1px solid " + C.border, borderRadius: 6,
+                          fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                        Contact Person <span style={{ color: "#EF4444" }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={convertForm.contactPerson}
+                        onChange={e => setConvertForm({ ...convertForm, contactPerson: e.target.value })}
+                        placeholder="e.g. Rajesh Kumar"
+                        style={{
+                          width: "100%", padding: "8px 10px",
+                          border: "1px solid " + C.border, borderRadius: 6,
+                          fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                        Phone Number
+                      </label>
+                      <input
+                        type="text"
+                        value={convertForm.phone}
+                        onChange={e => setConvertForm({ ...convertForm, phone: e.target.value })}
+                        placeholder="+91 98765 43210"
+                        style={{
+                          width: "100%", padding: "8px 10px",
+                          border: "1px solid " + C.border, borderRadius: 6,
+                          fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={convertForm.email}
+                        onChange={e => setConvertForm({ ...convertForm, email: e.target.value })}
+                        placeholder="client@example.com"
+                        style={{
+                          width: "100%", padding: "8px 10px",
+                          border: "1px solid " + C.border, borderRadius: 6,
+                          fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Job Details Section (if creating job) */}
+                {convertOrderType !== "NONE" && (
+                  <div style={{ borderTop: "1px solid " + C.border, paddingTop: 14 }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: C.textPrimary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {convertOrderType === "SAMPLE" ? "🧪 Sample Job Setup" : "📦 Production Order Setup"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                          Service Type
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={convertForm.serviceType}
+                          onChange={e => setConvertForm({ ...convertForm, serviceType: e.target.value })}
+                          placeholder={convertCategory === "PHOTO" ? "e.g. Wedding Photo Editing" : "e.g. Teaser / Highlight Reel"}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: "1px solid " + C.border, borderRadius: 6,
+                            fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                          {convertCategory === "PHOTO" ? "Images Count" : "Video Count"}
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={convertForm.totalImages}
+                          onChange={e => setConvertForm({ ...convertForm, totalImages: parseInt(e.target.value) || 0 })}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: "1px solid " + C.border, borderRadius: 6,
+                            fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                          Assign Editor ({convertCategory === "PHOTO" ? "Photo Team" : "Video Team"})
+                        </label>
+                        <select
+                          value={convertForm.assignedEditorId}
+                          onChange={e => setConvertForm({ ...convertForm, assignedEditorId: e.target.value })}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: "1px solid " + C.border, borderRadius: 6,
+                            fontSize: "0.85rem", color: C.textPrimary, outline: "none", cursor: "pointer",
+                            background: C.white, boxSizing: "border-box",
+                          }}
+                        >
+                          <option value="">Unassigned (Queue)</option>
+                          {productionTeam
+                            .filter(u => {
+                              const r = (u.role || "").toUpperCase();
+                              if (convertCategory === "VIDEO") return r.includes("VIDEO");
+                              return r.includes("PHOTO") || (!r.includes("VIDEO") && (r.includes("EDITOR") || r.includes("PRODUCTION")));
+                            })
+                            .map(u => (
+                              <option key={u.id} value={u.id}>
+                                {u.name || u.email} ({u.role})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                          Delivery Deadline <span style={{ color: "#EF4444" }}>*</span>
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={convertForm.deadlineDate}
+                          onChange={e => setConvertForm({ ...convertForm, deadlineDate: e.target.value })}
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: "1px solid " + C.border, borderRadius: 6,
+                            fontSize: "0.85rem", color: C.textPrimary, outline: "none", boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: C.textMuted, marginBottom: 4 }}>
+                        Editor Instructions / Job Notes
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={convertForm.notes}
+                        onChange={e => setConvertForm({ ...convertForm, notes: e.target.value })}
+                        placeholder="Style preferences, reference links, specific instructions for the editor..."
+                        style={{
+                          width: "100%", padding: "8px 10px",
+                          border: "1px solid " + C.border, borderRadius: 6,
+                          fontSize: "0.85rem", color: C.textPrimary, outline: "none",
+                          boxSizing: "border-box", fontFamily: "inherit", resize: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{
+                padding: "14px 24px",
+                borderTop: "1px solid " + C.border,
+                background: "#F8FAFC",
+                display: "flex", gap: 10, justifyContent: "flex-end",
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setConvertTarget(null); setConvertSuccessMsg(""); }}
+                  style={{
+                    padding: "9px 18px", borderRadius: 6,
+                    border: "1px solid " + C.border, background: C.white,
+                    color: C.textPrimary, fontSize: "0.875rem", cursor: "pointer", fontWeight: 500,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={converting}
+                  style={{
+                    padding: "9px 20px", borderRadius: 6,
+                    border: "none",
+                    background: convertOrderType === "SAMPLE" ? "#7C3AED" : convertOrderType === "ORDER" ? "#059669" : C.primary,
+                    color: "#fff", fontSize: "0.875rem", cursor: converting ? "wait" : "pointer",
+                    fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8,
+                    opacity: converting ? 0.7 : 1,
+                  }}
+                >
+                  {converting ? (
+                    "Processing…"
+                  ) : convertOrderType === "SAMPLE" ? (
+                    <>
+                      <Sparkles size={16} />
+                      Create Sample Job &amp; Client
+                    </>
+                  ) : convertOrderType === "ORDER" ? (
+                    <>
+                      <Building2 size={16} />
+                      Create Order &amp; Client
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      Register Client Only
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

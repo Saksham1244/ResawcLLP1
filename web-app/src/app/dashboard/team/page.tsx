@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, Mail, Phone, Search, Trash2, X, MoreHorizontal, Eye } from "lucide-react";
+import { UserPlus, Mail, Phone, Search, Trash2, X, MoreHorizontal, Eye, Edit3 } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useRole } from "@/context/RoleContext";
 
@@ -38,12 +38,16 @@ const initialTeam: Member[] = [
 
 // Role badge colors
 const roleBadge = (role: string): React.CSSProperties => {
+  const norm = role.toLowerCase().replace(/\s+/g, '_');
   const map: Record<string, { bg: string; color: string }> = {
-    Admin:     { bg: "#FEF2F2", color: "#DC2626" },
-    Marketing: { bg: "#EEF2FF", color: "#4F46E5" },
-    Editor:    { bg: "#F5F3FF", color: "#7C3AED" },
+    admin:        { bg: "#FEF2F2", color: "#DC2626" },
+    marketing:    { bg: "#EEF2FF", color: "#4F46E5" },
+    photo_editor: { bg: "#ECFDF5", color: "#059669" },
+    video_editor: { bg: "#FFF7ED", color: "#EA580C" },
+    editor:       { bg: "#ECFDF5", color: "#059669" },
+    production:   { bg: "#ECFDF5", color: "#059669" },
   };
-  const c = map[role] || { bg: "#F3F4F6", color: "#6B7280" };
+  const c = map[norm] || { bg: "#F3F4F6", color: "#6B7280" };
   return {
     display: "inline-block",
     padding: "0.2rem 0.6rem",
@@ -52,7 +56,6 @@ const roleBadge = (role: string): React.CSSProperties => {
     fontWeight: 700,
     background: c.bg,
     color: c.color,
-    textTransform: "capitalize" as const,
   };
 };
 
@@ -200,7 +203,8 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
             >
               <option value="Admin">Admin</option>
               <option value="Marketing">Marketing</option>
-              <option value="Editor">Editor</option>
+              <option value="photo_editor">Production (Photo)</option>
+              <option value="video_editor">Video Editing</option>
             </select>
           </div>
 
@@ -281,6 +285,115 @@ function AddMemberModal({ onClose, onAdd }: { onClose: () => void; onAdd: (m: Me
             >
               {saving ? "Adding…" : "Add Member"}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Member Modal ─────────────────────────────────────────────────────────
+function EditMemberModal({
+  member,
+  onClose,
+  onUpdate,
+}: {
+  member: Member;
+  onClose: () => void;
+  onUpdate: (updated: Member) => void;
+}) {
+  const [form, setForm] = useState({
+    name: member.name,
+    email: member.email,
+    role: member.role,
+    phone: member.phone || "",
+  });
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "0.55rem 0.75rem",
+    border: `1px solid ${C.border}`,
+    borderRadius: C.radiusSm,
+    fontSize: "0.875rem",
+    color: C.text,
+    background: "#fff",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name || !form.email) {
+      setErr("Name and Email are required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: member.id,
+          name: form.name,
+          email: form.email,
+          role: form.role,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onUpdate({
+          ...member,
+          name: form.name,
+          email: form.email,
+          role: form.role,
+          phone: form.phone,
+        });
+        onClose();
+      } else {
+        setErr(data.error || "Failed to update member");
+      }
+    } catch {
+      setErr("Network error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: C.radius, width: "100%", maxWidth: 440, padding: "1.75rem", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: C.text, margin: 0 }}>Edit Member</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>Full Name *</label>
+            <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>Role *</label>
+            <select style={inputStyle} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+              <option value="Admin">Admin</option>
+              <option value="Marketing">Marketing</option>
+              <option value="photo_editor">Production (Photo)</option>
+              <option value="video_editor">Video Editing</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>Email *</label>
+            <input style={inputStyle} type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.muted, marginBottom: "0.35rem" }}>Phone</label>
+            <input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          {err && <p style={{ color: "#DC2626", fontSize: "0.85rem", margin: 0 }}>{err}</p>}
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: "0.7rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, background: "#fff", color: C.text, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+            <button type="submit" disabled={saving} style={{ flex: 1, padding: "0.7rem", border: "none", borderRadius: C.radiusSm, background: C.primary, color: "#fff", fontWeight: 700, cursor: "pointer" }}>{saving ? "Saving…" : "Save Changes"}</button>
           </div>
         </form>
       </div>
@@ -392,6 +505,7 @@ function TeamContent() {
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null);
+  const [editMember, setEditMember] = useState<Member | null>(null);
   const [page, setPage] = useState(1);
 
   // Load from real DB on mount
@@ -440,12 +554,16 @@ function TeamContent() {
     setConfirmDelete(null);
   };
 
-  const tabs = ["all", "admins", "marketing", "editors"];
+  const tabs = ["all", "admins", "marketing", "production", "video editing"];
 
   const filtered = team.filter((m) => {
+    const r = m.role.toLowerCase();
     const matchTab =
       activeTab === "all" ||
-      m.role.toLowerCase() === activeTab.replace("s", "").replace("admin", "admin");
+      (activeTab === "admins" && r.includes("admin")) ||
+      (activeTab === "marketing" && r.includes("marketing")) ||
+      (activeTab === "production" && (r.includes("photo") || r.includes("production") || r === "editor")) ||
+      (activeTab === "video editing" && r.includes("video"));
     const matchQ =
       m.name.toLowerCase().includes(query.toLowerCase()) ||
       m.email.toLowerCase().includes(query.toLowerCase());
@@ -492,6 +610,15 @@ function TeamContent() {
           memberName={confirmDelete.name}
           onConfirm={() => handleDelete(confirmDelete.id)}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+      {editMember && (
+        <EditMemberModal
+          member={editMember}
+          onClose={() => setEditMember(null)}
+          onUpdate={(updated) => {
+            setTeam((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+          }}
         />
       )}
 
@@ -696,7 +823,43 @@ function TeamContent() {
 
                         {/* Role badge */}
                         <td style={tdStyle}>
-                          <span style={roleBadge(member.role)}>{member.role}</span>
+                          {isAdmin ? (
+                            <select
+                              value={member.role.toLowerCase().replace(/\s+/g, '_')}
+                              onChange={async (e) => {
+                                const newRole = e.target.value;
+                                try {
+                                  const res = await fetch("/api/users", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ id: member.id, role: newRole }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) {
+                                    setTeam(prev => prev.map(m => m.id === member.id ? { ...m, role: newRole } : m));
+                                  }
+                                } catch {}
+                              }}
+                              style={{
+                                ...roleBadge(member.role),
+                                border: "1px solid " + C.border,
+                                outline: "none",
+                                cursor: "pointer",
+                                padding: "0.2rem 0.5rem",
+                              }}
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="marketing">Marketing</option>
+                              <option value="photo_editor">Production (Photo)</option>
+                              <option value="video_editor">Video Editing</option>
+                            </select>
+                          ) : (
+                            <span style={roleBadge(member.role)}>
+                              {member.role.toLowerCase().includes("photo") ? "Production" :
+                               member.role.toLowerCase().includes("video") ? "Video Editing" :
+                               member.role}
+                            </span>
+                          )}
                         </td>
 
                         {/* Phone */}
@@ -736,6 +899,27 @@ function TeamContent() {
                             >
                               <Eye size={13} /> View
                             </a>
+                            {isAdmin && (
+                              <button
+                                onClick={() => setEditMember(member)}
+                                title="Edit member details"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.3rem",
+                                  padding: "0.35rem 0.75rem",
+                                  border: `1px solid ${C.border}`,
+                                  borderRadius: C.radiusSm,
+                                  background: "#fff",
+                                  color: C.primary,
+                                  fontSize: "0.78rem",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <Edit3 size={13} /> Edit
+                              </button>
+                            )}
                             {isAdmin && (
                               <button
                                 onClick={() => setConfirmDelete(member)}

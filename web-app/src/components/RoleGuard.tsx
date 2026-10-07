@@ -12,10 +12,14 @@ type Props = {
 };
 
 export function RoleGuard({ allowedRoles, redirectTo, children }: Props) {
-  const { user } = useRole();
+  const { user, isHydrated } = useRole();
   const router = useRouter();
+
+  if (!isHydrated) return null;
   if (!user) return null;
-  const allowed = allowedRoles.includes(user.role);
+
+  const userRoleLower = (user.role || "").toLowerCase();
+  const allowed = userRoleLower === "admin" || allowedRoles.some(r => r.toLowerCase() === userRoleLower);
 
   useEffect(() => {
     if (!allowed && redirectTo) {

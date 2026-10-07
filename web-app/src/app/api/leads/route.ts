@@ -161,6 +161,39 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, status, name, company, phone, email, notes, assignedToId } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Lead ID is required' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status.toUpperCase();
+    if (name !== undefined) updateData.name = name;
+    if (company !== undefined) updateData.company = company;
+    if (phone !== undefined) updateData.phone = phone;
+    if (email !== undefined) updateData.email = email;
+    if (notes !== undefined) updateData.notes = notes;
+    if (assignedToId !== undefined) updateData.assignedToId = assignedToId;
+
+    const updated = await prisma.lead.update({
+      where: { id },
+      data: updateData,
+      include: {
+        assignedTo: { select: { name: true } },
+      },
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Leads PATCH error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update lead' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');

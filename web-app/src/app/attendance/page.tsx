@@ -177,6 +177,67 @@ export default function StandaloneAttendancePage() {
 
   if (!isHydrated) return null;
 
+  if (user?.role === "admin") {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        backgroundColor: "#F5F7FB",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        fontFamily: "Inter, system-ui, sans-serif",
+      }}>
+        <div style={{
+          background: "#FFFFFF",
+          borderRadius: "16px",
+          border: "1px solid #E5E7EB",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)",
+          width: "100%",
+          maxWidth: "460px",
+          padding: "2.5rem 2rem",
+          textAlign: "center",
+        }}>
+          <div style={{
+            width: "56px",
+            height: "56px",
+            borderRadius: "50%",
+            background: "#EFF6FF",
+            color: "#1A56DB",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 1.25rem",
+          }}>
+            <ShieldCheck size={28} />
+          </div>
+          <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#111827", margin: "0 0 0.5rem" }}>
+            Admin Account
+          </h2>
+          <p style={{ fontSize: "0.875rem", color: "#6B7280", margin: "0 0 1.5rem", lineHeight: 1.5 }}>
+            Administrators and owners are exempt from attendance time logging. To monitor employee attendance, please use the team dashboard.
+          </p>
+          <button
+            onClick={() => router.push("/dashboard/attendance")}
+            style={{
+              padding: "0.75rem 1.5rem",
+              background: "#1A56DB",
+              color: "#fff",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Go to Team Attendance →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const font = 'Inter, system-ui, -apple-system, sans-serif';
 
   // ── Not logged in ──

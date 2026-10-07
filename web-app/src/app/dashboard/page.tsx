@@ -9,10 +9,18 @@ import {
   Users,
   ArrowRight,
   Clock,
+  Building2,
+  Film,
+  Image as ImageIcon,
+  Video,
+  Award,
+  Flame,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, CSSProperties } from "react";
 import { useRole } from "@/context/RoleContext";
+import { MarketingFollowUpsWidget } from "@/components/MarketingFollowUpsWidget";
 
 /* ─── helpers ──────────────────────────────────────── */
 function getGreeting() {
@@ -35,16 +43,70 @@ interface ActivityItem {
   time?: string;
 }
 
+interface TodayStats {
+  presentEmployees: number;
+  totalEmployees: number;
+  lateEmployees: number;
+  employeesOnLeave: number;
+  activeClients: number;
+  activeJobs: number;
+  activeLeads: number;
+  tasksDueToday: number;
+  overdueTasks: number;
+  editingCompletedToday: number;
+  pendingQC: number;
+  todayFollowUpsCount: number;
+}
+
+interface EditorRanking {
+  id: string;
+  name: string;
+  role: string;
+  totalImages: number;
+  completedJobs: number;
+  loggedHours: number;
+  avgImgsPerHour: number;
+  qualityScore: number;
+  deadlineScore: number;
+  score: number;
+}
+
 interface OverviewData {
   activeLeads: number;
   pendingTasks: number;
   teamMembers: number;
+  activeClients?: number;
+  activeJobs?: number;
+  todayStats?: TodayStats;
+  editorRankings?: EditorRanking[];
   recentActivity: ActivityItem[];
 }
 
 /* ─── quick-access card definition ─────────────────── */
-const quickCards = (isAdmin: boolean, isEditor: boolean) =>
+const quickCards = (isAdmin: boolean, isMarketing: boolean, isPhotoEditor: boolean, isVideoEditor: boolean) =>
   [
+    {
+      id: "clients",
+      title: "Clients",
+      subtitle: "Profiles & active contracts",
+      href: "/dashboard/clients",
+      icon: Building2,
+      bg: "#EFF6FF",
+      iconBg: "#DBEAFE",
+      iconColor: "#1D4ED8",
+      show: isAdmin || isMarketing,
+    },
+    {
+      id: "jobs",
+      title: isPhotoEditor ? "Photo Editing Jobs" : isVideoEditor ? "Video Projects" : "Editing Production",
+      subtitle: isPhotoEditor ? "Wedding & retouching queues" : isVideoEditor ? "Reel & video deliverables" : "Live jobs & QC pipeline",
+      href: "/dashboard/jobs",
+      icon: isPhotoEditor ? ImageIcon : isVideoEditor ? Video : Film,
+      bg: isPhotoEditor ? "#ECFDF5" : isVideoEditor ? "#FFF7ED" : "#F5F3FF",
+      iconBg: isPhotoEditor ? "#D1FAE5" : isVideoEditor ? "#FFEDD5" : "#EDE9FE",
+      iconColor: isPhotoEditor ? "#059669" : isVideoEditor ? "#EA580C" : "#7C3AED",
+      show: isAdmin || isPhotoEditor || isVideoEditor,
+    },
     {
       id: "leads",
       title: "Leads & Pipeline",
@@ -54,7 +116,7 @@ const quickCards = (isAdmin: boolean, isEditor: boolean) =>
       bg: "#FFF0F3",
       iconBg: "#FFD6E0",
       iconColor: "#E8265E",
-      show: !isEditor,
+      show: isAdmin || isMarketing,
     },
     {
       id: "tasks",
@@ -129,8 +191,11 @@ export default function DashboardOverview() {
 
   const greeting = getGreeting();
   const isAdmin = user.role === "admin";
-  const isEditor = user.role === "editor";
-  const cards = quickCards(isAdmin, isEditor);
+  const isMarketing = user.role === "marketing";
+  const isPhotoEditor = user.role === "photo_editor";
+  const isVideoEditor = user.role === "video_editor";
+  const isEditor = isPhotoEditor || isVideoEditor || user.role === "editor";
+  const cards = quickCards(isAdmin, isMarketing, isPhotoEditor, isVideoEditor);
 
   /* ── style helpers ── */
   const s: Record<string, CSSProperties> = {
@@ -328,15 +393,17 @@ export default function DashboardOverview() {
         </div>
 
         <div style={s.btnRow}>
-          <a
-            href="/attendance"
-            target="_blank"
-            rel="noreferrer"
-            style={s.btnOutline}
-          >
-            <CalendarCheck size={15} />
-            Mark Attendance
-          </a>
+          {!isAdmin && (
+            <a
+              href="/attendance"
+              target="_blank"
+              rel="noreferrer"
+              style={s.btnOutline}
+            >
+              <CalendarCheck size={15} />
+              Mark Attendance
+            </a>
+          )}
 
           {isAdmin && (
             <Link href="/dashboard/monitor" style={s.btnBlue}>
@@ -476,8 +543,28 @@ export default function DashboardOverview() {
           <p style={s.panelTitle}>Key Metrics</p>
 
           <div style={s.metricGrid}>
+            {/* Active Clients */}
+            {(isAdmin || isMarketing) && (
+              <div style={{ ...s.metricTile, borderLeft: "3px solid #1D4ED8" }}>
+                <p style={s.metricValue}>
+                  {loading ? "—" : (data.activeClients ?? 0)}
+                </p>
+                <p style={s.metricLabel}>Active Clients</p>
+              </div>
+            )}
+
+            {/* Editing Jobs */}
+            {(isAdmin || isEditor) && (
+              <div style={{ ...s.metricTile, borderLeft: "3px solid #7C3AED" }}>
+                <p style={s.metricValue}>
+                  {loading ? "—" : (data.activeJobs ?? 0)}
+                </p>
+                <p style={s.metricLabel}>Editing Jobs</p>
+              </div>
+            )}
+
             {/* Active Leads */}
-            {!isEditor && (
+            {(isAdmin || isMarketing) && (
               <div style={{ ...s.metricTile, borderLeft: "3px solid #E8265E" }}>
                 <p style={s.metricValue}>
                   {loading ? "—" : data.activeLeads}
@@ -533,6 +620,158 @@ export default function DashboardOverview() {
         </div>
 
       </div>
+
+      {/* ── COMPANY STATUS TODAY (Owner / Admin) ── */}
+      {isAdmin && data.todayStats && (
+        <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, padding: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+            <div>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0F172A", margin: "0 0 2px" }}>
+                Company Operations Status — Today
+              </h3>
+              <p style={{ fontSize: "0.8rem", color: "#6B7280", margin: 0 }}>
+                Live headcount, production output, and queue adherence
+              </p>
+            </div>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1A56DB", background: "#EFF6FF", padding: "3px 10px", borderRadius: "999px" }}>
+              Live Snapshot
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+            {/* Attendance */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Employees Present</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#059669", marginTop: "3px" }}>
+                {data.todayStats.presentEmployees} <span style={{ fontSize: "0.85rem", color: "#64748B", fontWeight: 500 }}>/ {data.todayStats.totalEmployees}</span>
+              </div>
+            </div>
+
+            {/* Late */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Late Arrivals</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#D97706", marginTop: "3px" }}>
+                {data.todayStats.lateEmployees}
+              </div>
+            </div>
+
+            {/* Leave */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>On Leave Today</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#475569", marginTop: "3px" }}>
+                {data.todayStats.employeesOnLeave}
+              </div>
+            </div>
+
+            {/* Active Clients */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Active Clients</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#1D4ED8", marginTop: "3px" }}>
+                {data.todayStats.activeClients}
+              </div>
+            </div>
+
+            {/* Active Projects */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Active Projects</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#7C3AED", marginTop: "3px" }}>
+                {data.todayStats.activeJobs}
+              </div>
+            </div>
+
+            {/* Due Today */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Tasks Due Today</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#2563EB", marginTop: "3px" }}>
+                {data.todayStats.tasksDueToday}
+              </div>
+            </div>
+
+            {/* Overdue */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Overdue Tasks</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#DC2626", marginTop: "3px" }}>
+                {data.todayStats.overdueTasks}
+              </div>
+            </div>
+
+            {/* Editing Completed */}
+            <div style={{ background: "#F8FAFC", padding: "0.85rem", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Jobs Delivered Today</div>
+              <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#059669", marginTop: "3px" }}>
+                {data.todayStats.editingCompletedToday}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MARKETING FOLLOW-UPS WIDGET (Admin & Marketing) ── */}
+      {(isAdmin || user.role === "marketing") && (
+        <MarketingFollowUpsWidget />
+      )}
+
+      {/* ── EDITOR PERFORMANCE RANKING (Admin Only) ── */}
+      {isAdmin && data.editorRankings && data.editorRankings.length > 0 && (
+        <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 8, padding: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+            <div>
+              <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0F172A", margin: "0 0 2px" }}>
+                Editor Productivity Leaderboard
+              </h3>
+              <p style={{ fontSize: "0.8rem", color: "#6B7280", margin: 0 }}>
+                Weighted formula: 40% Output + 25% Quality (QC) + 20% Deadline + 15% Attendance
+              </p>
+            </div>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem", fontWeight: 700, color: "#D97706" }}>
+              <Award size={15} /> Top Performers
+            </span>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <thead>
+                <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", textAlign: "left", color: "#64748B" }}>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Employee</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Role</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Images Edited</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Jobs Done</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Tracked Hours</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>Avg Imgs/Hr</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600 }}>QC Pass Rate</th>
+                  <th style={{ padding: "10px 14px", fontWeight: 600, textAlign: "right" }}>Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.editorRankings.map((e, idx) => (
+                  <tr key={e.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                    <td style={{ padding: "10px 14px", fontWeight: 700, color: "#0F172A" }}>
+                      {idx === 0 && "🥇 "}{idx === 1 && "🥈 "}{idx === 2 && "🥉 "}
+                      {e.name}
+                    </td>
+                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{e.role}</td>
+                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "#1D4ED8" }}>{e.totalImages.toLocaleString()}</td>
+                    <td style={{ padding: "10px 14px" }}>{e.completedJobs}</td>
+                    <td style={{ padding: "10px 14px" }}>{e.loggedHours}h</td>
+                    <td style={{ padding: "10px 14px" }}>{e.avgImgsPerHour}</td>
+                    <td style={{ padding: "10px 14px", color: "#059669", fontWeight: 600 }}>{e.qualityScore}%</td>
+                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                      <span style={{
+                        background: e.score >= 90 ? "#ECFDF5" : "#EFF6FF",
+                        color: e.score >= 90 ? "#059669" : "#1D4ED8",
+                        fontWeight: 800, fontSize: "0.8rem", padding: "2px 8px", borderRadius: "999px"
+                      }}>
+                        {e.score}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

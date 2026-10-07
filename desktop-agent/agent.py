@@ -283,6 +283,15 @@ def sync_loop():
             resp, target_name = post_telemetry(payload)
 
             if resp is not None and resp.status_code == 200:
+                try:
+                    res_json = resp.json()
+                    if res_json.get("isExempt"):
+                        app_state["status"] = "Admin Exempt (No Tracking)"
+                        app_state["current_app"] = "Admin - Tracking Disabled"
+                        time.sleep(30)
+                        continue
+                except Exception:
+                    pass
                 app_state["status"] = "Active & Syncing"
                 app_state["connected_server"] = target_name
                 app_state["last_sync"] = time.strftime("%I:%M:%S %p")

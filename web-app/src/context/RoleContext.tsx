@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type UserRole = "admin" | "marketing" | "editor";
+export type UserRole = "admin" | "marketing" | "photo_editor" | "video_editor" | "editor";
 
 export type CurrentUser = {
   id?: string;
@@ -52,15 +52,14 @@ export async function fetchWithExponentialBackoff(
   const baseDelayMs = 1000;
 
   const config: RequestInit = { ...init };
-  if (
-    typeof input === "string" &&
-    input.startsWith("/api/") &&
-    !input.startsWith("/api/auth") &&
-    token
-  ) {
+  const inputUrlStr = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as any)?.url || "";
+  const isApiRoute = (inputUrlStr.startsWith("/api/") || inputUrlStr.includes("/api/")) && !inputUrlStr.includes("/api/auth");
+  const effectiveToken = token || (typeof window !== "undefined" ? localStorage.getItem("authToken") : null);
+
+  if (isApiRoute && effectiveToken) {
     config.headers = {
       ...config.headers,
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${effectiveToken}`,
     };
   }
 

@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import {
   LayoutDashboard, Users, CheckSquare, MessageSquare,
   Settings, LogOut, Bell, TrendingUp, ChevronDown,
-  CalendarCheck, Activity, Search, PanelLeftClose, PanelLeftOpen, Clock
+  CalendarCheck, Activity, Search, PanelLeftClose, PanelLeftOpen, Clock,
+  Building2, Film, Image as ImageIcon, Video, Receipt, Wallet, BarChart2
 } from "lucide-react";
 import { useRole, UserRole } from "@/context/RoleContext";
 
@@ -14,49 +15,86 @@ import { useRole, UserRole } from "@/context/RoleContext";
 const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]> = {
   admin: [
     { name: "Dashboard",     href: "/dashboard",            icon: LayoutDashboard },
-    { name: "Team",          href: "/dashboard/team",        icon: Users           },
+    { name: "Clients",       href: "/dashboard/clients",     icon: Building2       },
+    { name: "Editing Jobs",  href: "/dashboard/jobs",        icon: Film            },
+    { name: "Finance & GST", href: "/dashboard/finance",     icon: Receipt         },
+    { name: "Payroll",       href: "/dashboard/payroll",     icon: Wallet          },
+    { name: "Reports",       href: "/dashboard/reports",     icon: BarChart2       },
+    { name: "Activity Log",  href: "/dashboard/activity",    icon: Clock           },
     { name: "Leads",         href: "/dashboard/leads",       icon: TrendingUp      },
     { name: "Tasks",         href: "/dashboard/tasks",       icon: CheckSquare     },
     { name: "Attendance",    href: "/dashboard/attendance",  icon: CalendarCheck   },
     { name: "Live Monitor",  href: "/dashboard/monitor",     icon: Activity        },
+    { name: "Team",          href: "/dashboard/team",        icon: Users           },
     { name: "Messages",      href: "/dashboard/chat",        icon: MessageSquare   },
   ],
   marketing: [
-    { name: "Dashboard",  href: "/dashboard",           icon: LayoutDashboard },
-    { name: "My Leads",   href: "/dashboard/leads",     icon: TrendingUp      },
-    { name: "Tasks",      href: "/dashboard/tasks",     icon: CheckSquare     },
-    { name: "Attendance", href: "/dashboard/attendance",icon: CalendarCheck   },
-    { name: "Messages",   href: "/dashboard/chat",      icon: MessageSquare   },
+    { name: "Dashboard",     href: "/dashboard",           icon: LayoutDashboard },
+    { name: "Clients",       href: "/dashboard/clients",   icon: Building2       },
+    { name: "My Leads",      href: "/dashboard/leads",     icon: TrendingUp      },
+    { name: "Reports",       href: "/dashboard/reports",   icon: BarChart2       },
+    { name: "Activity Log",  href: "/dashboard/activity",  icon: Clock           },
+    { name: "Tasks",         href: "/dashboard/tasks",     icon: CheckSquare     },
+    { name: "Attendance",    href: "/dashboard/attendance",icon: CalendarCheck   },
+    { name: "My Payslips",   href: "/dashboard/payroll",   icon: Wallet          },
+    { name: "Messages",      href: "/dashboard/chat",      icon: MessageSquare   },
+  ],
+  photo_editor: [
+    { name: "Dashboard",          href: "/dashboard",           icon: LayoutDashboard },
+    { name: "Production (Photo)", href: "/dashboard/jobs",      icon: ImageIcon       },
+    { name: "Tasks",              href: "/dashboard/tasks",     icon: CheckSquare     },
+    { name: "Attendance",         href: "/dashboard/attendance",icon: CalendarCheck   },
+    { name: "My Payslips",        href: "/dashboard/payroll",   icon: Wallet          },
+    { name: "Messages",           href: "/dashboard/chat",      icon: MessageSquare   },
+  ],
+  video_editor: [
+    { name: "Dashboard",          href: "/dashboard",           icon: LayoutDashboard },
+    { name: "Video Editing",      href: "/dashboard/jobs",      icon: Video           },
+    { name: "Tasks",              href: "/dashboard/tasks",     icon: CheckSquare     },
+    { name: "Attendance",         href: "/dashboard/attendance",icon: CalendarCheck   },
+    { name: "My Payslips",        href: "/dashboard/payroll",   icon: Wallet          },
+    { name: "Messages",           href: "/dashboard/chat",      icon: MessageSquare   },
   ],
   editor: [
-    { name: "Tasks",      href: "/dashboard/tasks",      icon: CheckSquare  },
-    { name: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-    { name: "Messages",   href: "/dashboard/chat",       icon: MessageSquare },
+    { name: "Dashboard",          href: "/dashboard",           icon: LayoutDashboard },
+    { name: "Production (Photo)", href: "/dashboard/jobs",      icon: ImageIcon       },
+    { name: "Tasks",              href: "/dashboard/tasks",     icon: CheckSquare     },
+    { name: "Attendance",         href: "/dashboard/attendance",icon: CalendarCheck   },
+    { name: "My Payslips",        href: "/dashboard/payroll",   icon: Wallet          },
+    { name: "Messages",           href: "/dashboard/chat",      icon: MessageSquare   },
   ],
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  admin:     "#1A56DB",
-  marketing: "#7C3AED",
-  editor:    "#059669",
+  admin:        "#1A56DB",
+  marketing:    "#7C3AED",
+  photo_editor: "#059669",
+  video_editor: "#D97706",
+  editor:       "#059669",
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  admin:     "Admin",
-  marketing: "Marketing",
-  editor:    "Editor",
+  admin:        "Admin",
+  marketing:    "Marketing",
+  photo_editor: "Production",
+  video_editor: "Video Editing",
+  editor:       "Production",
 };
 
 // ─── Page title from pathname ─────────────────────────────────────────────────
 function getPageTitle(pathname: string): string {
-  if (pathname === "/dashboard")              return "Dashboard";
-  if (pathname.startsWith("/dashboard/team")) return "Team & Members";
-  if (pathname.startsWith("/dashboard/leads"))return "Leads";
-  if (pathname.startsWith("/dashboard/tasks"))return "Tasks";
-  if (pathname.startsWith("/dashboard/attendance")) return "Attendance";
-  if (pathname.startsWith("/dashboard/monitor"))    return "Live Monitor";
-  if (pathname.startsWith("/dashboard/chat"))       return "Messages";
-  if (pathname.startsWith("/dashboard/settings"))   return "Settings";
+  if (pathname === "/dashboard")                   return "Dashboard";
+  if (pathname.startsWith("/dashboard/clients"))   return "Clients";
+  if (pathname.startsWith("/dashboard/jobs"))      return "Editing Jobs";
+  if (pathname.startsWith("/dashboard/finance"))   return "Finance & Invoicing";
+  if (pathname.startsWith("/dashboard/payroll"))   return "Payroll & Payslips";
+  if (pathname.startsWith("/dashboard/team"))      return "Team & Members";
+  if (pathname.startsWith("/dashboard/leads"))     return "Leads";
+  if (pathname.startsWith("/dashboard/tasks"))     return "Tasks";
+  if (pathname.startsWith("/dashboard/attendance"))return "Attendance";
+  if (pathname.startsWith("/dashboard/monitor"))   return "Live Monitor";
+  if (pathname.startsWith("/dashboard/chat"))      return "Messages";
+  if (pathname.startsWith("/dashboard/settings"))  return "Settings";
   return "Dashboard";
 }
 
@@ -173,14 +211,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return null;
   }
 
-  const navItems = NAV_BY_ROLE[user.role];
+  const navItems = NAV_BY_ROLE[user.role] || NAV_BY_ROLE.editor;
 
-  if (user.role === "editor" && pathname.startsWith("/dashboard/leads")) {
-    if (typeof window !== "undefined") router.replace("/dashboard/tasks");
+  const isEditorRole = user.role === "editor" || user.role === "photo_editor" || user.role === "video_editor";
+  if (isEditorRole && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/monitor") || pathname.startsWith("/dashboard/clients"))) {
+    if (typeof window !== "undefined") router.replace("/dashboard/jobs");
     return null;
   }
-  if (user.role === "editor" && pathname.startsWith("/dashboard/team")) {
-    if (typeof window !== "undefined") router.replace("/dashboard/tasks");
+  if (user.role === "marketing" && (pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/monitor"))) {
+    if (typeof window !== "undefined") router.replace("/dashboard");
     return null;
   }
 

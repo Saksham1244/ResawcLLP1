@@ -109,7 +109,21 @@ export default function ChatSystem() {
     return "Chat";
   };
 
-  const filteredContacts = conversations.filter(c => getConversationName(c).toLowerCase().includes(query.toLowerCase()));
+  // Deduplicate DIRECT conversations to ensure no user appears multiple times
+  const uniqueConversations: Conversation[] = [];
+  const seenDirectUsers = new Set<string>();
+
+  for (const c of conversations) {
+    if (c.type === "DIRECT") {
+      const other = c.participants.find(p => p.user.id !== user?.id);
+      const otherId = other?.user.id || c.id;
+      if (seenDirectUsers.has(otherId)) continue;
+      seenDirectUsers.add(otherId);
+    }
+    uniqueConversations.push(c);
+  }
+
+  const filteredContacts = uniqueConversations.filter(c => getConversationName(c).toLowerCase().includes(query.toLowerCase()));
   const activeContact = conversations.find(c => c.id === activeId);
 
   const sendMessage = async () => {
@@ -135,6 +149,20 @@ export default function ChatSystem() {
   const createConversation = async () => {
     if (selectedMembers.length === 0 || !user?.id) return;
 
+    // If starting a direct message, check if one already exists with this user
+    if (newType === "direct" && selectedMembers.length === 1) {
+      const targetUserId = selectedMembers[0];
+      const existing = conversations.find(c =>
+        c.type === "DIRECT" && c.participants.some(p => p.user.id === targetUserId)
+      );
+      if (existing) {
+        setActiveId(existing.id);
+        setShowNewModal(false);
+        setSelectedMembers([]);
+        return;
+      }
+    }
+
     const memberIds = [...selectedMembers, user.id];
 
     try {
@@ -149,7 +177,10 @@ export default function ChatSystem() {
       });
       const data = await res.json();
       if (data.success) {
-        setConversations(prev => [...prev, data.data]);
+        setConversations(prev => {
+          const exists = prev.some(c => c.id === data.data.id);
+          return exists ? prev : [data.data, ...prev];
+        });
         setActiveId(data.data.id);
         setShowNewModal(false);
         setSelectedMembers([]);

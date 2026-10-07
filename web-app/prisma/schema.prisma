@@ -20,13 +20,23 @@ model User {
   assignedTasks Task[]    @relation("AssignedTasks")
   createdTasks  Task[]    @relation("CreatedTasks")
   
+  assignedClients Client[]     @relation("ClientMarketing")
+  assignedJobs    EditingJob[] @relation("AssignedJobs")
+  qcJobs          EditingJob[] @relation("QCJobs")
+  
   sentMessages      Message[] @relation("SentMessages")
   conversations     ConversationParticipant[]
   notifications     Notification[]
   interactions      LeadInteraction[]
   attendance        Attendance[]
   leaveRequests     LeaveRequest[]
+  overtimeRequests  OvertimeRequest[]
   pcActivity        PCActivity?
+  timeLogs          TimeLog[]
+  followUps         MarketingFollowUp[]
+  salaryStructure   EmployeeSalaryStructure?
+  payslips          Payslip[]
+  activityLogs      ActivityLog[]
 }
 
 model Lead {
@@ -45,6 +55,7 @@ model Lead {
   updatedAt   DateTime @updatedAt
   
   interactions LeadInteraction[]
+  followUps    MarketingFollowUp[]
 }
 
 model Task {
@@ -54,6 +65,12 @@ model Task {
   status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
   priority    String   @default("MEDIUM")  // HIGH, MEDIUM, LOW
   dueDate     String?
+  rawFilesLink String? // Drive, Dropbox, or local folder link for raw assets
+  workLink    String?  // Deliverables link
+  submissionNotes String? // Notes submitted by editor when turning in work
+  
+  editingJobId String?
+  editingJob   EditingJob? @relation(fields: [editingJobId], references: [id], onDelete: Cascade)
   
   assignedToId String?
   assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id])
@@ -63,6 +80,8 @@ model Task {
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  timeLogs    TimeLog[]
 }
 
 model Message {
@@ -136,7 +155,11 @@ model Attendance {
   mobileLoginTime  String?  // Set when checked in from mobile app
   systemLoginTime  String?  // Set when checked in from web browser
   timeOut          String?
-  status           String
+  status           String   // Present, Late, Half Day, Absent, On Leave, WFH
+  lateMinutes      Int?     @default(0)
+  earlyExitMinutes Int?     @default(0)
+  totalHours       Float?   @default(0)
+  notes            String?
   createdAt        DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id])
 }
@@ -163,22 +186,335 @@ model GlobalSettings {
   breakEndTime   String   @default("13:30")
   activeDays     String   @default("[\"Mon\",\"Tue\",\"Wed\",\"Thu\",\"Fri\"]")
   saturdayMode   String   @default("All Saturdays")
-  workStartTime  String   @default("09:00")
-  workEndTime    String   @default("18:00")
+  workStartTime  String   @default("10:00")
+  workEndTime    String   @default("18:30")
   breakDuration  Int      @default(30)
   lateGrace      Int      @default(15)
   latePenalty    Int      @default(3)
+  gstNumber               String?  @default("07AABCR1234F1Z5")
+  panNumber               String?  @default("AABCR1234F")
+  bankName                String?  @default("HDFC Bank")
+  bankAccount             String?  @default("50200012345678")
+  bankIfsc                String?  @default("HDFC0001234")
+  companyAddress          String?  @default("Resawc LLP, Creative Studio Hub, New Delhi, India")
+  
+  // GST Portal & Taxation Settings
+  gstLegalName            String?  @default("Resawc LLP")
+  gstTradeName            String?  @default("Resawc Creative Media")
+  gstState                String?  @default("Delhi")
+  gstStateCode            String?  @default("07")
+  gstTaxpayerType         String?  @default("Regular")
+  gstPortalUsername       String?  @default("RESAWC_GST")
+  gstPortalPassword       String?  @default("")
+  gspProvider             String?  @default("NIC")
+  gstEnvironment          String?  @default("production")
+  defaultSacCode          String?  @default("998314")
+  defaultGstRate          Float?   @default(18.0)
+  eInvoicingEnabled       Boolean? @default(false)
+  eWayBillEnabled         Boolean? @default(false)
+  eWayBillThreshold       Float?   @default(50000.0)
+  reverseChargeApplicable Boolean? @default(false)
+  lutEnabled              Boolean? @default(false)
+  lutNumber               String?  @default("AD070326001234X")
+  invoicePrefix           String?  @default("INV-2026-")
+  authorizedSignatory     String?  @default("Mukul")
+  authorizedDesignation   String?  @default("Designated Partner")
+  bankBranch              String?  @default("Connaught Place, New Delhi")
+  upiId                   String?  @default("resawc@hdfcbank")
 }
 
 model LeaveRequest {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  startDate String
-  endDate   String
-  type      String   // "Full Day", "Half Day", "Short Leave (2hrs Late)", "Short Leave (2hrs Early)"
-  reason    String
-  status    String   @default("Pending") // "Pending", "Approved", "Rejected", "Cancelled"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  startDate  String
+  endDate    String
+  type       String   // "Casual Leave (CL)", "Sick Leave (SL)", "Paid Leave (PL)", "Unpaid (LWP)", "Half Day", "Work From Home (WFH)"
+  reason     String
+  status     String   @default("Pending") // "Pending", "Approved", "Rejected", "Cancelled"
+  adminNotes String?
+  reviewedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
+
+model OvertimeRequest {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  date           String    // YYYY-MM-DD
+  hours          Float     // Requested OT hours (e.g. 2.0)
+  taskOrJobTitle String    // Project / Job worked on
+  reason         String    // Justification
+  status         String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedHours  Float?    // Admin confirmed hours
+  adminNotes     String?
+  reviewedById   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Client {
+  id                  String       @id @default(cuid())
+  clientId            String       @unique // e.g. "CL-1001"
+  companyName         String
+  contactPerson       String
+  phone               String?
+  email               String?
+  address             String?
+  country             String?      @default("India")
+  currency            String       @default("INR") // INR, USD, EUR, GBP
+  paymentTerms        String?      @default("Due on Receipt") // "Due on Receipt", "Net 15", "Net 30"
+  status              String       @default("ACTIVE") // LEAD, CONTACTED, TRIAL, ACTIVE, ON_HOLD, INACTIVE
+  notes               String?
+  
+  assignedMarketingId String?
+  assignedMarketing   User?        @relation("ClientMarketing", fields: [assignedMarketingId], references: [id])
+  
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  editingJobs         EditingJob[]
+  followUps           MarketingFollowUp[]
+  rateCard            ClientRateCard?
+  invoices            Invoice[]
+  activityLogs        ActivityLog[]
+}
+
+model EditingJob {
+  id               String    @id @default(cuid())
+  jobNumber        String    @unique // e.g. "ED-10245" for photo, "VD-1008" for video
+  title            String
+  serviceType      String    // "Wedding Photo Editing", "Color Correction", "High-End Retouching", "Video Editing", "Reels / Shorts", "Commercial Video"
+  category         String    @default("PHOTO") // "PHOTO" or "VIDEO"
+  
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // For Photo Editing
+  totalImages      Int       @default(0)
+  completedImages  Int       @default(0)
+  
+  // For Video Editing
+  durationMinutes  Int?      @default(0)
+  deliverableNotes String?
+  
+  assignedEditorId String?
+  assignedEditor   User?     @relation("AssignedJobs", fields: [assignedEditorId], references: [id])
+  
+  qcReviewerId     String?
+  qcReviewer       User?     @relation("QCJobs", fields: [qcReviewerId], references: [id])
+  
+  receivedDate     String
+  deadlineDate     String
+  priority         String    @default("MEDIUM") // URGENT, HIGH, MEDIUM, LOW
+  
+  // Pipeline Status:
+  // Photo: RECEIVED, ASSIGNED, EDITING, QC, REVISION, FINAL_QC, DELIVERED
+  // Video: RECEIVED, ASSIGNED, EDITING, REVIEW, REVISION, FINAL, DELIVERED
+  status           String    @default("RECEIVED")
+  
+  qcNotes          String?
+  revisionNotes    String?
+  workLink         String?   // Drive, Dropbox, or preview link for edited deliverables
+  rawFilesLink     String?   // Raw footage/photos link from client
+  qcStatus         String?   @default("PENDING") // PENDING, APPROVED, REVISION
+  approvedAt       DateTime?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  timeLogs         TimeLog[]
+  tasks            Task[]
+}
+
+model TimeLog {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id])
+  
+  editingJobId   String?
+  editingJob     EditingJob? @relation(fields: [editingJobId], references: [id], onDelete: Cascade)
+  
+  taskId         String?
+  task           Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  startTime      DateTime    @default(now())
+  endTime        DateTime?
+  durationSec    Int         @default(0) // Duration in seconds
+  status         String      @default("RUNNING") // RUNNING, PAUSED, COMPLETED
+  notes          String?
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model MarketingFollowUp {
+  id             String      @id @default(cuid())
+  leadId         String?
+  lead           Lead?       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  clientId       String?
+  client         Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  assignedToId   String
+  assignedTo     User        @relation(fields: [assignedToId], references: [id])
+  
+  title          String      // e.g. "Call Client - Discuss wedding rates"
+  actionType     String      @default("CALL") // CALL, EMAIL, QUOTATION, TRIAL_FOLLOWUP, MEETING
+  dueDate        String      // YYYY-MM-DD
+  dueTime        String?     // e.g. "11:00 AM"
+  priority       String      @default("MEDIUM") // HIGH, MEDIUM, LOW
+  status         String      @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  
+  outcomeNotes   String?
+  completedAt    DateTime?
+  
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+}
+
+model ClientRateCard {
+  id                  String   @id @default(cuid())
+  clientId            String   @unique
+  client              Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  photoCullingRate    Float    @default(3.0)   // ₹ per image
+  photoColorRate      Float    @default(7.0)   // ₹ per image
+  photoRetouchRate    Float    @default(15.0)  // ₹ per image
+  videoPerMinuteRate  Float    @default(500.0) // ₹ per video minute
+  videoReelRate       Float    @default(1200.0)// ₹ per reel/short
+  monthlyRetainer     Float    @default(0.0)   // ₹ monthly flat retainer
+  
+  customNotes         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Invoice {
+  id                  String        @id @default(cuid())
+  invoiceNumber       String        @unique // e.g. "INV-2026-0001"
+  clientId            String
+  client              Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  issueDate           String        // YYYY-MM-DD
+  dueDate             String        // YYYY-MM-DD
+  status              String        @default("DRAFT") // DRAFT, SENT, PAID, PARTIAL, OVERDUE, CANCELLED
+  currency            String        @default("INR")
+  
+  subtotal            Float         @default(0)
+  taxRate             Float         @default(18) // 18% GST (9% CGST + 9% SGST or 18% IGST)
+  taxAmount           Float         @default(0)
+  discountAmount      Float         @default(0)
+  totalAmount         Float         @default(0)
+  amountPaid          Float         @default(0)
+  
+  paymentDate         String?
+  paymentMethod       String?       // Bank Transfer, UPI, NEFT, IMPS, Cheque, Cash
+  paymentReference    String?       // UTR / Transaction ID
+  
+  notes               String?
+  termsAndConditions  String?
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  items               InvoiceItem[]
+}
+
+model InvoiceItem {
+  id             String      @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  editingJobId   String?
+  description    String
+  quantity       Float       @default(1)
+  unit           String      @default("units") // "photos", "mins", "reels", "month", "project"
+  unitPrice      Float       @default(0)
+  amount         Float       @default(0)
+  
+  createdAt      DateTime    @default(now())
+}
+
+model EmployeeSalaryStructure {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  baseSalary          Float    @default(25000) // ₹ Monthly base
+  hourlyOvertimeRate  Float    @default(150)   // ₹ per hour
+  allowance           Float    @default(0)     // Special / Travel allowance
+  
+  bankName            String?
+  bankAccountNumber   String?
+  ifscCode            String?
+  panNumber           String?
+  upiId               String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Payslip {
+  id                     String    @id @default(cuid())
+  payslipNumber          String    @unique // e.g. "PAY-2026-10-001"
+  userId                 String
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  monthYear              String    // "2026-10"
+  daysInMonth            Int       @default(30)
+  workingDays            Int       @default(26)
+  presentDays            Float     @default(0)
+  paidLeaves             Float     @default(0)
+  unpaidLeaves           Float     @default(0)
+  overtimeHours          Float     @default(0)
+  lateDays               Int       @default(0)
+  
+  baseSalary             Float     @default(0)
+  earnedBasic            Float     @default(0)
+  allowances             Float     @default(0)
+  overtimePay            Float     @default(0)
+  bonus                  Float     @default(0)
+  grossEarnings          Float     @default(0)
+  
+  lateDeductions         Float     @default(0)
+  unpaidLeaveDeductions  Float     @default(0)
+  otherDeductions        Float     @default(0)
+  totalDeductions        Float     @default(0)
+  
+  netSalary              Float     @default(0)
+  
+  status                 String    @default("GENERATED") // GENERATED, APPROVED, PAID
+  paymentDate            String?
+  paymentReference       String?   // Transaction ref
+  notes                  String?
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model ActivityLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName    String?   // cached display name (e.g. "Mukul", "System")
+  userRole    String?   // cached role (e.g. "ADMIN", "PHOTO_EDITOR")
+  
+  action      String    // e.g. "JOB_CREATED", "JOB_DELIVERED", "INVOICE_GENERATED", "PAYMENT_RECEIVED", "LEAD_CONVERTED", "PUNCH_IN", "PAYROLL_RUN"
+  category    String    @default("GENERAL") // "PROJECTS", "FINANCE", "MARKETING", "HR", "SYSTEM"
+  
+  entityType  String?   // "JOB", "INVOICE", "CLIENT", "LEAD", "PAYSLIP", "ATTENDANCE"
+  entityId    String?   // ID of the target entity
+  entityTitle String?   // Title/Number of target entity (e.g. "ED-1008", "INV-2026-0002")
+  
+  clientId    String?
+  client      Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  description String    // Human readable text: "Generated Invoice #INV-2026-0002 for Elite Wedding Cinematics (₹8,496)"
+  metadata    String?   // JSON string for additional context
+  
+  createdAt   DateTime  @default(now())
+}
+
+

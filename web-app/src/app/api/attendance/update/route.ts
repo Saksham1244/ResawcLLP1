@@ -10,7 +10,7 @@ export async function POST(req: Request) {
 
     // Verify admin
     const adminUser = await prisma.user.findUnique({ where: { id: adminId } });
-    if (!adminUser || adminUser.role !== 'ADMIN') {
+    if (!adminUser || adminUser.role?.toUpperCase() !== 'ADMIN') {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
     }
 

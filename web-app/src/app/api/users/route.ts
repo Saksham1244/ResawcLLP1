@@ -43,6 +43,30 @@ export async function POST(req: Request) {
   }
 }
 
+// PATCH update user role or info
+export async function PATCH(req: Request) {
+  try {
+    const { id, role, name, email } = await req.json();
+    if (!id) return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
+
+    const data: any = {};
+    if (role) data.role = role.toUpperCase();
+    if (name) data.name = name;
+    if (email) data.email = email;
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
+  }
+}
+
 // DELETE a user
 export async function DELETE(req: Request) {
   try {
@@ -55,3 +79,5 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
   }
 }
+
+

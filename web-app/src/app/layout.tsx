@@ -5,8 +5,8 @@ import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CRM & Team Management",
-  description: "Comprehensive CRM and Project Management for our Editing Team",
+  title: "Resawc CRM - Post-Production Management",
+  description: "Comprehensive CRM and Project Management for Resawc Editing Team",
 };
 
 export default function RootLayout({

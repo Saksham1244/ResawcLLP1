@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Plus, Calendar, X, Loader2, CheckCircle, MoreVertical, ChevronDown } from "lucide-react";
+import { Plus, Calendar, X, Loader2, CheckCircle, MoreVertical, ChevronDown, ExternalLink, Folder, Send } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -10,6 +10,10 @@ type Task = {
   id: string;
   title: string;
   description?: string;
+  rawFilesLink?: string;
+  workLink?: string;
+  submissionNotes?: string;
+  editingJobId?: string;
   assignee: string;
   assigneeId?: string;
   initials: string;
@@ -103,6 +107,10 @@ function mapDBTask(t: any): Task {
     id: t.id,
     title: t.title,
     description: t.description,
+    rawFilesLink: t.rawFilesLink,
+    workLink: t.workLink,
+    submissionNotes: t.submissionNotes,
+    editingJobId: t.editingJobId,
     assignee: t.assignedTo?.name || "Unassigned",
     assigneeId: t.assignedTo?.id,
     initials: (t.assignedTo?.name || "?")
@@ -286,7 +294,15 @@ export default function TaskManagement() {
   const [form, setForm] = useState<{
     title: string; description: string; assigneeId: string;
     priority: Task["priority"]; due: string; status: Task["status"];
-  }>({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned" });
+    rawFilesLink: string;
+  }>({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned", rawFilesLink: "" });
+
+  // ── Submit Work Deliverables Modal ──
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [selectedTaskForSubmit, setSelectedTaskForSubmit] = useState<Task | null>(null);
+  const [submitWorkLink, setSubmitWorkLink] = useState("");
+  const [submitNotes, setSubmitNotes] = useState("");
+  const [submittingWork, setSubmittingWork] = useState(false);
 
   // ── Fetch ──
 
@@ -362,13 +378,14 @@ export default function TaskManagement() {
           priority: form.priority.toUpperCase(),
           dueDate: form.due || null,
           status: STATUS_MAP_REVERSE[form.status] || "PENDING",
+          rawFilesLink: form.rawFilesLink?.trim() || null,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setTasks(prev => [mapDBTask(data.data), ...prev]);
         setShowModal(false);
-        setForm({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned" });
+        setForm({ title: "", description: "", assigneeId: "", priority: "Medium", due: "", status: "Assigned", rawFilesLink: "" });
       }
     } catch {}
     setSaving(false);
@@ -396,6 +413,48 @@ export default function TaskManagement() {
         setTasks(prev => prev.map(t => (t.id === id ? updated : t)));
       }
     } catch {}
+  };
+
+  const handleSubmitTaskWork = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTaskForSubmit) return;
+    if (!submitWorkLink.trim()) {
+      alert("Please provide the Google Drive or cloud folder link with your finished deliverables.");
+      return;
+    }
+    setSubmittingWork(true);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedTaskForSubmit.id,
+          status: "COMPLETED",
+          workLink: submitWorkLink.trim(),
+          submissionNotes: submitNotes.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTasks(prev =>
+          prev.map(t =>
+            t.id === selectedTaskForSubmit.id
+              ? { ...t, status: "Completed", workLink: submitWorkLink.trim(), submissionNotes: submitNotes.trim() }
+              : t
+          )
+        );
+        setShowSubmitModal(false);
+        setSubmitWorkLink("");
+        setSubmitNotes("");
+        alert("Work submitted successfully! Admin has been notified to review what you have done.");
+      } else {
+        alert(data.error || "Failed to submit work");
+      }
+    } catch {
+      alert("Network error submitting work");
+    } finally {
+      setSubmittingWork(false);
+    }
   };
 
   const tabs: TabFilter[] = ["All Tasks", "To Do", "In Progress", "Done"];
@@ -590,6 +649,30 @@ export default function TaskManagement() {
                                   {task.description}
                                 </span>
                               )}
+                              {task.rawFilesLink && (
+                                <a
+                                  href={task.rawFilesLink.startsWith("http") ? task.rawFilesLink : `https://${task.rawFilesLink}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Open raw files / task folder in Google Drive/Dropbox"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    marginTop: "0.3rem",
+                                    fontSize: "0.72rem",
+                                    fontWeight: 700,
+                                    color: "#166534",
+                                    background: "#DCFCE7",
+                                    border: "1px solid #BBF7D0",
+                                    padding: "2px 7px",
+                                    borderRadius: "4px",
+                                    textDecoration: "none",
+                                  }}
+                                >
+                                  <Folder size={11} /> Open Task Folder ↗
+                                </a>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -643,9 +726,67 @@ export default function TaskManagement() {
                           )}
                         </td>
 
-                        {/* Actions */}
+                        {/* Actions & Submit Work */}
                         <td style={{ padding: "0.875rem 1rem", verticalAlign: "middle", textAlign: "center" }}>
-                          <ActionsMenu task={task} allStatuses={ALL_STATUSES} onStatusChange={updateStatus} />
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                            {task.status !== "Completed" ? (
+                              <button
+                                onClick={() => {
+                                  setSelectedTaskForSubmit(task);
+                                  setSubmitWorkLink(task.workLink || "");
+                                  setSubmitNotes(task.submissionNotes || "");
+                                  setShowSubmitModal(true);
+                                }}
+                                title="Submit work with deliverable link to notify admin"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  background: "#1A56DB",
+                                  color: "#fff",
+                                  border: "none",
+                                  borderRadius: 6,
+                                  padding: "4px 9px",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                  boxShadow: "0 1px 2px rgba(26,86,219,0.2)",
+                                }}
+                              >
+                                <Send size={11} /> Submit Work
+                              </button>
+                            ) : task.workLink ? (
+                              <a
+                                href={task.workLink.startsWith("http") ? task.workLink : `https://${task.workLink}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open deliverables"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  background: "#EFF6FF",
+                                  border: "1px solid #BFDBFE",
+                                  color: "#1A56DB",
+                                  borderRadius: 6,
+                                  padding: "3px 8px",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 700,
+                                  textDecoration: "none",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                <ExternalLink size={11} /> Deliverables ↗
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: "0.74rem", color: "#059669", fontWeight: 700 }}>
+                                ✓ Done
+                              </span>
+                            )}
+
+                            <ActionsMenu task={task} allStatuses={ALL_STATUSES} onStatusChange={updateStatus} />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -794,6 +935,23 @@ export default function TaskManagement() {
                 </div>
               </div>
 
+              {/* Raw Files / Task Folder Link */}
+              <div style={fieldWrap}>
+                <label style={labelStyle}>📂 Raw Files / Task Folder Link (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/drive/folders/... (Google Drive, Dropbox, OneDrive)"
+                  value={form.rawFilesLink}
+                  onChange={e => setForm(p => ({ ...p, rawFilesLink: e.target.value }))}
+                  style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = "#1A56DB")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+                <span style={{ fontSize: "0.72rem", color: "#6B7280", marginTop: "0.2rem" }}>
+                  Provide the cloud folder link containing raw photos or footage for the assigned editor.
+                </span>
+              </div>
+
               {/* Footer */}
               <div style={{ display: "flex", gap: "0.75rem", paddingTop: "0.25rem" }}>
                 <button
@@ -826,6 +984,167 @@ export default function TaskManagement() {
                 >
                   {saving && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
                   {saving ? "Creating…" : "Create Task"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Submit Work Deliverables Modal ── */}
+      {showSubmitModal && selectedTaskForSubmit && (
+        <div
+          onClick={() => setShowSubmitModal(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(17,24,39,0.55)",
+            zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem", backdropFilter: "blur(2px)",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", border: "1px solid #E5E7EB",
+              borderRadius: 12, width: "100%", maxWidth: 540,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+              overflow: "hidden",
+            }}
+          >
+            {/* Modal header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "1.25rem 1.5rem",
+              borderBottom: "1px solid #E5E7EB",
+            }}>
+              <div>
+                <h2 style={{ fontSize: "1.05rem", fontWeight: 700, color: "#111827", margin: 0, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Send size={18} style={{ color: "#1A56DB" }} /> Submit Work & Deliverables
+                </h2>
+                <p style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: "0.2rem" }}>
+                  Task: <strong style={{ color: "#111827" }}>{selectedTaskForSubmit.title}</strong>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowSubmitModal(false)}
+                style={{
+                  background: "none", border: "1px solid #E5E7EB", borderRadius: 6,
+                  padding: "0.35rem", cursor: "pointer", color: "#6B7280",
+                  display: "flex", transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F9FAFB"; (e.currentTarget as HTMLButtonElement).style.color = "#111827"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = "#6B7280"; }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <form onSubmit={handleSubmitTaskWork} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.1rem" }}>
+              {selectedTaskForSubmit.rawFilesLink && (
+                <div style={{
+                  padding: "0.75rem",
+                  background: "#EFF6FF",
+                  border: "1px solid #BFDBFE",
+                  borderRadius: 8,
+                  fontSize: "0.78rem",
+                  color: "#1E40AF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Folder size={15} style={{ color: "#1A56DB", flexShrink: 0 }} />
+                    <span>Raw Files Provided:</span>
+                  </div>
+                  <a
+                    href={selectedTaskForSubmit.rawFilesLink.startsWith("http") ? selectedTaskForSubmit.rawFilesLink : `https://${selectedTaskForSubmit.rawFilesLink}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: "#1A56DB",
+                      color: "#fff",
+                      textDecoration: "none",
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      fontSize: "0.72rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Open Task Folder <ExternalLink size={11} />
+                  </a>
+                </div>
+              )}
+
+              {/* Work Deliverables Link */}
+              <div style={fieldWrap}>
+                <label style={labelStyle}>
+                  Deliverables / Output Link <span style={{ color: "#EF4444" }}>*</span>
+                </label>
+                <input
+                  required
+                  type="url"
+                  placeholder="https://drive.google.com/drive/folders/... (Google Drive, Dropbox, Frame.io)"
+                  value={submitWorkLink}
+                  onChange={e => setSubmitWorkLink(e.target.value)}
+                  style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = "#1A56DB")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+                <span style={{ fontSize: "0.72rem", color: "#6B7280", marginTop: "0.2rem" }}>
+                  Admins (Mukul / Mukesh) will receive an instant notification with this link for QC approval.
+                </span>
+              </div>
+
+              {/* Submission Notes */}
+              <div style={fieldWrap}>
+                <label style={labelStyle}>Notes / Changes Made (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Exported in 4K ProRes and 1080p MP4. Completed color grade and sound balancing as requested."
+                  value={submitNotes}
+                  onChange={e => setSubmitNotes(e.target.value)}
+                  style={{ ...inputStyle, resize: "vertical" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "#1A56DB")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {/* Footer */}
+              <div style={{ display: "flex", gap: "0.75rem", paddingTop: "0.25rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(false)}
+                  style={{
+                    flex: 1, padding: "0.65rem", borderRadius: 6,
+                    border: "1px solid #E5E7EB", background: "#fff",
+                    color: "#374151", fontWeight: 600, fontSize: "0.85rem",
+                    cursor: "pointer", transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingWork}
+                  style={{
+                    flex: 1, padding: "0.65rem", borderRadius: 6,
+                    border: "none", background: submittingWork ? "#93C5FD" : "#1A56DB",
+                    color: "#fff", fontWeight: 600, fontSize: "0.85rem",
+                    cursor: submittingWork ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!submittingWork) (e.currentTarget as HTMLButtonElement).style.background = "#1648C4"; }}
+                  onMouseLeave={e => { if (!submittingWork) (e.currentTarget as HTMLButtonElement).style.background = "#1A56DB"; }}
+                >
+                  {submittingWork && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
+                  {submittingWork ? "Submitting…" : "Submit Deliverables"}
                 </button>
               </div>
             </form>

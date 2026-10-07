@@ -3,86 +3,134 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// Leave categories and annual quotas (in days)
+export const LEAVE_QUOTAS = {
+  CASUAL: 12,
+  SICK: 12,
+  PAID: 15,
+  WFH: 12,
+};
+
+function getDaysBetween(startStr: string, endStr: string): number {
+  try {
+    const s = new Date(startStr);
+    const e = new Date(endStr);
+    const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return diff > 0 ? diff : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function getDatesInRange(startStr: string, endStr: string): string[] {
+  const dates: string[] = [];
+  try {
+    const curr = new Date(startStr);
+    const end = new Date(endStr);
+    while (curr <= end) {
+      dates.push(curr.toISOString().split('T')[0]);
+      curr.setDate(curr.getDate() + 1);
+    }
+  } catch {
+    dates.push(startStr);
+  }
+  return dates;
+}
+
+// GET /api/leaves - fetch leave requests with accurate balance computations
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
+    const role = searchParams.get('role');
     const year = searchParams.get('year') || new Date().getFullYear().toString();
+    const status = searchParams.get('status');
 
-    let usersQuery = {};
-    if (userId) {
-      usersQuery = { id: userId };
+    const isAdmin = role?.toUpperCase() === 'ADMIN';
+
+    let userFilter: any = {};
+    if (!isAdmin && userId) {
+      userFilter = { id: userId };
+    } else if (userId && userId !== 'all') {
+      userFilter = { id: userId };
+    } else {
+      // Exclude admins from employee leave lists
+      userFilter = { role: { notIn: ['ADMIN', 'admin'] } };
     }
 
     const users = await prisma.user.findMany({
-      where: usersQuery,
-      include: {
+      where: userFilter,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
         leaveRequests: {
           where: {
-            startDate: { startsWith: year }
-          }
+            startDate: { startsWith: year },
+            ...(status && status !== 'ALL' ? { status } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
         },
-        attendance: {
-          where: {
-            date: { startsWith: year },
-            status: 'Absent'
-          }
-        }
-      }
+      },
     });
 
-    const results = users.map(user => {
-      let approvedFullLeaves = 0;
-      let approvedShortLeaves = 0;
+    const results = users.map((u) => {
+      let usedCL = 0;
+      let usedSL = 0;
+      let usedPL = 0;
+      let usedWFH = 0;
+      let usedUnpaid = 0;
+      let usedHalfDay = 0;
 
-      user.leaveRequests.forEach(req => {
+      u.leaveRequests.forEach((req) => {
         if (req.status === 'Approved') {
-          // Calculate duration in days (inclusive)
-          const start = new Date(req.startDate);
-          const end = new Date(req.endDate);
-          const days = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          const days = getDaysBetween(req.startDate, req.endDate);
+          const t = req.type.toLowerCase();
 
-          if (req.type === 'Full Day') approvedFullLeaves += days;
-          else if (req.type === 'Half Day') approvedFullLeaves += (days * 0.5);
-          else if (req.type.includes('Short Leave')) approvedShortLeaves += days;
+          if (t.includes('casual') || t === 'cl') {
+            usedCL += days;
+          } else if (t.includes('sick') || t === 'sl') {
+            usedSL += days;
+          } else if (t.includes('paid') || t === 'pl') {
+            usedPL += days;
+          } else if (t.includes('wfh') || t.includes('work from home')) {
+            usedWFH += days;
+          } else if (t.includes('half day')) {
+            usedHalfDay += days * 0.5;
+            usedCL += days * 0.5;
+          } else if (t.includes('unpaid') || t.includes('lwp')) {
+            usedUnpaid += days;
+          } else {
+            usedCL += days;
+          }
         }
       });
 
-      // Calculate unapproved absences for penalty
-      let unapprovedAbsences = 0;
-      user.attendance.forEach(att => {
-        const attDateStr = att.date;
-        const attDateObj = new Date(attDateStr);
-        // check if covered by ANY approved leave
-        const isCovered = user.leaveRequests.some(req => {
-           if (req.status !== 'Approved') return false;
-           const s = new Date(req.startDate);
-           const e = new Date(req.endDate);
-           return attDateObj >= s && attDateObj <= e;
-        });
-
-        if (!isCovered) {
-          unapprovedAbsences += 1;
-        }
-      });
-
-      const penaltyDeductions = unapprovedAbsences * 2;
-      const remainingFull = 12 - approvedFullLeaves - penaltyDeductions;
-      const remainingShort = 6 - approvedShortLeaves;
+      const totalApprovedDays = usedCL + usedSL + usedPL + usedWFH + usedUnpaid;
 
       return {
-        user: { id: user.id, name: user.name, role: user.role },
-        requests: user.leaveRequests,
+        user: { id: u.id, name: u.name, email: u.email, role: u.role },
+        requests: u.leaveRequests,
         balances: {
-          totalYearly: 12,
-          usedApproved: approvedFullLeaves,
-          unapprovedAbsences: unapprovedAbsences,
-          penaltyDeductions: penaltyDeductions,
-          remainingFull: remainingFull,
-          totalShort: 6,
-          usedShort: approvedShortLeaves,
-          remainingShort: remainingShort
-        }
+          year,
+          quotas: LEAVE_QUOTAS,
+          used: {
+            casual: usedCL,
+            sick: usedSL,
+            paid: usedPL,
+            wfh: usedWFH,
+            unpaid: usedUnpaid,
+            halfDay: usedHalfDay,
+            totalDays: totalApprovedDays,
+          },
+          remaining: {
+            casual: Math.max(0, LEAVE_QUOTAS.CASUAL - usedCL),
+            sick: Math.max(0, LEAVE_QUOTAS.SICK - usedSL),
+            paid: Math.max(0, LEAVE_QUOTAS.PAID - usedPL),
+            wfh: Math.max(0, LEAVE_QUOTAS.WFH - usedWFH),
+          },
+        },
       };
     });
 
@@ -93,13 +141,29 @@ export async function GET(req: Request) {
   }
 }
 
+// POST /api/leaves - submit a new leave request
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { userId, startDate, endDate, type, reason } = body;
 
     if (!userId || !startDate || !endDate || !type || !reason) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'All fields (Start Date, End Date, Type, Reason) are required.' },
+        { status: 400 }
+      );
+    }
+
+    if (new Date(endDate) < new Date(startDate)) {
+      return NextResponse.json(
+        { success: false, error: 'End date cannot be earlier than start date.' },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
     const leave = await prisma.leaveRequest.create({
@@ -108,28 +172,119 @@ export async function POST(req: Request) {
         startDate,
         endDate,
         type,
-        reason,
-        status: 'Pending'
-      }
+        reason: reason.trim(),
+        status: 'Pending',
+      },
     });
 
-    // Notify Admins
+    // Notify all admins of the new leave request
     try {
-      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
-      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const admins = await prisma.user.findMany({
+        where: { role: { in: ['ADMIN', 'admin'] } },
+      });
+      const daysCount = getDaysBetween(startDate, endDate);
       for (const admin of admins) {
         await prisma.notification.create({
           data: {
             userId: admin.id,
-            text: `${user?.name} has requested a ${type} from ${startDate} to ${endDate}.`
-          }
+            text: `🌴 ${user.name} applied for ${type} (${daysCount} day${daysCount > 1 ? 's' : ''}: ${startDate} to ${endDate}).`,
+          },
         });
       }
-    } catch {}
+    } catch (notifErr) {
+      console.warn('Notification error:', notifErr);
+    }
 
     return NextResponse.json({ success: true, data: leave });
   } catch (error) {
     console.error('Leave POST error:', error);
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// PATCH /api/leaves - approve or reject leave request (admin)
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { leaveId, status, adminNotes, adminId } = body;
+
+    if (!leaveId || !status) {
+      return NextResponse.json({ success: false, error: 'Missing leaveId or status' }, { status: 400 });
+    }
+
+    const validStatus = status === 'Approved' ? 'Approved' : status === 'Rejected' ? 'Rejected' : status;
+
+    const existing = await prisma.leaveRequest.findUnique({
+      where: { id: leaveId },
+      include: { user: true },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Leave request not found' }, { status: 404 });
+    }
+
+    const updated = await prisma.leaveRequest.update({
+      where: { id: leaveId },
+      data: {
+        status: validStatus,
+        adminNotes: adminNotes || null,
+        reviewedBy: adminId || null,
+      },
+    });
+
+    // If Approved, sync with Attendance table
+    if (validStatus === 'Approved') {
+      const dates = getDatesInRange(existing.startDate, existing.endDate);
+      const isWFH = existing.type.toLowerCase().includes('wfh');
+      const isHalfDay = existing.type.toLowerCase().includes('half day');
+      const attStatus = isWFH ? 'WFH' : isHalfDay ? 'Half Day' : 'On Leave';
+
+      for (const d of dates) {
+        const attRecord = await prisma.attendance.findFirst({
+          where: { userId: existing.userId, date: d },
+        });
+
+        if (attRecord) {
+          await prisma.attendance.update({
+            where: { id: attRecord.id },
+            data: {
+              status: attStatus,
+              notes: `${existing.type} (Approved)`,
+            },
+          });
+        } else {
+          await prisma.attendance.create({
+            data: {
+              userId: existing.userId,
+              date: d,
+              timeIn: isWFH ? '10:00 AM' : '--',
+              timeOut: isWFH ? '06:30 PM' : '--',
+              status: attStatus,
+              notes: `${existing.type} (Approved)`,
+            },
+          });
+        }
+      }
+    }
+
+    // Send notification to employee
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: existing.userId,
+          text:
+            validStatus === 'Approved'
+              ? `✅ Your leave request (${existing.type}: ${existing.startDate} to ${existing.endDate}) has been APPROVED.`
+              : `❌ Your leave request (${existing.type}: ${existing.startDate} to ${existing.endDate}) was REJECTED.${adminNotes ? ` Reason: ${adminNotes}` : ''}`,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Notification error:', notifErr);
+    }
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Leave PATCH error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

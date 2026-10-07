@@ -12,6 +12,12 @@ __pycache__/
 .env.local
 .env.*.local
 
+# Build & Dependencies
+node_modules/
+.next/
+playwright-report/
+test-results/
+
 # OS files
 .DS_Store
 Thumbs.db

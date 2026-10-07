@@ -15,6 +15,48 @@ export default function LoginPage() {
   const [error,         setError]         = useState("");
   const [focusedField,  setFocusedField]  = useState<string | null>(null);
 
+  // Forgot Password modal state
+  const [showForgot,    setShowForgot]    = useState(false);
+  const [forgotEmail,   setForgotEmail]   = useState("");
+  const [forgotNewPass, setForgotNewPass] = useState("");
+  const [forgotConfirm, setForgotConfirm] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg,     setForgotMsg]     = useState("");
+  const [forgotErr,     setForgotErr]     = useState("");
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErr("");
+    setForgotMsg("");
+    if (!forgotEmail) return setForgotErr("Please enter your registered email");
+    if (!forgotNewPass || forgotNewPass.length < 6) return setForgotErr("Password must be at least 6 characters");
+    if (forgotNewPass !== forgotConfirm) return setForgotErr("Passwords do not match");
+
+    setForgotLoading(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail, newPassword: forgotNewPass }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setForgotMsg(data.message || "Password reset successful! Please log in.");
+        setTimeout(() => {
+          setShowForgot(false);
+          setEmail(forgotEmail);
+          setForgotMsg("");
+        }, 1800);
+      } else {
+        setForgotErr(data.error || "Failed to reset password");
+      }
+    } catch {
+      setForgotErr("Network error. Please try again.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   // ── Authenticate against the real database ────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +221,31 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotNewPass("");
+                  setForgotConfirm("");
+                  setForgotErr("");
+                  setForgotMsg("");
+                  setShowForgot(true);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#1A56DB",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
 
           {/* Error message */}
@@ -238,6 +305,112 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgot && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)",
+          backdropFilter: "blur(4px)", zIndex: 100, display: "flex",
+          alignItems: "center", justifyContent: "center", padding: "1rem"
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: "12px", width: "100%", maxWidth: "400px",
+            padding: "2rem", boxShadow: "0 20px 40px rgba(0,0,0,0.15)", border: "1px solid #E5E7EB"
+          }}>
+            <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>
+              Reset Password
+            </h2>
+            <p style={{ fontSize: "0.82rem", color: "#6B7280", margin: "0 0 1.25rem" }}>
+              Enter your registered Resawc email address and set a new password.
+            </p>
+
+            {forgotMsg && (
+              <div style={{
+                background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "6px",
+                padding: "8px 12px", color: "#059669", fontSize: "0.82rem", fontWeight: 600, marginBottom: "1rem"
+              }}>
+                {forgotMsg}
+              </div>
+            )}
+
+            {forgotErr && (
+              <div style={{
+                background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "6px",
+                padding: "8px 12px", color: "#DC2626", fontSize: "0.82rem", fontWeight: 600, marginBottom: "1rem"
+              }}>
+                {forgotErr}
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                  Registered Email Address *
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@resawc.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid #E5E7EB", borderRadius: "6px", fontSize: "0.85rem", boxSizing: "border-box" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                  New Password * (Min 6 chars)
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={forgotNewPass}
+                  onChange={(e) => setForgotNewPass(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid #E5E7EB", borderRadius: "6px", fontSize: "0.85rem", boxSizing: "border-box" }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                  Confirm New Password *
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={forgotConfirm}
+                  onChange={(e) => setForgotConfirm(e.target.value)}
+                  style={{ width: "100%", padding: "8px 12px", border: "1px solid #E5E7EB", borderRadius: "6px", fontSize: "0.85rem", boxSizing: "border-box" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(false)}
+                  style={{
+                    background: "#F3F4F6", color: "#374151", padding: "8px 14px",
+                    borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "0.82rem", cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  style={{
+                    background: "#1A56DB", color: "#fff", padding: "8px 16px",
+                    borderRadius: "6px", border: "none", fontWeight: 700, fontSize: "0.82rem", cursor: "pointer"
+                  }}
+                >
+                  {forgotLoading ? "Resetting..." : "Reset Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');

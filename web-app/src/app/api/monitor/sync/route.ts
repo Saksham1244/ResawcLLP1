@@ -7,6 +7,11 @@ const prisma = new PrismaClient();
 export async function GET(request: Request) {
   try {
     const activities = await prisma.pCActivity.findMany({
+      where: {
+        user: {
+          role: { notIn: ['ADMIN', 'admin'] }
+        }
+      },
       include: {
         user: {
           select: { name: true, role: true }
@@ -86,11 +91,20 @@ export async function POST(req: Request) {
 
     const userExists = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true }
+      select: { id: true, role: true }
     });
 
     if (!userExists) {
       return NextResponse.json({ success: false, error: `User with ID '${userId}' not found` }, { status: 404 });
+    }
+
+    // Admins are exempt from desktop time/activity tracking
+    if (userExists.role?.toUpperCase() === 'ADMIN') {
+      return NextResponse.json({
+        success: true,
+        message: 'Admin account is exempt from desktop activity monitoring',
+        isExempt: true,
+      });
     }
 
     // Basic productivity calculation is now done at the end.

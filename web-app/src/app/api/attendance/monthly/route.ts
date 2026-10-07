@@ -15,13 +15,13 @@ export async function GET(req: Request) {
     const yearStr = month.split('-')[0];
     const monthStr = month.split('-')[1];
 
-    // Fetch all users
+    // Fetch all employees (admins are exempt)
     const allUsers = await prisma.user.findMany({
+      where: { role: { notIn: ['ADMIN', 'admin'] } },
       select: { id: true, name: true, role: true }
     });
 
     // Fetch all attendance records for the given month
-    // We use a "startsWith" on the date string since dates are stored as "YYYY-MM-DD"
     const attendanceRecords = await prisma.attendance.findMany({
       where: {
         date: {
@@ -38,6 +38,9 @@ export async function GET(req: Request) {
       let absent = 0;
       let late = 0;
       let halfDay = 0;
+      let onLeave = 0;
+      let wfh = 0;
+      let totalLateMinutes = 0;
 
       // Ensure we only count 1 status per day per user (using latest record for a day if multiple exist)
       const recordsByDate: Record<string, typeof userRecords[0]> = {};
@@ -46,7 +49,6 @@ export async function GET(req: Request) {
         if (!recordsByDate[record.date]) {
           recordsByDate[record.date] = record;
         } else {
-          // keep the one with the latest createdAt
           if (new Date(record.createdAt).getTime() > new Date(recordsByDate[record.date].createdAt).getTime()) {
             recordsByDate[record.date] = record;
           }
@@ -54,11 +56,16 @@ export async function GET(req: Request) {
       });
 
       Object.values(recordsByDate).forEach(record => {
-        if (record.status === 'Absent') absent++;
-        else if (record.status === 'Present') present++;
-        else if (record.status === 'Late') late++;
-        else if (record.status === 'Half Day') halfDay++;
-        else if (record.status === 'Short Day') halfDay++; // Count Short Day as Half Day if not explicitly marked
+        const s = record.status.toLowerCase();
+        if (s === 'absent') absent++;
+        else if (s === 'present') present++;
+        else if (s === 'late') {
+          late++;
+          totalLateMinutes += record.lateMinutes || 0;
+        }
+        else if (s === 'half day' || s === 'short day') halfDay++;
+        else if (s === 'on leave' || s.includes('leave')) onLeave++;
+        else if (s === 'wfh') wfh++;
       });
 
       return {
@@ -69,7 +76,10 @@ export async function GET(req: Request) {
         absent,
         late,
         halfDay,
-        totalTracked: present + absent + late + halfDay
+        onLeave,
+        wfh,
+        totalLateMinutes,
+        totalTracked: present + absent + late + halfDay + onLeave + wfh
       };
     });
 

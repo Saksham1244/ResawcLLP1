@@ -1,0 +1,14 @@
+version: 2
+snapshot:
+  widths:
+    - 375
+    - 1280
+  minHeight: 1024
+  percyCSS: |
+    /* Hide dynamic timestamps or blinking carets during visual regression */
+    [data-testid="dynamic-clock"], .cursor-blink { visibility: hidden !important; }
+discovery:
+  concurrency: 2
+  allowed-hostnames:
+    - localhost
+    - 127.0.0.1
