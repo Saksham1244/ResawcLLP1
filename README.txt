@@ -67,6 +67,15 @@ d:\Resawc LLP\
 - Export under LUT: 0% IGST zero-rated international billing (ARN: AD070326001234X).
 - One-click GSTR-1 Sales JSON export for direct portal upload.
 
+[SERVICES & RATE MASTER (ADMIN SETTINGS)]
+- Accessible under /dashboard/settings -> "Services & Rates" tab (Admin only).
+- Allows adding, editing, and managing new billable services anytime.
+- Each service includes: Name, Category (Photo, Video, Retainer, Creative, Other), Billing Unit (img, min, reel, video, hr, month, project), Standard Default Rate in INR (₹), and GST SAC code (998314).
+- All configured services automatically propagate to:
+  * "Configure Client Rate Card" modal under Invoicing (/dashboard/finance).
+  * "Client Contract Rate Card" tab under Client 360 (/dashboard/clients/[id]).
+  * Production job queues and GST Invoices.
+
 --------------------------------------------------------------------------------
 3. DEFAULT LOGIN CREDENTIALS
 --------------------------------------------------------------------------------

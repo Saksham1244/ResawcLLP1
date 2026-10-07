@@ -137,6 +137,17 @@ python agent.py
 
 ---
 
+## 🛠️ Services & Rate Master Catalog (Admin Settings)
+- **Settings Path**: `/dashboard/settings?tab=services` -> **Services & Rates**
+- **Dynamic Catalog**: Add, edit, toggle, or delete any billable company service (Photo Culling, Color Correction, Retouching, Video Editing, Reels/Shorts, Monthly Retainers, Drone Video Editing, Album Design, Teasers, etc.).
+- **Per-Service Attributes**: Service Name, Category (`PHOTO`, `VIDEO`, `RETAINER`, `CREATIVE`, `OTHER`), Billing Unit (`img`, `min`, `reel`, `video`, `hr`, `month`, `project`), Default Rate (INR ₹), and SAC Code (`998314`).
+- **Dynamic Client Rate Cards**: Any service defined in Settings automatically appears with custom price fields in:
+  1. **Configure Client Rate Card** modal (`/dashboard/finance`).
+  2. **Client Contract Rate Card** tab (`/dashboard/clients/[id]`).
+  3. **Editing Jobs Pipeline** and **GST Tax Invoicing**.
+
+---
+
 ## 🌿 Git Branches & Testing Branch
 - **`main`**: Production trunk.
-- **`feature/production-gst-testing`**: Dedicated branch containing all Phase 1-5 implementations, GST Portal settings, Raw Files folder linking, and the complete E2E test suite.
+- **`feature/production-gst-testing`**: Dedicated branch containing all Phase 1-5 implementations, GST Portal settings, Services & Rate Master, Raw Files folder linking, and the complete E2E test suite.

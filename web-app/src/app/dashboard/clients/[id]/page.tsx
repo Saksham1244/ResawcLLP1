@@ -42,39 +42,57 @@ export default function Client360Page() {
 
   // Rate card editing state
   const [editingRateCard, setEditingRateCard] = useState(false);
+  const [companyServices, setCompanyServices] = useState<any[]>([]);
   const [rateForm, setRateForm] = useState({
     photoCullingPerImage: 3,
-    photoColorPerImage: 8,
-    photoRetouchPerImage: 25,
-    videoEditingPerMinute: 200,
-    reelEditingPerItem: 750,
+    photoColorPerImage: 7,
+    photoRetouchPerImage: 15,
+    videoEditingPerMinute: 500,
+    reelEditingPerItem: 1200,
     monthlyRetainer: 0,
     currency: "INR",
     billingCycle: "Per Project",
     paymentTermsDays: 15,
+    customRates: {} as Record<string, number>,
   });
 
   const fetchClientProfile = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch(`/api/clients/${clientId}`, {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const [res, sRes] = await Promise.all([
+        fetch(`/api/clients/${clientId}`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        }),
+        fetch("/api/services"),
+      ]);
+
       const data = await res.json();
+      const sData = await sRes.json();
+      if (sData.success && Array.isArray(sData.data)) setCompanyServices(sData.data);
+
       if (data.success && data.data) {
         setClient(data.data);
         if (data.data.rateCard) {
+          const rc = data.data.rateCard;
+          const customMap: Record<string, number> = {};
+          if (rc.customRates) {
+            try {
+              const parsed = typeof rc.customRates === "string" ? JSON.parse(rc.customRates) : rc.customRates;
+              Object.assign(customMap, parsed);
+            } catch {}
+          }
           setRateForm({
-            photoCullingPerImage: data.data.rateCard.photoCullingPerImage || 3,
-            photoColorPerImage: data.data.rateCard.photoColorPerImage || 8,
-            photoRetouchPerImage: data.data.rateCard.photoRetouchPerImage || 25,
-            videoEditingPerMinute: data.data.rateCard.videoEditingPerMinute || 200,
-            reelEditingPerItem: data.data.rateCard.reelEditingPerItem || 750,
-            monthlyRetainer: data.data.rateCard.monthlyRetainer || 0,
-            currency: data.data.rateCard.currency || "INR",
-            billingCycle: data.data.rateCard.billingCycle || "Per Project",
-            paymentTermsDays: data.data.rateCard.paymentTermsDays || 15,
+            photoCullingPerImage: rc.photoCullingRate ?? rc.photoCullingPerImage ?? 3,
+            photoColorPerImage: rc.photoColorRate ?? rc.photoColorPerImage ?? 7,
+            photoRetouchPerImage: rc.photoRetouchRate ?? rc.photoRetouchPerImage ?? 15,
+            videoEditingPerMinute: rc.videoPerMinuteRate ?? rc.videoEditingPerMinute ?? 500,
+            reelEditingPerItem: rc.videoReelRate ?? rc.reelEditingPerItem ?? 1200,
+            monthlyRetainer: rc.monthlyRetainer ?? 0,
+            currency: rc.currency || "INR",
+            billingCycle: rc.billingCycle || "Per Project",
+            paymentTermsDays: rc.paymentTermsDays || 15,
+            customRates: customMap,
           });
         }
       }
@@ -101,7 +119,13 @@ export default function Client360Page() {
         },
         body: JSON.stringify({
           clientId: client.id,
-          ...rateForm,
+          photoCullingRate: rateForm.photoCullingPerImage,
+          photoColorRate: rateForm.photoColorPerImage,
+          photoRetouchRate: rateForm.photoRetouchPerImage,
+          videoPerMinuteRate: rateForm.videoEditingPerMinute,
+          videoReelRate: rateForm.reelEditingPerItem,
+          monthlyRetainer: rateForm.monthlyRetainer,
+          customRates: rateForm.customRates,
         }),
       });
       const data = await res.json();
@@ -705,71 +729,60 @@ export default function Client360Page() {
 
           <form onSubmit={handleSaveRateCard}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "20px" }}>
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>Photo Culling Rate (₹ / image)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.photoCullingPerImage}
-                  onChange={(e) => setRateForm({ ...rateForm, photoCullingPerImage: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
+              {(companyServices.length > 0 ? companyServices.filter(s => s.isActive) : [
+                { id: "s1", name: "Photo Culling", code: "photoCullingRate", unit: "image", defaultRate: 3 },
+                { id: "s2", name: "Color Correction", code: "photoColorRate", unit: "image", defaultRate: 7 },
+                { id: "s3", name: "High-End Retouching", code: "photoRetouchRate", unit: "image", defaultRate: 15 },
+                { id: "s4", name: "Video Editing", code: "videoPerMinuteRate", unit: "min", defaultRate: 500 },
+                { id: "s5", name: "Social Reel / Short", code: "videoReelRate", unit: "reel", defaultRate: 1200 },
+                { id: "s6", name: "Monthly Retainer", code: "monthlyRetainer", unit: "month", defaultRate: 0 },
+              ]).map(svc => {
+                const currentVal = rateForm.customRates[svc.id] ?? (
+                  svc.code === "photoCullingRate" ? rateForm.photoCullingPerImage :
+                  svc.code === "photoColorRate" ? rateForm.photoColorPerImage :
+                  svc.code === "photoRetouchRate" ? rateForm.photoRetouchPerImage :
+                  svc.code === "videoPerMinuteRate" ? rateForm.videoEditingPerMinute :
+                  svc.code === "videoReelRate" ? rateForm.reelEditingPerItem :
+                  svc.code === "monthlyRetainer" ? rateForm.monthlyRetainer :
+                  (rateForm.customRates[svc.name] ?? svc.defaultRate)
+                );
 
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>Color Correction Rate (₹ / image)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.photoColorPerImage}
-                  onChange={(e) => setRateForm({ ...rateForm, photoColorPerImage: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
+                return (
+                  <div key={svc.id} style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
+                    <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>
+                      {svc.name} (₹ / {svc.unit})
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      disabled={!editingRateCard}
+                      value={currentVal}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0;
+                        const nextCustom = { ...rateForm.customRates, [svc.id]: val, [svc.name]: val };
+                        const nextLegacy: any = {};
+                        if (svc.code === "photoCullingRate") nextLegacy.photoCullingPerImage = val;
+                        if (svc.code === "photoColorRate") nextLegacy.photoColorPerImage = val;
+                        if (svc.code === "photoRetouchRate") nextLegacy.photoRetouchPerImage = val;
+                        if (svc.code === "videoPerMinuteRate") nextLegacy.videoEditingPerMinute = val;
+                        if (svc.code === "videoReelRate") nextLegacy.reelEditingPerItem = val;
+                        if (svc.code === "monthlyRetainer") nextLegacy.monthlyRetainer = val;
+                        setRateForm({ ...rateForm, ...nextLegacy, customRates: nextCustom });
+                      }}
+                      style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700, background: editingRateCard ? "#fff" : "#F3F4F6", boxSizing: "border-box" }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
 
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>High-End Retouching (₹ / image)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.photoRetouchPerImage}
-                  onChange={(e) => setRateForm({ ...rateForm, photoRetouchPerImage: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
-
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>Video Editing (₹ / minute finished)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.videoEditingPerMinute}
-                  onChange={(e) => setRateForm({ ...rateForm, videoEditingPerMinute: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
-
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>Social Reel / Short (₹ / video)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.reelEditingPerItem}
-                  onChange={(e) => setRateForm({ ...rateForm, reelEditingPerItem: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
-
-              <div style={{ padding: "16px", background: "#F8FAFC", borderRadius: C.radiusSm, border: `1px solid ${C.border}` }}>
-                <label style={{ fontSize: "13px", fontWeight: 600, color: C.text, display: "block", marginBottom: "6px" }}>Monthly Retainer (₹ / month)</label>
-                <input
-                  type="number"
-                  disabled={!editingRateCard}
-                  value={rateForm.monthlyRetainer}
-                  onChange={(e) => setRateForm({ ...rateForm, monthlyRetainer: parseFloat(e.target.value) || 0 })}
-                  style={{ width: "100%", padding: "10px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", fontWeight: 700 }}
-                />
-              </div>
+            <div style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <a
+                href="/dashboard/settings?tab=services"
+                style={{ fontSize: "12px", color: C.primary, textDecoration: "none", fontWeight: 600 }}
+              >
+                ⚙ Need to add more services? Manage in Settings
+              </a>
             </div>
 
             {editingRateCard && (

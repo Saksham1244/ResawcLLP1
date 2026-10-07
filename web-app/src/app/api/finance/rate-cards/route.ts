@@ -76,11 +76,16 @@ export async function POST(req: Request) {
       videoReelRate,
       monthlyRetainer,
       customNotes,
+      customRates,
     } = body;
 
     if (!clientId) {
       return NextResponse.json({ success: false, error: 'clientId is required' }, { status: 400 });
     }
+
+    const customRatesStr = customRates !== undefined
+      ? (typeof customRates === 'object' ? JSON.stringify(customRates) : String(customRates))
+      : undefined;
 
     const rateCard = await prisma.clientRateCard.upsert({
       where: { clientId },
@@ -92,6 +97,7 @@ export async function POST(req: Request) {
         videoPerMinuteRate: parseFloat(videoPerMinuteRate) || 0,
         videoReelRate: parseFloat(videoReelRate) || 0,
         monthlyRetainer: parseFloat(monthlyRetainer) || 0,
+        customRates: customRatesStr || '{}',
         customNotes: customNotes || '',
       },
       update: {
@@ -101,6 +107,7 @@ export async function POST(req: Request) {
         videoPerMinuteRate: parseFloat(videoPerMinuteRate) || 0,
         videoReelRate: parseFloat(videoReelRate) || 0,
         monthlyRetainer: parseFloat(monthlyRetainer) || 0,
+        customRates: customRatesStr !== undefined ? customRatesStr : undefined,
         customNotes: customNotes !== undefined ? customNotes : undefined,
       },
       include: {

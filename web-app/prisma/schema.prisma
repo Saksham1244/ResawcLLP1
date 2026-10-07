@@ -386,9 +386,25 @@ model ClientRateCard {
   videoReelRate       Float    @default(1200.0)// ₹ per reel/short
   monthlyRetainer     Float    @default(0.0)   // ₹ monthly flat retainer
   
+  customRates         String?  @default("{}")  // JSON string storing custom rates by service id: { [serviceId]: rate }
   customNotes         String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+model CompanyService {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  code         String?
+  category     String   @default("PHOTO") // PHOTO, VIDEO, RETAINER, CREATIVE, OTHER
+  unit         String   @default("img")   // img, min, reel, video, hr, month, project
+  defaultRate  Float    @default(0.0)     // default rate in INR ₹
+  sacCode      String?  @default("998314") // SAC / HSN code for GST
+  description  String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Invoice {

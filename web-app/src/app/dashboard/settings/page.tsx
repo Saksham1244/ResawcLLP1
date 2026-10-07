@@ -3,21 +3,23 @@
 import { useState, useEffect } from "react";
 import { 
   Save, User, Calendar, Bell, Shield, Palette, Database, Check, Eye, EyeOff, Users,
-  Landmark, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Building2, CreditCard, Lock, Globe, FileText, Download
+  Landmark, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Building2, CreditCard, Lock, Globe, FileText, Download,
+  Briefcase, Plus, Edit2, Trash2, Layers, Tag, Sparkles
 } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { useRole } from "@/context/RoleContext";
 
-type Tab = "profile" | "schedule" | "gst" | "notifications" | "appearance" | "security" | "database";
+type Tab = "profile" | "schedule" | "gst" | "services" | "notifications" | "appearance" | "security" | "database";
 
-const TABS: { key: Tab; label: string; icon: any }[] = [
-  { key: "profile",       label: "Profile",       icon: User },
-  { key: "schedule",      label: "Schedule",      icon: Calendar },
-  { key: "gst",          label: "GST Portal",    icon: Landmark },
-  { key: "notifications", label: "Notifications", icon: Bell },
-  { key: "appearance",    label: "Appearance",    icon: Palette },
-  { key: "security",      label: "Security",      icon: Shield },
-  { key: "database",      label: "Database",      icon: Database },
+const TABS: { key: Tab; label: string; icon: any; adminOnly?: boolean }[] = [
+  { key: "profile",       label: "Profile",             icon: User },
+  { key: "schedule",      label: "Schedule",            icon: Calendar,  adminOnly: true },
+  { key: "gst",          label: "GST Portal",          icon: Landmark,  adminOnly: true },
+  { key: "services",     label: "Services & Rates",    icon: Briefcase, adminOnly: true },
+  { key: "notifications", label: "Notifications",       icon: Bell },
+  { key: "appearance",    label: "Appearance",          icon: Palette },
+  { key: "security",      label: "Security",            icon: Shield },
+  { key: "database",      label: "Database",            icon: Database,  adminOnly: true },
 ];
 
 const inputStyle: React.CSSProperties = {
@@ -309,8 +311,152 @@ function SettingsContent() {
   // Database
   const [db, setDb] = useState({ host: "localhost", port: "5432", name: "resawc_db", user: "postgres", ssl: true, backupFreq: "daily" });
 
+  // ── Company Services & Rate Master State ─────────────────────────────────
+  interface ServiceItem {
+    id: string;
+    name: string;
+    code?: string | null;
+    category: string;
+    unit: string;
+    defaultRate: number;
+    sacCode?: string | null;
+    description?: string | null;
+    isActive: boolean;
+    sortOrder: number;
+  }
+
+  const [companyServices, setCompanyServices] = useState<ServiceItem[]>([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState("ALL");
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const [serviceActionMsg, setServiceActionMsg] = useState("");
+  const [serviceForm, setServiceForm] = useState({
+    name: "",
+    category: "PHOTO",
+    unit: "img",
+    defaultRate: 0,
+    sacCode: "998314",
+    description: "",
+    isActive: true,
+  });
+
+  const fetchServices = async () => {
+    try {
+      setLoadingServices(true);
+      const res = await fetch("/api/services");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setCompanyServices(data.data);
+      }
+    } catch (e) {
+      console.error("Error fetching services:", e);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
+  const openAddServiceModal = () => {
+    setEditingService(null);
+    setServiceForm({
+      name: "",
+      category: "PHOTO",
+      unit: "img",
+      defaultRate: 0,
+      sacCode: "998314",
+      description: "",
+      isActive: true,
+    });
+    setShowServiceModal(true);
+  };
+
+  const openEditServiceModal = (svc: ServiceItem) => {
+    setEditingService(svc);
+    setServiceForm({
+      name: svc.name,
+      category: svc.category,
+      unit: svc.unit,
+      defaultRate: svc.defaultRate,
+      sacCode: svc.sacCode || "998314",
+      description: svc.description || "",
+      isActive: svc.isActive,
+    });
+    setShowServiceModal(true);
+  };
+
+  const handleSaveService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!serviceForm.name.trim()) {
+      alert("Please enter a service name");
+      return;
+    }
+    try {
+      const res = await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(editingService ? { id: editingService.id } : {}),
+          ...serviceForm,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowServiceModal(false);
+        setServiceActionMsg(editingService ? `Service "${serviceForm.name}" updated successfully!` : `Service "${serviceForm.name}" added to company catalog!`);
+        setTimeout(() => setServiceActionMsg(""), 3500);
+        fetchServices();
+      } else {
+        alert(data.error || "Failed to save service");
+      }
+    } catch {
+      alert("Network error while saving service");
+    }
+  };
+
+  const handleDeleteService = async (svc: ServiceItem) => {
+    if (!confirm(`Are you sure you want to remove service "${svc.name}"? It will no longer appear in new client rate cards.`)) return;
+    try {
+      const res = await fetch(`/api/services?id=${svc.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        setServiceActionMsg(`Service "${svc.name}" removed.`);
+        setTimeout(() => setServiceActionMsg(""), 3500);
+        fetchServices();
+      } else {
+        alert(data.error || "Failed to delete service");
+      }
+    } catch {
+      alert("Network error while deleting service");
+    }
+  };
+
+  const handleToggleService = async (svc: ServiceItem) => {
+    try {
+      const res = await fetch("/api/services", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: svc.id, isActive: !svc.isActive }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchServices();
+      }
+    } catch {
+      alert("Failed to toggle service status");
+    }
+  };
+
   // ── Load saved appearance & settings on mount ─────────────────────────────
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab") as Tab;
+      if (tabParam && ["profile", "schedule", "gst", "services", "notifications", "appearance", "security", "database"].includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+    fetchServices();
+
     try {
       const savedAppearance = localStorage.getItem("resawc_appearance");
       if (savedAppearance) {
@@ -458,7 +604,7 @@ function SettingsContent() {
 
         {/* ── Sidebar Tabs ── */}
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px', padding: '6px', position: 'sticky', top: '1rem' }}>
-          {TABS.map(tab => {
+          {TABS.filter(t => !t.adminOnly || isAdmin).map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.key;
             return (
@@ -1352,6 +1498,400 @@ function SettingsContent() {
                   </button>
                 </div>
               </SectionCard>
+            </>
+          )}
+
+          {/* ── SERVICES & RATE MASTER ── */}
+          {isAdmin && activeTab === "services" && (
+            <>
+              {/* Header Status Banner */}
+              <div style={{
+                background: "linear-gradient(135deg, #1E40AF 0%, #1D4ED8 100%)",
+                borderRadius: "8px", padding: "1.25rem 1.5rem", color: "#fff",
+                marginBottom: "1.25rem", display: "flex", justifyContent: "space-between",
+                alignItems: "center", flexWrap: "wrap", gap: "1rem"
+              }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <Briefcase size={20} color="#93C5FD" />
+                    <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 800, color: "#fff" }}>
+                      Company Services & Rate Master
+                    </h2>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "0.83rem", color: "#DBEAFE", maxWidth: "600px", lineHeight: 1.4 }}>
+                    Define billable post-production services offered by Resawc LLP. Any service added here dynamically propagates to Client Rate Cards, Editing Jobs, and GST Invoicing.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={openAddServiceModal}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "6px",
+                    background: "#fff", color: "#1E40AF", border: "none",
+                    padding: "0.6rem 1.1rem", borderRadius: "6px",
+                    fontSize: "0.85rem", fontWeight: 700, cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)", transition: "all 0.15s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+                >
+                  <Plus size={16} /> Add New Service
+                </button>
+              </div>
+
+              {serviceActionMsg && (
+                <div style={{
+                  background: "#ECFDF5", border: "1px solid #A7F3D0", color: "#065F46",
+                  padding: "0.75rem 1rem", borderRadius: "6px", marginBottom: "1.25rem",
+                  fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "8px"
+                }}>
+                  <CheckCircle2 size={16} color="#059669" />
+                  <span>{serviceActionMsg}</span>
+                </div>
+              )}
+
+              {/* Metric Highlights */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
+                <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "1rem" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" }}>Total Services</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111827", marginTop: "4px" }}>
+                    {companyServices.length}
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#059669", fontWeight: 600 }}>
+                    {companyServices.filter(s => s.isActive).length} Active in Catalog
+                  </span>
+                </div>
+
+                <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "1rem" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" }}>Photo Services</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#2563EB", marginTop: "4px" }}>
+                    {companyServices.filter(s => s.category === "PHOTO").length}
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#6B7280" }}>Culling, Retouch, Color</span>
+                </div>
+
+                <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "1rem" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" }}>Video & Reels</span>
+                  <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "#7C3AED", marginTop: "4px" }}>
+                    {companyServices.filter(s => s.category === "VIDEO").length}
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#6B7280" }}>Editing, Cuts, Shorts</span>
+                </div>
+
+                <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "1rem" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#6B7280", textTransform: "uppercase" }}>Default SAC Code</span>
+                  <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#059669", marginTop: "4px" }}>
+                    998314
+                  </div>
+                  <span style={{ fontSize: "11px", color: "#6B7280" }}>GST 18% Applicable</span>
+                </div>
+              </div>
+
+              {/* Category Filter Bar */}
+              <div style={{ display: "flex", gap: "6px", marginBottom: "1rem", flexWrap: "wrap" }}>
+                {[
+                  { key: "ALL", label: `All (${companyServices.length})` },
+                  { key: "PHOTO", label: `Photo (${companyServices.filter(s => s.category === "PHOTO").length})` },
+                  { key: "VIDEO", label: `Video (${companyServices.filter(s => s.category === "VIDEO").length})` },
+                  { key: "RETAINER", label: `Retainer (${companyServices.filter(s => s.category === "RETAINER").length})` },
+                  { key: "CREATIVE", label: `Creative & Other (${companyServices.filter(s => s.category !== "PHOTO" && s.category !== "VIDEO" && s.category !== "RETAINER").length})` },
+                ].map(tab => {
+                  const isCur = serviceCategoryFilter === tab.key;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setServiceCategoryFilter(tab.key)}
+                      style={{
+                        padding: "0.4rem 0.85rem", borderRadius: "6px", fontSize: "12px",
+                        fontWeight: isCur ? 700 : 500, border: `1px solid ${isCur ? "#1A56DB" : "#E5E7EB"}`,
+                        background: isCur ? "#EFF6FF" : "#fff", color: isCur ? "#1A56DB" : "#4B5563",
+                        cursor: "pointer", transition: "all 0.15s"
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Services List Table */}
+              <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "8px", overflow: "hidden", marginBottom: "1.5rem" }}>
+                {loadingServices ? (
+                  <div style={{ padding: "3rem", textAlign: "center", color: "#6B7280", fontSize: "0.88rem" }}>
+                    Loading services catalog...
+                  </div>
+                ) : companyServices.length === 0 ? (
+                  <div style={{ padding: "3rem", textAlign: "center" }}>
+                    <p style={{ margin: 0, fontWeight: 600, color: "#111827" }}>No services configured yet</p>
+                    <p style={{ margin: "4px 0 1rem", fontSize: "0.82rem", color: "#6B7280" }}>Click below to add your first post-production service</p>
+                    <button
+                      type="button"
+                      onClick={openAddServiceModal}
+                      style={{ background: "#1A56DB", color: "#fff", border: "none", padding: "0.55rem 1rem", borderRadius: "6px", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      + Add New Service
+                    </button>
+                  </div>
+                ) : (
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>SERVICE NAME</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>CATEGORY</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>BILLING UNIT</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>DEFAULT RATE (INR)</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>SAC CODE</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px" }}>STATUS</th>
+                        <th style={{ padding: "0.75rem 1rem", fontWeight: 700, color: "#4B5563", fontSize: "12px", textAlign: "right" }}>ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companyServices
+                        .filter(s => {
+                          if (serviceCategoryFilter === "ALL") return true;
+                          if (serviceCategoryFilter === "CREATIVE") return s.category !== "PHOTO" && s.category !== "VIDEO" && s.category !== "RETAINER";
+                          return s.category === serviceCategoryFilter;
+                        })
+                        .map(s => {
+                          const catBadgeColor = s.category === "PHOTO" ? { bg: "#EFF6FF", text: "#1D4ED8", border: "#BFDBFE" }
+                            : s.category === "VIDEO" ? { bg: "#F5F3FF", text: "#6D28D9", border: "#DDD6FE" }
+                            : s.category === "RETAINER" ? { bg: "#ECFDF5", text: "#047857", border: "#A7F3D0" }
+                            : { bg: "#FFFBEB", text: "#B45309", border: "#FDE68A" };
+
+                          const unitLabel = s.unit === "img" ? "Per Image"
+                            : s.unit === "min" ? "Per Video Minute"
+                            : s.unit === "reel" ? "Per Reel / Short"
+                            : s.unit === "video" ? "Per Video"
+                            : s.unit === "month" ? "Per Month Retainer"
+                            : s.unit === "hr" ? "Per Hour"
+                            : `Per ${s.unit}`;
+
+                          return (
+                            <tr key={s.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                              <td style={{ padding: "0.85rem 1rem" }}>
+                                <div style={{ fontWeight: 700, color: "#111827", fontSize: "14px" }}>
+                                  {s.name}
+                                </div>
+                                {s.description && (
+                                  <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                                    {s.description}
+                                  </div>
+                                )}
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem" }}>
+                                <span style={{
+                                  display: "inline-block", padding: "2px 8px", borderRadius: "12px",
+                                  fontSize: "11px", fontWeight: 700, background: catBadgeColor.bg,
+                                  color: catBadgeColor.text, border: `1px solid ${catBadgeColor.border}`
+                                }}>
+                                  {s.category}
+                                </span>
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", color: "#374151", fontWeight: 500 }}>
+                                {unitLabel} <span style={{ color: "#9CA3AF", fontSize: "11px" }}>({s.unit})</span>
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem" }}>
+                                <strong style={{ color: "#111827", fontSize: "14px" }}>
+                                  ₹{s.defaultRate.toLocaleString("en-IN")}
+                                </strong>
+                                <span style={{ color: "#6B7280", fontSize: "11px", marginLeft: "4px" }}>
+                                  /{s.unit}
+                                </span>
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", color: "#4B5563", fontFamily: "monospace", fontSize: "12px" }}>
+                                {s.sacCode || "998314"}
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleService(s)}
+                                  style={{
+                                    border: "none", background: "none", cursor: "pointer",
+                                    padding: 0, display: "flex", alignItems: "center", gap: "6px"
+                                  }}
+                                  title={s.isActive ? "Click to deactivate" : "Click to activate"}
+                                >
+                                  <span style={{
+                                    display: "inline-block", width: "8px", height: "8px", borderRadius: "50%",
+                                    background: s.isActive ? "#10B981" : "#9CA3AF"
+                                  }} />
+                                  <span style={{ fontSize: "12px", fontWeight: 600, color: s.isActive ? "#065F46" : "#6B7280" }}>
+                                    {s.isActive ? "Active" : "Disabled"}
+                                  </span>
+                                </button>
+                              </td>
+                              <td style={{ padding: "0.85rem 1rem", textAlign: "right" }}>
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditServiceModal(s)}
+                                    style={{
+                                      background: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: "4px",
+                                      padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                                      gap: "4px", fontSize: "11px", fontWeight: 600, color: "#374151"
+                                    }}
+                                  >
+                                    <Edit2 size={12} /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteService(s)}
+                                    style={{
+                                      background: "#FEF2F2", border: "1px solid #FEE2E2", borderRadius: "4px",
+                                      padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center",
+                                      gap: "4px", fontSize: "11px", fontWeight: 600, color: "#DC2626"
+                                    }}
+                                    title="Delete service"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* MODAL: ADD / EDIT SERVICE */}
+              {showServiceModal && (
+                <div style={{
+                  position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)",
+                  backdropFilter: "blur(4px)", zIndex: 110, display: "flex",
+                  alignItems: "center", justifyContent: "center", padding: "1rem"
+                }}>
+                  <div style={{
+                    background: "#fff", borderRadius: "8px", width: "100%", maxWidth: "520px",
+                    padding: "1.75rem", boxShadow: "0 20px 40px rgba(0,0,0,0.18)", border: "1px solid #E5E7EB"
+                  }}>
+                    <h2 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>
+                      {editingService ? "Edit Service" : "Add New Company Service"}
+                    </h2>
+                    <p style={{ color: "#6B7280", fontSize: "0.82rem", margin: "0 0 1.25rem" }}>
+                      This service will immediately be available across client rate cards, job pipelines, and GST invoices.
+                    </p>
+
+                    <form onSubmit={handleSaveService} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      <div>
+                        <label style={labelStyle}>Service Name *</label>
+                        <input
+                          required
+                          style={inputStyle}
+                          placeholder="e.g. Drone Video Color Grading / Wedding Teaser 4K / Album Design"
+                          value={serviceForm.name}
+                          onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                        <div>
+                          <label style={labelStyle}>Category</label>
+                          <select
+                            style={inputStyle}
+                            value={serviceForm.category}
+                            onChange={e => setServiceForm({ ...serviceForm, category: e.target.value })}
+                          >
+                            <option value="PHOTO">Photo Editing & Retouching</option>
+                            <option value="VIDEO">Video Post-Production & Cutting</option>
+                            <option value="RETAINER">Monthly Retainer Contract</option>
+                            <option value="CREATIVE">Creative & Design Services</option>
+                            <option value="OTHER">Other Deliverable</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Billing Unit</label>
+                          <select
+                            style={inputStyle}
+                            value={serviceForm.unit}
+                            onChange={e => setServiceForm({ ...serviceForm, unit: e.target.value })}
+                          >
+                            <option value="img">Per Image (img)</option>
+                            <option value="min">Per Video Minute (min)</option>
+                            <option value="reel">Per Reel / Short (reel)</option>
+                            <option value="video">Per Complete Video (video)</option>
+                            <option value="month">Per Month (month)</option>
+                            <option value="hr">Per Hour (hr)</option>
+                            <option value="project">Per Project (project)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.85rem" }}>
+                        <div>
+                          <label style={labelStyle}>Standard Default Rate (INR ₹)</label>
+                          <div style={{ position: "relative" }}>
+                            <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", fontWeight: 700, color: "#6B7280" }}>₹</span>
+                            <input
+                              type="number"
+                              step="any"
+                              style={{ ...inputStyle, paddingLeft: "1.75rem" }}
+                              value={serviceForm.defaultRate}
+                              onChange={e => setServiceForm({ ...serviceForm, defaultRate: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <span style={{ fontSize: "11px", color: "#6B7280" }}>Standard rate when no custom client rate is configured</span>
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>GST SAC Code</label>
+                          <input
+                            style={inputStyle}
+                            value={serviceForm.sacCode}
+                            onChange={e => setServiceForm({ ...serviceForm, sacCode: e.target.value })}
+                            placeholder="998314"
+                          />
+                          <span style={{ fontSize: "11px", color: "#6B7280" }}>Default SAC 998314 (Post-production)</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={labelStyle}>Deliverable Description / Notes</label>
+                        <textarea
+                          rows={2}
+                          style={{ ...inputStyle, resize: "vertical" }}
+                          placeholder="e.g. Includes color grading, audio synchronization, speed ramping and motion graphics."
+                          value={serviceForm.description}
+                          onChange={e => setServiceForm({ ...serviceForm, description: e.target.value })}
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px" }}>
+                        <input
+                          type="checkbox"
+                          id="svcIsActive"
+                          checked={serviceForm.isActive}
+                          onChange={e => setServiceForm({ ...serviceForm, isActive: e.target.checked })}
+                          style={{ width: "16px", height: "16px", cursor: "pointer" }}
+                        />
+                        <label htmlFor="svcIsActive" style={{ fontSize: "13px", fontWeight: 600, color: "#111827", cursor: "pointer" }}>
+                          Active service (enabled for rate cards & job queues)
+                        </label>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "0.75rem" }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowServiceModal(false)}
+                          style={{ background: "#F3F4F6", color: "#374151", padding: "0.55rem 1.1rem", borderRadius: "6px", border: "none", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          style={{ background: "#1A56DB", color: "#fff", padding: "0.55rem 1.35rem", borderRadius: "6px", border: "none", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}
+                        >
+                          {editingService ? "Update Service" : "Save Service"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
