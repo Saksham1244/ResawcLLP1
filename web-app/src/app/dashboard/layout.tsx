@@ -17,7 +17,7 @@ const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]>
     { name: "Dashboard",     href: "/dashboard",            icon: LayoutDashboard },
     { name: "Clients",       href: "/dashboard/clients",     icon: Building2       },
     { name: "Editing Jobs",  href: "/dashboard/jobs",        icon: Film            },
-    { name: "Finance & GST", href: "/dashboard/finance",     icon: Receipt         },
+    { name: "Invoicing",     href: "/dashboard/finance",     icon: Receipt         },
     { name: "Payroll",       href: "/dashboard/payroll",     icon: Wallet          },
     { name: "Reports",       href: "/dashboard/reports",     icon: BarChart2       },
     { name: "Activity Log",  href: "/dashboard/activity",    icon: Clock           },
@@ -84,7 +84,7 @@ function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard")                   return "Dashboard";
   if (pathname.startsWith("/dashboard/clients"))   return "Clients";
   if (pathname.startsWith("/dashboard/jobs"))      return "Editing Jobs";
-  if (pathname.startsWith("/dashboard/finance"))   return "Finance & Invoicing";
+  if (pathname.startsWith("/dashboard/finance"))   return "Invoicing";
   if (pathname.startsWith("/dashboard/payroll"))   return "Payroll & Payslips";
   if (pathname.startsWith("/dashboard/team"))      return "Team & Members";
   if (pathname.startsWith("/dashboard/leads"))     return "Leads";
