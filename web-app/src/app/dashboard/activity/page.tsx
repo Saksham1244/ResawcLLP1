@@ -238,11 +238,13 @@ export default function ActivityLogPage() {
               <button
                 type="submit"
                 style={{
-                  padding: "6px 12px",
+                  padding: "6px 14px",
                   background: "#F3F4F6",
                   border: `1px solid ${C.border}`,
                   borderRadius: C.radiusSm,
                   fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#111827",
                   cursor: "pointer",
                 }}
               >
@@ -346,7 +348,7 @@ export default function ActivityLogPage() {
                   <select
                     value={noteForm.category}
                     onChange={(e) => setNoteForm({ ...noteForm, category: e.target.value })}
-                    style={{ width: "100%", padding: "8px 12px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px" }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   >
                     <option value="GENERAL">General Operational Note</option>
                     <option value="PROJECTS">Production & Editing</option>
@@ -364,7 +366,7 @@ export default function ActivityLogPage() {
                     placeholder="Describe the milestone or activity..."
                     value={noteForm.description}
                     onChange={(e) => setNoteForm({ ...noteForm, description: e.target.value })}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: C.radiusSm, border: `1px solid ${C.border}`, fontSize: "14px", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   />
                 </div>
 
@@ -372,7 +374,7 @@ export default function ActivityLogPage() {
                   <button
                     type="button"
                     onClick={() => setShowNoteModal(false)}
-                    style={{ padding: "8px 16px", background: "#F3F4F6", border: "none", borderRadius: C.radiusSm, fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+                    style={{ padding: "8px 16px", background: "#F3F4F6", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "13px", fontWeight: 600, color: "#374151", cursor: "pointer" }}
                   >
                     Cancel
                   </button>

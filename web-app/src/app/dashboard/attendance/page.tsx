@@ -62,6 +62,7 @@ const inputStyle: React.CSSProperties = {
   background: "#fff",
   outline: "none",
   boxSizing: "border-box",
+  colorScheme: "light",
 };
 
 function statusBadge(status: string, lateMinutes?: number): { style: React.CSSProperties; label: string } {
@@ -1287,6 +1288,8 @@ export default function AttendancePage() {
                     border: `1px solid ${C.border}`,
                     borderRadius: C.radiusSm,
                     background: "#fff",
+                    color: C.text,
+                    fontWeight: 600,
                     fontSize: "0.8rem",
                     cursor: "pointer",
                   }}

@@ -101,6 +101,54 @@ function getAvatarColor(index: number) {
   return avatarPalette[index % avatarPalette.length];
 }
 
+function CustomCheckbox({
+  checked,
+  onChange,
+  indeterminate = false,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  indeterminate?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
+      style={{
+        width: 17,
+        height: 17,
+        borderRadius: 4,
+        border: checked || indeterminate ? "1.5px solid #1A56DB" : "1.5px solid #CBD5E1",
+        backgroundColor: checked || indeterminate ? "#1A56DB" : "#FFFFFF",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        padding: 0,
+        outline: "none",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        transition: "all 0.15s ease",
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {!checked && indeterminate && (
+        <div style={{ width: 8, height: 2, background: "#FFFFFF", borderRadius: 1 }} />
+      )}
+    </button>
+  );
+}
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "0.5rem 0.75rem",
@@ -731,6 +779,7 @@ function TeamContent() {
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [viewMember, setViewMember] = useState<Member | null>(null);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Load from real DB on mount
   useEffect(() => {
@@ -973,13 +1022,115 @@ function TeamContent() {
             </div>
           </div>
 
+          {/* Active Bulk Action Bar */}
+          {selectedIds.length > 0 && (
+            <div style={{
+              background: "#EFF6FF",
+              borderBottom: `1px solid #BFDBFE`,
+              padding: "0.6rem 1.25rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: "0.825rem",
+              color: "#1E40AF",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontWeight: 700 }}>
+                  {selectedIds.length} team member{selectedIds.length > 1 ? "s" : ""} selected
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(team.map(m => m.id))}
+                  style={{
+                    background: "none", border: "none", color: C.primary,
+                    fontWeight: 600, fontSize: "0.8rem", textDecoration: "underline", cursor: "pointer", padding: 0
+                  }}
+                >
+                  Select all {team.length}
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const selectedMembers = team.filter(m => selectedIds.includes(m.id));
+                    const headers = "Name,Role,Email,Phone,Designation,Location,PAN,Bank,Account,BaseSalary\n";
+                    const rows = selectedMembers.map(m => `"${m.name}","${m.role}","${m.email}","${m.phone || ""}","${m.salaryStructure?.designation || ""}","${m.salaryStructure?.location || ""}","${m.salaryStructure?.panNumber || ""}","${m.salaryStructure?.bankName || ""}","${m.salaryStructure?.bankAccountNumber || ""}","${m.salaryStructure?.baseSalary || 25000}"`).join("\n");
+                    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `resawc-team-export-${new Date().toISOString().split("T")[0]}.csv`;
+                    a.click();
+                  }}
+                  style={{
+                    background: "#FFFFFF", color: C.primary, border: `1px solid #BFDBFE`,
+                    padding: "4px 12px", borderRadius: C.radiusSm, fontWeight: 700, fontSize: "0.78rem", cursor: "pointer"
+                  }}
+                >
+                  Export CSV
+                </button>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Are you sure you want to delete ${selectedIds.length} members?`)) return;
+                      for (const id of selectedIds) {
+                        await fetch("/api/users", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ id }),
+                        });
+                      }
+                      setTeam(prev => prev.filter(m => !selectedIds.includes(m.id)));
+                      setSelectedIds([]);
+                    }}
+                    style={{
+                      background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA",
+                      padding: "4px 12px", borderRadius: C.radiusSm, fontWeight: 700, fontSize: "0.78rem", cursor: "pointer"
+                    }}
+                  >
+                    Delete Selected
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  style={{
+                    background: "none", border: "none", color: C.muted,
+                    fontWeight: 600, fontSize: "0.78rem", cursor: "pointer", padding: "4px"
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Table */}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  <th style={{ ...thStyle, width: 40 }}>
-                    <input type="checkbox" style={{ cursor: "pointer" }} />
+                  <th style={{ ...thStyle, width: 44, textAlign: "center" }}>
+                    <CustomCheckbox
+                      checked={paginated.length > 0 && paginated.every(m => selectedIds.includes(m.id))}
+                      indeterminate={paginated.some(m => selectedIds.includes(m.id)) && !paginated.every(m => selectedIds.includes(m.id))}
+                      onChange={() => {
+                        const allSelected = paginated.every(m => selectedIds.includes(m.id));
+                        if (allSelected) {
+                          setSelectedIds(prev => prev.filter(id => !paginated.some(m => m.id === id)));
+                        } else {
+                          const pageIds = paginated.map(m => m.id);
+                          setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+                        }
+                      }}
+                    />
                   </th>
                   <th style={thStyle}>Full Name</th>
                   <th style={thStyle}>Designation &amp; Role</th>
@@ -1006,16 +1157,25 @@ function TeamContent() {
                     const globalIdx = (page - 1) * PAGE_SIZE + i;
                     const avatarColor = getAvatarColor(globalIdx);
                     const s = member.salaryStructure;
+                    const isSelected = selectedIds.includes(member.id);
                     return (
                       <tr
                         key={member.id}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                        style={{ transition: "background 0.15s" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = isSelected ? "#EFF6FF" : "#F9FAFB")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = isSelected ? "#F0F7FF" : "transparent")}
+                        style={{
+                          background: isSelected ? "#F0F7FF" : "transparent",
+                          transition: "background 0.15s"
+                        }}
                       >
                         {/* Checkbox */}
-                        <td style={{ ...tdStyle, width: 40 }}>
-                          <input type="checkbox" style={{ cursor: "pointer" }} />
+                        <td style={{ ...tdStyle, width: 44, textAlign: "center" }}>
+                          <CustomCheckbox
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedIds(prev => isSelected ? prev.filter(x => x !== member.id) : [...prev, member.id]);
+                            }}
+                          />
                         </td>
 
                         {/* Name + Avatar */}

@@ -156,16 +156,17 @@ export async function GET(req: Request) {
         const completedJobs = e.assignedJobs.filter(j => j.status === 'DELIVERED' || j.status === 'FINAL_QC').length;
         const totalSeconds = e.timeLogs.reduce((acc, t) => acc + (t.durationSec || 0), 0);
         const loggedHours = Math.round((totalSeconds / 3600) * 10) / 10;
-        const avgImgsPerHour = loggedHours > 0 ? Math.round(totalImages / loggedHours) : totalImages;
+        const avgImgsPerHour = loggedHours > 0 ? Math.round(totalImages / loggedHours) : 0;
+        const hasActivity = totalImages > 0 || completedJobs > 0 || loggedHours > 0;
         
         // Output (40%), Quality (25%), Deadline (20%), Attendance (15%)
-        const outputScore = Math.min(100, Math.round((totalImages / 1000) * 100) || 75);
-        const qualityScore = 92; // baseline QC pass rate
-        const deadlineScore = 95;
-        const attendanceScore = 90;
-        const compositeScore = Math.round(
-          outputScore * 0.4 + qualityScore * 0.25 + deadlineScore * 0.2 + attendanceScore * 0.15
-        );
+        const outputScore = hasActivity ? Math.min(100, Math.round((totalImages / 500) * 100)) : 0;
+        const qualityScore = hasActivity ? 95 : 0;
+        const deadlineScore = hasActivity ? 95 : 0;
+        const attendanceScore = hasActivity ? 90 : 0;
+        const compositeScore = hasActivity
+          ? Math.round(outputScore * 0.4 + qualityScore * 0.25 + deadlineScore * 0.2 + attendanceScore * 0.15)
+          : 0;
 
         return {
           id: e.id,
@@ -178,8 +179,9 @@ export async function GET(req: Request) {
           qualityScore,
           deadlineScore,
           score: compositeScore,
+          hasActivity,
         };
-      }).sort((a, b) => b.score - a.score);
+      }).filter(e => e.hasActivity).sort((a, b) => b.score - a.score);
     }
 
     // Fetch recent activity

@@ -27,6 +27,7 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid #E5E7EB', borderRadius: '6px', outline: 'none',
   color: '#111827', background: '#fff', fontFamily: 'Inter, system-ui, sans-serif',
   boxSizing: 'border-box',
+  colorScheme: 'light',
 };
 
 const labelStyle: React.CSSProperties = {

@@ -1043,6 +1043,15 @@ export default function PayrollPage() {
                     {/* Print CSS */}
                     <style>{`
                       @media print {
+                        @page {
+                          size: A4 portrait;
+                          margin: 8mm 10mm;
+                        }
+                        body {
+                          background: #FFFFFF !important;
+                          margin: 0 !important;
+                          padding: 0 !important;
+                        }
                         body * {
                           visibility: hidden !important;
                         }
@@ -1050,15 +1059,17 @@ export default function PayrollPage() {
                           visibility: visible !important;
                         }
                         #printable-payslip {
-                          position: absolute !important;
+                          position: fixed !important;
                           left: 0 !important;
                           top: 0 !important;
+                          right: 0 !important;
                           width: 100% !important;
                           max-width: 100% !important;
                           margin: 0 !important;
-                          padding: 10px !important;
+                          padding: 14px 18px !important;
                           border: 2px solid #000000 !important;
                           box-shadow: none !important;
+                          background: #FFFFFF !important;
                           -webkit-print-color-adjust: exact !important;
                           print-color-adjust: exact !important;
                         }
@@ -1362,6 +1373,25 @@ export default function PayrollPage() {
                           </tr>
                         </tbody>
                       </table>
+
+                      {/* Dual Official Signatures */}
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-end",
+                        marginTop: "36px",
+                        padding: "0 14px",
+                      }}>
+                        <div style={{ textAlign: "center", width: "190px" }}>
+                          <div style={{ borderBottom: "1px solid #000000", marginBottom: "6px", height: "28px" }} />
+                          <div style={{ fontSize: "11px", fontWeight: 700 }}>Employee Signature</div>
+                        </div>
+                        <div style={{ textAlign: "center", width: "220px" }}>
+                          <div style={{ borderBottom: "1px solid #000000", marginBottom: "6px", height: "28px" }} />
+                          <div style={{ fontSize: "11px", fontWeight: 700 }}>Authorized Signatory</div>
+                          <div style={{ fontSize: "10px", color: "#4B5563" }}>For RESAWC LLP</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1398,7 +1428,7 @@ export default function PayrollPage() {
                     required
                     value={payForm.paymentDate}
                     onChange={(e) => setPayForm({ ...payForm, paymentDate: e.target.value })}
-                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   />
                 </div>
 
@@ -1410,7 +1440,7 @@ export default function PayrollPage() {
                     placeholder="e.g. UTR-SALARY-OCT2026-01"
                     value={payForm.paymentReference}
                     onChange={(e) => setPayForm({ ...payForm, paymentReference: e.target.value })}
-                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "0.55rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   />
                 </div>
 

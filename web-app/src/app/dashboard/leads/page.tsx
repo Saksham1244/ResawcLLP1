@@ -207,6 +207,57 @@ function ActionMenu({
   );
 }
 
+function CustomCheckbox({
+  checked,
+  onChange,
+  indeterminate = false,
+  title,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  indeterminate?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      title={title}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
+      style={{
+        width: 17,
+        height: 17,
+        borderRadius: 4,
+        border: checked || indeterminate ? "1.5px solid #1A56DB" : "1.5px solid #CBD5E1",
+        backgroundColor: checked || indeterminate ? "#1A56DB" : "#FFFFFF",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        padding: 0,
+        outline: "none",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        transition: "all 0.15s ease",
+        verticalAlign: "middle",
+        flexShrink: 0,
+      }}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {!checked && indeterminate && (
+        <span style={{ width: 8, height: 2, background: "#FFFFFF", borderRadius: 1 }} />
+      )}
+    </button>
+  );
+}
+
 /* ─── Main Content ───────────────────────────────────────────── */
 function LeadsContent() {
   const { user } = useRole();
@@ -860,16 +911,10 @@ function LeadsContent() {
                           }}
                         >
                           {col.label === "" ? (
-                            <input
-                              type="checkbox"
+                            <CustomCheckbox
                               checked={isAllCurrentPageSelected}
-                              ref={el => {
-                                if (el) {
-                                  el.indeterminate = isSomeCurrentPageSelected && !isAllCurrentPageSelected;
-                                }
-                              }}
+                              indeterminate={isSomeCurrentPageSelected && !isAllCurrentPageSelected}
                               onChange={handleToggleSelectAll}
-                              style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.primary }}
                               title={isAllCurrentPageSelected ? "Deselect all on this page" : "Select all on this page"}
                             />
                           ) : col.label}
@@ -897,12 +942,10 @@ function LeadsContent() {
                           }}
                         >
                           {/* Checkbox */}
-                          <td style={{ padding: "14px 16px", width: 40 }}>
-                            <input
-                              type="checkbox"
+                          <td style={{ padding: "14px 16px", width: 40, textAlign: "center" }}>
+                            <CustomCheckbox
                               checked={isSelected}
                               onChange={() => handleToggleSelectRow(String(lead._id))}
-                              style={{ cursor: "pointer", width: 16, height: 16, accentColor: C.primary }}
                             />
                           </td>
 

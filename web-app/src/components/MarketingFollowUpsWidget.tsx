@@ -329,7 +329,7 @@ export function MarketingFollowUpsWidget() {
                   placeholder="e.g. Call Client - Send quotation for wedding season"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                 />
               </div>
 
@@ -339,7 +339,7 @@ export function MarketingFollowUpsWidget() {
                   <select
                     value={form.actionType}
                     onChange={(e) => setForm({ ...form, actionType: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#fff" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   >
                     <option value="CALL">Phone Call</option>
                     <option value="EMAIL">Send Email</option>
@@ -354,7 +354,7 @@ export function MarketingFollowUpsWidget() {
                   <select
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#fff" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   >
                     <option value="HIGH">High Priority</option>
                     <option value="MEDIUM">Medium Priority</option>
@@ -370,7 +370,7 @@ export function MarketingFollowUpsWidget() {
                     type="date"
                     value={form.dueDate}
                     onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   />
                 </div>
 
@@ -380,7 +380,7 @@ export function MarketingFollowUpsWidget() {
                     placeholder="e.g. 11:00 AM"
                     value={form.dueTime}
                     onChange={(e) => setForm({ ...form, dueTime: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                   />
                 </div>
               </div>
@@ -460,7 +460,7 @@ export function MarketingFollowUpsWidget() {
                   placeholder="Client requested quotation for 500 images wedding trial..."
                   value={outcomeNotes}
                   onChange={(e) => setOutcomeNotes(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                 />
               </div>
 
@@ -481,20 +481,20 @@ export function MarketingFollowUpsWidget() {
                       placeholder="Next follow-up title (e.g. Follow up on sent quote)"
                       value={nextTitle}
                       onChange={(e) => setNextTitle(e.target.value)}
-                      style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box" }}
+                      style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                     />
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       <input
                         type="date"
                         value={nextDate}
                         onChange={(e) => setNextDate(e.target.value)}
-                        style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                       />
                       <input
                         placeholder="Time (e.g. 02:00 PM)"
                         value={nextTime}
                         onChange={(e) => setNextTime(e.target.value)}
-                        style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "0.45rem 0.65rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.8rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
                       />
                     </div>
                   </div>
