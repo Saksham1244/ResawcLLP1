@@ -374,7 +374,7 @@ export default function ActivityLogPage() {
                   <button
                     type="button"
                     onClick={() => setShowNoteModal(false)}
-                    style={{ padding: "8px 16px", background: "#F3F4F6", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "13px", fontWeight: 600, color: "#374151", cursor: "pointer" }}
+                    style={{ padding: "8px 16px", background: "#FFFFFF", border: "1px solid #9CA3AF", borderRadius: C.radiusSm, fontSize: "13px", fontWeight: 600, color: "#374151", cursor: "pointer" }}
                   >
                     Cancel
                   </button>
