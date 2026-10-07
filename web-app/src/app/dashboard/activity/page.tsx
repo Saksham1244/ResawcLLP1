@@ -229,6 +229,9 @@ export default function ActivityLogPage() {
                     border: `1px solid ${C.border}`,
                     fontSize: "13px",
                     width: "220px",
+                    background: "#FFFFFF",
+                    color: C.text,
+                    colorScheme: "light",
                   }}
                 />
               </div>

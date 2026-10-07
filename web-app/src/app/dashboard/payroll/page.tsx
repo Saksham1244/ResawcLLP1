@@ -372,7 +372,8 @@ export default function PayrollPage() {
               onChange={(e) => setSelectedMonth(e.target.value)}
               style={{
                 padding: "0.4rem 0.75rem", borderRadius: C.radiusSm, border: `1px solid ${C.border}`,
-                fontSize: "0.85rem", fontWeight: 600, color: C.text, outline: "none"
+                fontSize: "0.85rem", fontWeight: 600, color: C.text, outline: "none",
+                background: "#FFFFFF", colorScheme: "light"
               }}
             />
           </div>
@@ -814,30 +815,21 @@ export default function PayrollPage() {
 
                 // Prepare earnings items
                 const earnItems: { desc: string; monthly: number; ytd: number }[] = [];
-                if (selectedPayslip.earnedBasic > 0) {
-                  earnItems.push({ desc: "Basic Salary", monthly: selectedPayslip.earnedBasic, ytd: selectedPayslip.earnedBasic });
-                  if (selectedPayslip.allowances > 0) {
-                    const hra = Math.round(selectedPayslip.allowances * 0.5);
-                    const conv = Math.round(selectedPayslip.allowances * 0.25);
-                    const spec = selectedPayslip.allowances - hra - conv;
-                    earnItems.push({ desc: "HRA Allowance", monthly: hra, ytd: hra });
-                    earnItems.push({ desc: "Conveyance Allowance", monthly: conv, ytd: conv });
-                    earnItems.push({ desc: "Special Allowance", monthly: spec, ytd: spec });
-                  }
-                  if (selectedPayslip.overtimePay > 0) {
-                    earnItems.push({ desc: "Medical Allowance", monthly: 1250, ytd: 1250 });
-                    earnItems.push({ desc: "Overtime Allowance", monthly: selectedPayslip.overtimePay, ytd: selectedPayslip.overtimePay });
-                  }
-                  if (selectedPayslip.bonus > 0) {
-                    earnItems.push({ desc: "Bonus", monthly: selectedPayslip.bonus, ytd: selectedPayslip.bonus });
-                  }
-                } else {
-                  earnItems.push({ desc: "Basic Salary", monthly: 15000, ytd: 15000 });
-                  earnItems.push({ desc: "HRA Allowance", monthly: 7500, ytd: 7500 });
-                  earnItems.push({ desc: "Conveyance Allowance", monthly: 7000, ytd: 7000 });
-                  earnItems.push({ desc: "Special Allowance", monthly: 7500, ytd: 7500 });
-                  earnItems.push({ desc: "Medical Allowance", monthly: 1250, ytd: 1250 });
-                  earnItems.push({ desc: "Bonus", monthly: 1500, ytd: 1500 });
+                const basicVal = selectedPayslip.earnedBasic || selectedPayslip.baseSalary || 0;
+                earnItems.push({ desc: "Basic Salary", monthly: basicVal, ytd: basicVal });
+                if (selectedPayslip.allowances > 0) {
+                  const hra = Math.round(selectedPayslip.allowances * 0.5);
+                  const conv = Math.round(selectedPayslip.allowances * 0.25);
+                  const spec = selectedPayslip.allowances - hra - conv;
+                  earnItems.push({ desc: "HRA Allowance", monthly: hra, ytd: hra });
+                  earnItems.push({ desc: "Conveyance Allowance", monthly: conv, ytd: conv });
+                  earnItems.push({ desc: "Special Allowance", monthly: spec, ytd: spec });
+                }
+                if (selectedPayslip.overtimePay > 0) {
+                  earnItems.push({ desc: "Overtime Allowance", monthly: selectedPayslip.overtimePay, ytd: selectedPayslip.overtimePay });
+                }
+                if (selectedPayslip.bonus > 0) {
+                  earnItems.push({ desc: "Bonus", monthly: selectedPayslip.bonus, ytd: selectedPayslip.bonus });
                 }
 
                 // Prepare deductions items
@@ -852,15 +844,11 @@ export default function PayrollPage() {
                   if (selectedPayslip.unpaidLeaveDeductions > 0) {
                     dedItems.push({ desc: "Unpaid Leave (LWP)", monthly: selectedPayslip.unpaidLeaveDeductions, ytd: selectedPayslip.unpaidLeaveDeductions });
                   }
-                  dedItems.push({ desc: "ESI" });
-                  dedItems.push({ desc: "Professional Tax" });
-                  dedItems.push({ desc: "Income Tax" });
-                } else {
-                  dedItems.push({ desc: "Provident Fund", monthly: 1800, ytd: 1800 });
-                  dedItems.push({ desc: "ESI" });
-                  dedItems.push({ desc: "Professional Tax" });
-                  dedItems.push({ desc: "Income Tax" });
                 }
+                dedItems.push({ desc: "Provident Fund" });
+                dedItems.push({ desc: "ESI" });
+                dedItems.push({ desc: "Professional Tax" });
+                dedItems.push({ desc: "Income Tax" });
 
                 const totalGross = selectedPayslip.grossEarnings > 0 
                   ? selectedPayslip.grossEarnings 
@@ -877,8 +865,8 @@ export default function PayrollPage() {
                 const maxRows = Math.max(earnItems.length, dedItems.length, 12);
                 const rowIndexes = Array.from({ length: maxRows }, (_, i) => i);
 
-                const companyLegal = companySettings?.gstLegalName || "DALISOFT TECHNOLOGIES PVT LTD";
-                const companyAddr = companySettings?.companyAddress || "#1118, 11th Floor, Tower B 4\nSpaze I Tech Park, Sector - 49\nGurugram Haryana - 122018";
+                const companyLegal = companySettings?.gstLegalName || "RESAWC LLP";
+                const companyAddr = companySettings?.companyAddress || "Resawc Creative Studio Hub, New Delhi, India";
 
                 return (
                   <div>
@@ -942,13 +930,13 @@ export default function PayrollPage() {
                           alignItems: "center",
                           gap: "4px",
                           fontWeight: 800,
-                          fontSize: "18px",
+                          fontSize: "17px",
                           letterSpacing: "1px",
                           fontFamily: "Arial, sans-serif"
                         }}>
-                          <span>{(companySettings?.gstTradeName || companySettings?.gstLegalName || "DALI").split(" ")[0].toUpperCase()}</span>
+                          <span>{(companySettings?.gstTradeName || companySettings?.gstLegalName || "RESAWC").split(" ")[0].toUpperCase()}</span>
                           <span style={{ color: "#38BDF8", fontSize: "18px", margin: "0 2px" }}>•</span>
-                          <span>SOFT</span>
+                          <span>STUDIO</span>
                         </div>
                       </div>
 
@@ -984,17 +972,17 @@ export default function PayrollPage() {
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Employee Code</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "32%" }}>
-                              {"0125" + (selectedPayslip.user.id.slice(-3).padStart(3, "0"))}
+                              {"EMP-" + (selectedPayslip.user.id.slice(-4).toUpperCase())}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "18%" }}>Location</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px", width: "32%" }}>
-                              {companySettings?.gstState || "Gurgaon"}
+                              {companySettings?.gstState || "Delhi NCR"}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Joining</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"27-Feb-25"}
+                              {"—"}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Designation</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
@@ -1006,33 +994,33 @@ export default function PayrollPage() {
                                 ? "Lead Video Editor"
                                 : selectedPayslip.user.role === "marketing"
                                 ? "Client Growth Specialist"
-                                : "Software Engineer"}
+                                : "Creative Executive"}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Date of Birth</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"06-Jun-03"}
+                              {"—"}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>PAN No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {selectedPayslip.user.salaryStructure?.panNumber || "EDSPA3057E"}
+                              {selectedPayslip.user.salaryStructure?.panNumber || "—"}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>Bank Account No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {selectedPayslip.user.salaryStructure?.bankAccountNumber || "173601000008700"}
+                              {selectedPayslip.user.salaryStructure?.bankAccountNumber || "—"}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>IFSC</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {selectedPayslip.user.salaryStructure?.ifscCode || "IOBA0001736"}
+                              {selectedPayslip.user.salaryStructure?.ifscCode || "—"}
                             </td>
                           </tr>
                           <tr>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>UAN No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
-                              {"102247455966"}
+                              {"NA"}
                             </td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>ESI No</td>
                             <td style={{ border: "1px solid #000000", padding: "4px 8px" }}>
