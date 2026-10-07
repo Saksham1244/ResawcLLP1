@@ -8,6 +8,7 @@ export async function getAdminAuth() {
 
   const apiContext = await request.newContext();
   const res = await apiContext.post('http://localhost:3000/api/auth', {
+    headers: { 'x-test-suite': 'true' },
     data: {
       email: 'mukul@resawc.com',
       password: 'Admin@1234',

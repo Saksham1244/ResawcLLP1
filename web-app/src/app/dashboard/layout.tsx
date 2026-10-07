@@ -32,8 +32,6 @@ const NAV_BY_ROLE: Record<UserRole, { name: string; href: string; icon: any }[]>
     { name: "Dashboard",     href: "/dashboard",           icon: LayoutDashboard },
     { name: "Clients",       href: "/dashboard/clients",   icon: Building2       },
     { name: "My Leads",      href: "/dashboard/leads",     icon: TrendingUp      },
-    { name: "Reports",       href: "/dashboard/reports",   icon: BarChart2       },
-    { name: "Activity Log",  href: "/dashboard/activity",  icon: Clock           },
     { name: "Tasks",         href: "/dashboard/tasks",     icon: CheckSquare     },
     { name: "Attendance",    href: "/dashboard/attendance",icon: CalendarCheck   },
     { name: "My Payslips",   href: "/dashboard/payroll",   icon: Wallet          },
@@ -214,12 +212,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navItems = NAV_BY_ROLE[user.role] || NAV_BY_ROLE.editor;
 
   const isEditorRole = user.role === "editor" || user.role === "photo_editor" || user.role === "video_editor";
-  if (isEditorRole && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/monitor") || pathname.startsWith("/dashboard/clients"))) {
-    if (typeof window !== "undefined") router.replace("/dashboard/jobs");
+  if (user.role !== "admin" && (pathname.startsWith("/dashboard/activity") || pathname.startsWith("/dashboard/monitor") || pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/finance") || pathname.startsWith("/dashboard/reports") || pathname.startsWith("/dashboard/settings"))) {
+    if (typeof window !== "undefined") router.replace(isEditorRole ? "/dashboard/jobs" : "/dashboard");
     return null;
   }
-  if (user.role === "marketing" && (pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/monitor"))) {
-    if (typeof window !== "undefined") router.replace("/dashboard");
+  if (isEditorRole && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/clients"))) {
+    if (typeof window !== "undefined") router.replace("/dashboard/jobs");
     return null;
   }
 

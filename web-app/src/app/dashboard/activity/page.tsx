@@ -125,7 +125,7 @@ export default function ActivityLogPage() {
   };
 
   return (
-    <RoleGuard allowedRoles={["admin", "marketing"]}>
+    <RoleGuard allowedRoles={["admin"]}>
       <div style={{ maxWidth: 1200, margin: "0 auto", paddingBottom: "60px" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "24px" }}>
