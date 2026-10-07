@@ -461,8 +461,21 @@ model EmployeeSalaryStructure {
   
   baseSalary          Float    @default(25000) // ₹ Monthly base
   hourlyOvertimeRate  Float    @default(150)   // ₹ per hour
-  allowance           Float    @default(0)     // Special / Travel allowance
-  
+  allowance           Float    @default(0)     // Total allowance (legacy)
+
+  // Individual Earnings Breakdown
+  hraAllowance        Float    @default(0)     // House Rent Allowance
+  conveyanceAllowance Float    @default(0)     // Conveyance / Travel Allowance
+  medicalAllowance    Float    @default(0)     // Medical Allowance
+  specialAllowance    Float    @default(0)     // Special Allowance
+  bonus               Float    @default(0)     // Bonus / Incentive
+
+  // Statutory Deductions (fixed monthly amounts)
+  pfAmount            Float    @default(0)     // Provident Fund (monthly ₹)
+  esiAmount           Float    @default(0)     // ESI (monthly ₹)
+  professionalTax     Float    @default(0)     // Professional Tax (monthly ₹)
+  incomeTax           Float    @default(0)     // Income Tax / TDS (monthly ₹)
+
   bankName            String?
   bankAccountNumber   String?
   ifscCode            String?

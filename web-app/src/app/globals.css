@@ -66,6 +66,13 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  forced-color-adjust: none !important;
+}
+
+:root {
+  color-scheme: light !important;
+  supported-color-schemes: light !important;
+  forced-color-adjust: none !important;
 }
 
 html, body {
@@ -75,6 +82,7 @@ html, body {
   color: var(--text-primary);
   background: var(--bg-canvas);
   color-scheme: light !important;
+  forced-color-adjust: none !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -88,36 +96,46 @@ button {
   font-family: inherit;
   cursor: pointer;
   color: inherit;
+  color-scheme: light !important;
+  forced-color-adjust: none !important;
 }
 
 /* Force all buttons to show text in light mode — prevents Brave dark shields from making text white on white */
 button:not([style*="color"]) {
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
 input:not([type="checkbox"]), textarea, select {
   font-family: inherit;
   font-size: 14px;
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
   background-color: #FFFFFF !important;
   color-scheme: light !important;
+  forced-color-adjust: none !important;
 }
 
 select {
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
   background-color: #FFFFFF !important;
   color-scheme: light !important;
+  forced-color-adjust: none !important;
 }
 
 select option {
   background-color: #FFFFFF !important;
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
 }
 
 input[type="date"], input[type="month"], input[type="time"] {
   color-scheme: light !important;
   background-color: #FFFFFF !important;
   color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  forced-color-adjust: none !important;
 }
 
 ::-webkit-calendar-picker-indicator {

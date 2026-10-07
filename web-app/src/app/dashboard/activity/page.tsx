@@ -217,7 +217,7 @@ export default function ActivityLogPage() {
             {/* Search */}
             <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px" }}>
               <div style={{ position: "relative" }}>
-                <Search size={14} color={C.muted} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
+                <Search size={14} color="#6B7280" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
                 <input
                   type="text"
                   placeholder="Search actions, clients..."
@@ -230,21 +230,25 @@ export default function ActivityLogPage() {
                     fontSize: "13px",
                     width: "220px",
                     background: "#FFFFFF",
-                    color: C.text,
+                    backgroundColor: "#FFFFFF",
+                    color: "#111827",
+                    WebkitTextFillColor: "#111827",
                     colorScheme: "light",
+                    forcedColorAdjust: "none" as any,
                   }}
                 />
               </div>
               <button
                 type="submit"
                 style={{
-                  padding: "6px 14px",
-                  background: "#F3F4F6",
-                  border: `1px solid ${C.border}`,
+                  padding: "6px 16px",
+                  background: C.primary,
+                  border: "none",
                   borderRadius: C.radiusSm,
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: "#111827",
+                  color: "#FFFFFF",
+                  WebkitTextFillColor: "#FFFFFF",
                   cursor: "pointer",
                 }}
               >

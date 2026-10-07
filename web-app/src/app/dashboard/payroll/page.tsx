@@ -35,6 +35,15 @@ interface Payslip {
       baseSalary: number;
       hourlyOvertimeRate: number;
       allowance: number;
+      hraAllowance?: number;
+      conveyanceAllowance?: number;
+      medicalAllowance?: number;
+      specialAllowance?: number;
+      bonus?: number;
+      pfAmount?: number;
+      esiAmount?: number;
+      professionalTax?: number;
+      incomeTax?: number;
       bankName?: string;
       bankAccountNumber?: string;
       ifscCode?: string;
@@ -114,6 +123,18 @@ export default function PayrollPage() {
     baseSalary: 25000,
     hourlyOvertimeRate: 150,
     allowance: 0,
+    // Individual earnings
+    hraAllowance: 0,
+    conveyanceAllowance: 0,
+    medicalAllowance: 0,
+    specialAllowance: 0,
+    bonus: 0,
+    // Statutory deductions
+    pfAmount: 0,
+    esiAmount: 0,
+    professionalTax: 0,
+    incomeTax: 0,
+    // Banking
     bankName: "HDFC Bank",
     bankAccountNumber: "",
     ifscCode: "",
@@ -140,6 +161,15 @@ export default function PayrollPage() {
           baseSalary: s.baseSalary ?? 25000,
           hourlyOvertimeRate: s.hourlyOvertimeRate ?? 150,
           allowance: s.allowance ?? 0,
+          hraAllowance: s.hraAllowance ?? 0,
+          conveyanceAllowance: s.conveyanceAllowance ?? 0,
+          medicalAllowance: s.medicalAllowance ?? 0,
+          specialAllowance: s.specialAllowance ?? 0,
+          bonus: s.bonus ?? 0,
+          pfAmount: s.pfAmount ?? 0,
+          esiAmount: s.esiAmount ?? 0,
+          professionalTax: s.professionalTax ?? 0,
+          incomeTax: s.incomeTax ?? 0,
           bankName: s.bankName ?? "HDFC Bank",
           bankAccountNumber: s.bankAccountNumber ?? "",
           ifscCode: s.ifscCode ?? "",
@@ -858,15 +888,15 @@ export default function PayrollPage() {
                   </div>
                 </div>
 
-                {/* Section 3: Compensation & Overtime */}
+                {/* Section 3: Compensation & Salary Breakdown */}
                 <div>
                   <div style={{ fontSize: "0.82rem", fontWeight: 700, color: C.primary, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px", borderBottom: `1px solid ${C.border}`, paddingBottom: "4px" }}>
-                    3. Monthly Compensation &amp; Rates (₹ INR)
+                    3. Monthly Earnings Breakdown (₹ INR)
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                        Monthly Base (₹) *
+                        Basic Salary (₹) *
                       </label>
                       <input
                         type="number"
@@ -878,24 +908,121 @@ export default function PayrollPage() {
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                        Allowance (₹)
+                        HRA Allowance (₹)
                       </label>
                       <input
                         type="number"
-                        value={structureForm.allowance}
-                        onChange={(e) => setStructureForm({ ...structureForm, allowance: parseFloat(e.target.value) || 0 })}
+                        value={structureForm.hraAllowance}
+                        onChange={(e) => setStructureForm({ ...structureForm, hraAllowance: parseFloat(e.target.value) || 0 })}
                         style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
                       />
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
-                        Overtime (₹/hr) *
+                        Conveyance Allowance (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.conveyanceAllowance}
+                        onChange={(e) => setStructureForm({ ...structureForm, conveyanceAllowance: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Medical Allowance (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.medicalAllowance}
+                        onChange={(e) => setStructureForm({ ...structureForm, medicalAllowance: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Special Allowance (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.specialAllowance}
+                        onChange={(e) => setStructureForm({ ...structureForm, specialAllowance: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Bonus / Incentive (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.bonus}
+                        onChange={(e) => setStructureForm({ ...structureForm, bonus: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Overtime Rate (₹/hr) *
                       </label>
                       <input
                         type="number"
                         required
                         value={structureForm.hourlyOvertimeRate}
                         onChange={(e) => setStructureForm({ ...structureForm, hourlyOvertimeRate: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Statutory Deductions */}
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: C.primary, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "8px", borderBottom: `1px solid ${C.border}`, paddingBottom: "4px" }}>
+                    4. Statutory Deductions (₹ Fixed Monthly)
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Provident Fund / PF (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.pfAmount}
+                        onChange={(e) => setStructureForm({ ...structureForm, pfAmount: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        ESI (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.esiAmount}
+                        onChange={(e) => setStructureForm({ ...structureForm, esiAmount: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Professional Tax (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.professionalTax}
+                        onChange={(e) => setStructureForm({ ...structureForm, professionalTax: parseFloat(e.target.value) || 0 })}
+                        style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: C.text, marginBottom: "3px" }}>
+                        Income Tax / TDS (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={structureForm.incomeTax}
+                        onChange={(e) => setStructureForm({ ...structureForm, incomeTax: parseFloat(e.target.value) || 0 })}
                         style={{ width: "100%", padding: "0.45rem 0.6rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", boxSizing: "border-box" }}
                       />
                     </div>
@@ -983,54 +1110,67 @@ export default function PayrollPage() {
                   }
                 };
 
-                // Prepare earnings items
+                // Prepare earnings items from actual stored salary structure
+                const ss = selectedPayslip.user?.salaryStructure;
                 const earnItems: { desc: string; monthly: number; ytd: number }[] = [];
                 const basicVal = selectedPayslip.earnedBasic || selectedPayslip.baseSalary || 0;
                 earnItems.push({ desc: "Basic Salary", monthly: basicVal, ytd: basicVal });
-                if (selectedPayslip.allowances > 0) {
-                  const hra = Math.round(selectedPayslip.allowances * 0.5);
-                  const conv = Math.round(selectedPayslip.allowances * 0.25);
-                  const spec = selectedPayslip.allowances - hra - conv;
-                  earnItems.push({ desc: "HRA Allowance", monthly: hra, ytd: hra });
-                  earnItems.push({ desc: "Conveyance Allowance", monthly: conv, ytd: conv });
-                  earnItems.push({ desc: "Special Allowance", monthly: spec, ytd: spec });
+
+                // Use stored individual allowances if set, otherwise fall back to splitting total allowances
+                if (ss?.hraAllowance && ss.hraAllowance > 0) {
+                  earnItems.push({ desc: "HRA Allowance", monthly: ss.hraAllowance, ytd: ss.hraAllowance });
+                } else if (selectedPayslip.allowances > 0) {
+                  earnItems.push({ desc: "HRA Allowance", monthly: Math.round(selectedPayslip.allowances * 0.4), ytd: Math.round(selectedPayslip.allowances * 0.4) });
+                }
+                if (ss?.conveyanceAllowance && ss.conveyanceAllowance > 0) {
+                  earnItems.push({ desc: "Conveyance Allowance", monthly: ss.conveyanceAllowance, ytd: ss.conveyanceAllowance });
+                } else if (selectedPayslip.allowances > 0) {
+                  earnItems.push({ desc: "Conveyance Allowance", monthly: Math.round(selectedPayslip.allowances * 0.2), ytd: Math.round(selectedPayslip.allowances * 0.2) });
+                }
+                if (ss?.medicalAllowance && ss.medicalAllowance > 0) {
+                  earnItems.push({ desc: "Medical Allowance", monthly: ss.medicalAllowance, ytd: ss.medicalAllowance });
+                }
+                if (ss?.specialAllowance && ss.specialAllowance > 0) {
+                  earnItems.push({ desc: "Special Allowance", monthly: ss.specialAllowance, ytd: ss.specialAllowance });
+                } else if (selectedPayslip.allowances > 0 && !(ss?.hraAllowance) && !(ss?.conveyanceAllowance)) {
+                  // Legacy: remaining allowance as special
+                  const usedFraction = 0.6;
+                  earnItems.push({ desc: "Special Allowance", monthly: Math.round(selectedPayslip.allowances * (1 - usedFraction)), ytd: Math.round(selectedPayslip.allowances * (1 - usedFraction)) });
                 }
                 if (selectedPayslip.overtimePay > 0) {
                   earnItems.push({ desc: "Overtime Allowance", monthly: selectedPayslip.overtimePay, ytd: selectedPayslip.overtimePay });
                 }
-                if (selectedPayslip.bonus > 0) {
-                  earnItems.push({ desc: "Bonus", monthly: selectedPayslip.bonus, ytd: selectedPayslip.bonus });
+                if ((ss?.bonus && ss.bonus > 0) || selectedPayslip.bonus > 0) {
+                  const bonusAmt = ss?.bonus || selectedPayslip.bonus || 0;
+                  earnItems.push({ desc: "Bonus / Incentive", monthly: bonusAmt, ytd: bonusAmt });
                 }
 
                 // Prepare deductions items
                 const dedItems: { desc: string; monthly?: number; ytd?: number }[] = [];
-                if (selectedPayslip.totalDeductions > 0) {
-                  if (selectedPayslip.otherDeductions > 0) {
-                    dedItems.push({ desc: "Provident Fund", monthly: selectedPayslip.otherDeductions, ytd: selectedPayslip.otherDeductions });
-                  }
-                  if (selectedPayslip.lateDeductions > 0) {
-                    dedItems.push({ desc: "Lateness Deduction", monthly: selectedPayslip.lateDeductions, ytd: selectedPayslip.lateDeductions });
-                  }
-                  if (selectedPayslip.unpaidLeaveDeductions > 0) {
-                    dedItems.push({ desc: "Unpaid Leave (LWP)", monthly: selectedPayslip.unpaidLeaveDeductions, ytd: selectedPayslip.unpaidLeaveDeductions });
-                  }
+                // Statutory deductions from salary structure
+                const pfAmt = ss?.pfAmount || 0;
+                const esiAmt = ss?.esiAmount || 0;
+                const profTax = ss?.professionalTax || 0;
+                const incomeTaxAmt = ss?.incomeTax || 0;
+
+                dedItems.push({ desc: "Provident Fund (PF)", monthly: pfAmt > 0 ? pfAmt : undefined, ytd: pfAmt > 0 ? pfAmt : undefined });
+                dedItems.push({ desc: "ESI", monthly: esiAmt > 0 ? esiAmt : undefined, ytd: esiAmt > 0 ? esiAmt : undefined });
+                dedItems.push({ desc: "Professional Tax", monthly: profTax > 0 ? profTax : undefined, ytd: profTax > 0 ? profTax : undefined });
+                dedItems.push({ desc: "Income Tax (TDS)", monthly: incomeTaxAmt > 0 ? incomeTaxAmt : undefined, ytd: incomeTaxAmt > 0 ? incomeTaxAmt : undefined });
+
+                if (selectedPayslip.lateDeductions > 0) {
+                  dedItems.push({ desc: "Lateness Deduction", monthly: selectedPayslip.lateDeductions, ytd: selectedPayslip.lateDeductions });
                 }
-                dedItems.push({ desc: "Provident Fund" });
-                dedItems.push({ desc: "ESI" });
-                dedItems.push({ desc: "Professional Tax" });
-                dedItems.push({ desc: "Income Tax" });
+                if (selectedPayslip.unpaidLeaveDeductions > 0) {
+                  dedItems.push({ desc: "Unpaid Leave (LWP)", monthly: selectedPayslip.unpaidLeaveDeductions, ytd: selectedPayslip.unpaidLeaveDeductions });
+                }
+                if (selectedPayslip.otherDeductions > 0) {
+                  dedItems.push({ desc: "Other Deductions", monthly: selectedPayslip.otherDeductions, ytd: selectedPayslip.otherDeductions });
+                }
 
-                const totalGross = selectedPayslip.grossEarnings > 0 
-                  ? selectedPayslip.grossEarnings 
-                  : earnItems.reduce((acc, it) => acc + it.monthly, 0);
-
-                const totalDed = selectedPayslip.totalDeductions > 0
-                  ? selectedPayslip.totalDeductions
-                  : dedItems.reduce((acc, it) => acc + (it.monthly || 0), 0);
-
-                const finalNet = selectedPayslip.netSalary > 0 
-                  ? selectedPayslip.netSalary 
-                  : (totalGross - totalDed);
+                const totalGross = earnItems.reduce((acc, it) => acc + it.monthly, 0);
+                const totalDed = dedItems.reduce((acc, it) => acc + (it.monthly || 0), 0);
+                const finalNet = selectedPayslip.netSalary > 0 ? selectedPayslip.netSalary : (totalGross - totalDed);
 
                 const maxRows = Math.max(earnItems.length, dedItems.length, 12);
                 const rowIndexes = Array.from({ length: maxRows }, (_, i) => i);

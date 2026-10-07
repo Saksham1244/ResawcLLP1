@@ -311,11 +311,12 @@ export function MarketingFollowUpsWidget() {
           alignItems: "center", justifyContent: "center", padding: "1rem"
         }}>
           <div style={{
-            background: C.card, borderRadius: C.radius, width: "100%", maxWidth: "460px",
-            padding: "1.75rem", boxShadow: "0 20px 40px rgba(0,0,0,0.15)", border: `1px solid ${C.border}`
+            background: "#FFFFFF", backgroundColor: "#FFFFFF", borderRadius: C.radius, width: "100%", maxWidth: "460px",
+            padding: "1.75rem", boxShadow: "0 20px 40px rgba(0,0,0,0.15)", border: `1px solid ${C.border}`,
+            colorScheme: "light", forcedColorAdjust: "none" as any
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-              <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: C.text, margin: 0 }}>Schedule Follow-up</h3>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#111827", margin: 0 }}>Schedule Follow-up</h3>
               <button onClick={() => setShowModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: C.muted }}>
                 <X size={18} />
               </button>
@@ -323,90 +324,90 @@ export function MarketingFollowUpsWidget() {
 
             <form onSubmit={handleCreateFollowUp} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Action Title *</label>
+                <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Action Title *</label>
                 <input
                   required
                   placeholder="e.g. Call Client - Send quotation for wedding season"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                 />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Action Type</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Action Type</label>
                   <select
                     value={form.actionType}
                     onChange={(e) => setForm({ ...form, actionType: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   >
-                    <option value="CALL">Phone Call</option>
-                    <option value="EMAIL">Send Email</option>
-                    <option value="QUOTATION">Send Quotation</option>
-                    <option value="TRIAL_FOLLOWUP">Trial Follow-up</option>
-                    <option value="MEETING">Video / Meeting</option>
+                    <option value="CALL" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Phone Call</option>
+                    <option value="EMAIL" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Send Email</option>
+                    <option value="QUOTATION" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Send Quotation</option>
+                    <option value="TRIAL_FOLLOWUP" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Trial Follow-up</option>
+                    <option value="MEETING" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Video / Meeting</option>
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Priority</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Priority</label>
                   <select
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   >
-                    <option value="HIGH">High Priority</option>
-                    <option value="MEDIUM">Medium Priority</option>
-                    <option value="LOW">Low Priority</option>
+                    <option value="HIGH" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>High Priority</option>
+                    <option value="MEDIUM" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Medium Priority</option>
+                    <option value="LOW" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>Low Priority</option>
                   </select>
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Due Date</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Due Date</label>
                   <input
                     type="date"
                     value={form.dueDate}
                     onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Due Time</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Due Time</label>
                   <input
                     placeholder="e.g. 11:00 AM"
                     value={form.dueTime}
                     onChange={(e) => setForm({ ...form, dueTime: e.target.value })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", color: C.text, colorScheme: "light" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.875rem", boxSizing: "border-box", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   />
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Link to Client (optional)</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Link to Client (optional)</label>
                   <select
                     value={form.clientId}
                     onChange={(e) => setForm({ ...form, clientId: e.target.value, leadId: "" })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#fff" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   >
-                    <option value="">None</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.companyName}</option>)}
+                    <option value="" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>None</option>
+                    {clients.map(c => <option key={c.id} value={c.id} style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>{c.companyName}</option>)}
                   </select>
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: C.text, marginBottom: "4px" }}>Or Link to Lead</label>
+                  <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "#111827", marginBottom: "4px" }}>Or Link to Lead</label>
                   <select
                     value={form.leadId}
                     onChange={(e) => setForm({ ...form, leadId: e.target.value, clientId: "" })}
-                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#fff" }}
+                    style={{ width: "100%", padding: "0.5rem 0.75rem", border: `1px solid ${C.border}`, borderRadius: C.radiusSm, fontSize: "0.85rem", background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827", WebkitTextFillColor: "#111827", colorScheme: "light" }}
                   >
-                    <option value="">None</option>
-                    {leads.map(l => <option key={l.id || l._id} value={l.id || l._id}>{l.Company || l.Name}</option>)}
+                    <option value="" style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>None</option>
+                    {leads.map(l => <option key={l.id || l._id} value={l.id || l._id} style={{ background: "#FFFFFF", backgroundColor: "#FFFFFF", color: "#111827" }}>{l.Company || l.Name}</option>)}
                   </select>
                 </div>
               </div>
@@ -415,7 +416,7 @@ export function MarketingFollowUpsWidget() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ background: "#F3F4F6", color: "#374151", padding: "0.5rem 1rem", borderRadius: C.radiusSm, border: "none", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
+                  style={{ background: "#FFFFFF", color: "#374151", padding: "0.5rem 1rem", borderRadius: C.radiusSm, border: "1px solid #D1D5DB", fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}
                 >
                   Cancel
                 </button>

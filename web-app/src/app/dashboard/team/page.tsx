@@ -111,20 +111,27 @@ function CustomCheckbox({
   indeterminate?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <span
       role="checkbox"
       aria-checked={checked}
+      tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
         onChange();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          onChange();
+        }
       }}
       style={{
         width: 17,
         height: 17,
         borderRadius: 4,
-        border: checked || indeterminate ? "1.5px solid #1A56DB" : "1.5px solid #CBD5E1",
+        border: checked || indeterminate ? "1.5px solid #1A56DB" : "1.5px solid #94A3B8",
         backgroundColor: checked || indeterminate ? "#1A56DB" : "#FFFFFF",
+        background: checked || indeterminate ? "#1A56DB" : "#FFFFFF",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -135,6 +142,9 @@ function CustomCheckbox({
         transition: "all 0.15s ease",
         verticalAlign: "middle",
         flexShrink: 0,
+        colorScheme: "light",
+        forcedColorAdjust: "none" as any,
+        userSelect: "none",
       }}
     >
       {checked && (
@@ -145,7 +155,7 @@ function CustomCheckbox({
       {!checked && indeterminate && (
         <div style={{ width: 8, height: 2, background: "#FFFFFF", borderRadius: 1 }} />
       )}
-    </button>
+    </span>
   );
 }
 
