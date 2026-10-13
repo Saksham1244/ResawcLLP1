@@ -21,3 +21,8 @@ test-results/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Cloned tools & artifacts
+brag/
+brag-output/
+web-app/brag-output/

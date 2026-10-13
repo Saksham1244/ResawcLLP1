@@ -308,9 +308,62 @@ function SettingsContent() {
 
   // Security
   const [security, setSecurity] = useState({ twoFactor: false, sessionTimeout: "30", currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [savingPassword, setSavingPassword] = useState(false);
+
 
   // Database
   const [db, setDb] = useState({ host: "localhost", port: "5432", name: "resawc_db", user: "postgres", ssl: true, backupFreq: "daily" });
+
+  const handlePasswordUpdate = async () => {
+    setPasswordMsg(null);
+    const { currentPassword, newPassword, confirmPassword } = security;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'All password fields are required.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New password and confirm password do not match.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' });
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      // Verify current password via auth endpoint
+      const verifyRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user?.email, password: currentPassword }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        setPasswordMsg({ type: 'error', text: 'Current password is incorrect.' });
+        setSavingPassword(false);
+        return;
+      }
+      // Update password
+      const updateRes = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user?.id, password: newPassword }),
+      });
+      const updateData = await updateRes.json();
+      if (updateData.success) {
+        setPasswordMsg({ type: 'success', text: 'Password updated successfully!' });
+        setSecurity(p => ({ ...p, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      } else {
+        setPasswordMsg({ type: 'error', text: updateData.error || 'Failed to update password.' });
+      }
+    } catch {
+      setPasswordMsg({ type: 'error', text: 'Network error. Please try again.' });
+    }
+    setSavingPassword(false);
+  };
+
+
 
   // ── Company Services & Rate Master State ─────────────────────────────────
   interface ServiceItem {
@@ -1719,10 +1772,19 @@ function SettingsContent() {
                     </div>
                   ))}
                   <div>
-                    <button style={{ padding: '0.55rem 1.1rem', background: '#1A56DB', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
-                      Update Password
+                    <button
+                      onClick={handlePasswordUpdate}
+                      disabled={savingPassword}
+                      style={{ padding: '0.55rem 1.1rem', background: savingPassword ? '#93C5FD' : '#1A56DB', color: '#fff', border: 'none', borderRadius: '6px', cursor: savingPassword ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '14px', fontFamily: 'inherit' }}>
+                      {savingPassword ? 'Updating...' : 'Update Password'}
                     </button>
+                    {passwordMsg && (
+                      <p style={{ marginTop: '0.5rem', fontSize: '13px', fontWeight: 500, color: passwordMsg.type === 'success' ? '#059669' : '#DC2626', margin: '0.5rem 0 0' }}>
+                        {passwordMsg.type === 'success' ? '✅ ' : '❌ '}{passwordMsg.text}
+                      </p>
+                    )}
                   </div>
+
                 </div>
               </SectionCard>
 
