@@ -203,24 +203,48 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   // ── Auth / hydration guards ───────────────────────────────────────────────
-  if (!isHydrated) return null;
-  if (!user) {
-    if (typeof window !== "undefined") router.replace("/");
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!user) {
+      router.replace("/");
+      return;
+    }
+    const isEditor = user.role === "editor" || user.role === "photo_editor" || user.role === "video_editor";
+    if (user.role !== "admin" && (
+      pathname.startsWith("/dashboard/activity") || 
+      pathname.startsWith("/dashboard/monitor") || 
+      pathname.startsWith("/dashboard/team") || 
+      pathname.startsWith("/dashboard/finance") || 
+      pathname.startsWith("/dashboard/reports") || 
+      pathname.startsWith("/dashboard/settings")
+    )) {
+      router.replace(isEditor ? "/dashboard/jobs" : "/dashboard");
+      return;
+    }
+    if (isEditor && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/clients"))) {
+      router.replace("/dashboard/jobs");
+      return;
+    }
+  }, [isHydrated, user, pathname, router]);
+
+  if (!isHydrated || !user) return null;
+
+  const isEditorRole = user.role === "editor" || user.role === "photo_editor" || user.role === "video_editor";
+  if (user.role !== "admin" && (
+    pathname.startsWith("/dashboard/activity") || 
+    pathname.startsWith("/dashboard/monitor") || 
+    pathname.startsWith("/dashboard/team") || 
+    pathname.startsWith("/dashboard/finance") || 
+    pathname.startsWith("/dashboard/reports") || 
+    pathname.startsWith("/dashboard/settings")
+  )) {
+    return null;
+  }
+  if (isEditorRole && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/clients"))) {
     return null;
   }
 
   const navItems = NAV_BY_ROLE[user.role] || NAV_BY_ROLE.editor;
-
-  const isEditorRole = user.role === "editor" || user.role === "photo_editor" || user.role === "video_editor";
-  if (user.role !== "admin" && (pathname.startsWith("/dashboard/activity") || pathname.startsWith("/dashboard/monitor") || pathname.startsWith("/dashboard/team") || pathname.startsWith("/dashboard/finance") || pathname.startsWith("/dashboard/reports") || pathname.startsWith("/dashboard/settings"))) {
-    if (typeof window !== "undefined") router.replace(isEditorRole ? "/dashboard/jobs" : "/dashboard");
-    return null;
-  }
-  if (isEditorRole && (pathname.startsWith("/dashboard/leads") || pathname.startsWith("/dashboard/clients"))) {
-    if (typeof window !== "undefined") router.replace("/dashboard/jobs");
-    return null;
-  }
-
   const pageTitle = getPageTitle(pathname);
 
   // ── Logout helper ─────────────────────────────────────────────────────────
