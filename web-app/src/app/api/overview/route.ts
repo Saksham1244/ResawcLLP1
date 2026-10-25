@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
 
 export async function GET(req: Request) {
   try {
@@ -10,9 +9,11 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    const jwt = require('jsonwebtoken');
     let decoded: any;
     try {
+      if (!process.env.JWT_SECRET) {
+        return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
+      }
       decoded = jwt.verify(token, process.env.JWT_SECRET);
     } catch {
       return NextResponse.json({ success: false, error: 'Unauthorized: Invalid token' }, { status: 401 });

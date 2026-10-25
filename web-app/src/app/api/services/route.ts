@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 const DEFAULT_SERVICES = [
   { name: "Photo Culling", code: "photoCullingRate", category: "PHOTO", unit: "img", defaultRate: 3.0, sacCode: "998314", description: "Culling and selecting best shots from raw batches", sortOrder: 1 },

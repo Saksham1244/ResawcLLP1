@@ -96,6 +96,8 @@ model Message {
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   
   createdAt       DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model Conversation {
@@ -121,6 +123,7 @@ model ConversationParticipant {
   joinedAt       DateTime     @default(now())
 
   @@unique([conversationId, userId])
+  @@index([userId])
 }
 
 model Notification {
@@ -132,6 +135,9 @@ model Notification {
   user        User     @relation(fields: [userId], references: [id])
   
   createdAt   DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }
 
 model LeadInteraction {
@@ -163,6 +169,9 @@ model Attendance {
   notes            String?
   createdAt        DateTime @default(now())
   user             User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+  @@index([date])
 }
 
 model PCActivity {
@@ -327,6 +336,9 @@ model EditingJob {
 
   timeLogs         TimeLog[]
   tasks            Task[]
+
+  @@index([assignedEditorId, status])
+  @@index([clientId])
 }
 
 model TimeLog {
@@ -348,6 +360,9 @@ model TimeLog {
   
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+
+  @@index([userId, status])
+  @@index([editingJobId])
 }
 
 model MarketingFollowUp {
@@ -373,6 +388,9 @@ model MarketingFollowUp {
   
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+
+  @@index([assignedToId, status])
+  @@index([dueDate])
 }
 
 model ClientRateCard {
@@ -437,6 +455,9 @@ model Invoice {
   updatedAt           DateTime      @updatedAt
   
   items               InvoiceItem[]
+
+  @@index([clientId, status])
+  @@index([issueDate])
 }
 
 model InvoiceItem {
@@ -552,6 +573,10 @@ model ActivityLog {
   metadata    String?   // JSON string for additional context
   
   createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@index([clientId, createdAt])
 }
 
 

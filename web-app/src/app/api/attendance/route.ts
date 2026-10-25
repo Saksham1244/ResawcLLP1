@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 // Helper to convert time strings (e.g. "10:15 AM", "10:15:30 AM", "18:30") to minutes since midnight
 function parseTimeToMinutes(timeStr: string): number {
@@ -160,18 +159,18 @@ export async function POST(req: Request) {
       },
     });
 
-    // Notify admins if employee arrives Late
+    // Notify admins if employee arrives Late (single bulk insert)
     try {
-      const admins = await prisma.user.findMany({ where: { role: { in: ['ADMIN', 'admin'] } } });
+      const admins = await prisma.user.findMany({ where: { role: { in: ['ADMIN', 'admin'] } }, select: { id: true } });
       const statusIcon = initialStatus === 'Late' ? '⚠️' : initialStatus === 'Half Day' ? '🌓' : '✅';
       const lateNote = lateMinutes > 0 ? ` (${lateMinutes}m past shift start)` : '';
 
-      for (const admin of admins) {
-        await prisma.notification.create({
-          data: {
+      if (admins.length > 0) {
+        await prisma.notification.createMany({
+          data: admins.map((admin) => ({
             userId: admin.id,
             text: `${statusIcon} ${user.name} checked in at ${timeIn} — ${initialStatus}${lateNote} [${source === 'mobile' ? 'Mobile' : 'Web'}]`,
-          },
+          })),
         });
       }
     } catch {

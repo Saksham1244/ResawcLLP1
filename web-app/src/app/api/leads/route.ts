@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import jwt from 'jsonwebtoken';
 
 export async function GET(req: Request) {
   try {
@@ -10,13 +9,12 @@ export async function GET(req: Request) {
 
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
     let role = searchParams.get('role')?.toLowerCase() || 'marketing';
-    if (token) {
+    if (token && process.env.JWT_SECRET) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET);
         if (decoded.role) role = decoded.role.toLowerCase();
-      } catch (err) {
+      } catch (_err) {
         // Fallback to query role if token is expired/invalid
       }
     }
@@ -198,10 +196,9 @@ export async function DELETE(req: Request) {
   try {
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    const jwt = require('jsonwebtoken');
     let userRole = '';
 
-    if (token) {
+    if (token && process.env.JWT_SECRET) {
       try {
         const decoded: any = jwt.verify(token, process.env.JWT_SECRET);
         userRole = decoded.role?.toLowerCase() || '';

@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { getAuthUser, requireAdmin } from '@/lib/auth-server';
 
-const prisma = new PrismaClient();
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
     let settings = await prisma.globalSettings.findUnique({
       where: { id: "default" }
@@ -15,7 +14,14 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ success: true, data: settings });
+    const auth = getAuthUser(request);
+    // Mask sensitive portal password for non-admin callers
+    const safeSettings = { ...settings };
+    if (auth?.role !== 'admin' && safeSettings.gstPortalPassword) {
+      safeSettings.gstPortalPassword = '••••••••';
+    }
+
+    return NextResponse.json({ success: true, data: safeSettings });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
@@ -24,6 +30,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const { authorized } = requireAdmin(request);
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Admin role required to modify settings' }, { status: 403 });
+    }
+
     const data = await request.json();
     const { 
       breakStartTime, 

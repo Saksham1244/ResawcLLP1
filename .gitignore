@@ -12,6 +12,12 @@ __pycache__/
 .env.local
 .env.*.local
 
+# Executable binaries and agent builds
+*.exe
+*.dll
+desktop-agent/build/
+desktop-agent/dist/
+
 # Build & Dependencies
 node_modules/
 .next/

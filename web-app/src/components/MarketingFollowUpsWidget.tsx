@@ -63,7 +63,7 @@ export function MarketingFollowUpsWidget() {
   const [outcomeNotes, setOutcomeNotes] = useState("");
   const [scheduleNext, setScheduleNext] = useState(false);
   const [nextTitle, setNextTitle] = useState("");
-  const [nextDate, setNextDate] = useState(
+  const [nextDate, setNextDate] = useState(() =>
     new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0]
   );
   const [nextTime, setNextTime] = useState("02:00 PM");

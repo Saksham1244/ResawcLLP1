@@ -122,7 +122,7 @@ function formatNotificationDate(dateStr: string | Date): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, isHydrated } = useRole();
+  const { user, isHydrated, logout } = useRole();
   const pathname  = usePathname();
   const router    = useRouter();
 
@@ -249,10 +249,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // ── Logout helper ─────────────────────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("userId");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userRole");
+    logout();
     router.replace("/");
   };
 

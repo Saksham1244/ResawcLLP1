@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { getAuthUser, requireAdmin } from '@/lib/auth-server';
 
 // GET all users (for team page and payroll)
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const auth = getAuthUser(req);
+    const isAdmin = auth?.role === 'admin';
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -15,7 +17,8 @@ export async function GET() {
         role: true,
         phone: true,
         createdAt: true,
-        salaryStructure: true,
+        // Only disclose sensitive salary structure and bank accounts to admins
+        salaryStructure: isAdmin,
       },
       orderBy: { name: 'asc' },
     });
@@ -29,6 +32,11 @@ export async function GET() {
 // POST create new user with employee settings
 export async function POST(req: Request) {
   try {
+    const { authorized } = requireAdmin(req);
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Admin role required to create users' }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       name,
@@ -118,6 +126,11 @@ export async function POST(req: Request) {
 // PATCH update user details, role, and salary structure
 export async function PATCH(req: Request) {
   try {
+    const auth = getAuthUser(req);
+    if (!auth) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
       id,
@@ -275,8 +288,17 @@ export async function PATCH(req: Request) {
 // DELETE a user
 export async function DELETE(req: Request) {
   try {
+    const { authorized, user } = requireAdmin(req);
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Admin role required to delete users' }, { status: 403 });
+    }
+
     const { id } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
+
+    if (user?.userId === id) {
+      return NextResponse.json({ success: false, error: 'Cannot delete your own admin account' }, { status: 400 });
+    }
 
     await prisma.user.delete({ where: { id } });
     return NextResponse.json({ success: true });

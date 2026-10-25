@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth-server';
 
 // Helper to generate next client ID (e.g. CL-1001)
 async function generateClientId(): Promise<string> {
@@ -173,6 +172,11 @@ export async function PATCH(req: Request) {
 // DELETE /api/clients
 export async function DELETE(req: Request) {
   try {
+    const { authorized } = requireAdmin(req);
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Admin role required to delete clients' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 // GET all activities for the dashboard
 export async function GET(request: Request) {
@@ -73,13 +71,14 @@ export async function POST(req: Request) {
     const validSecret = process.env.AGENT_SECRET;
     const isDev = process.env.NODE_ENV !== 'production';
 
+    // Must supply valid Bearer AGENT_SECRET token (or valid in dev if secret not yet set)
+    const tokenValue = agentToken ? agentToken.replace(/^Bearer\s+/i, '').trim() : '';
     const isValidToken =
-      (validSecret && agentToken === `Bearer ${validSecret}`) ||
-      agentToken === `Bearer undefined` ||
-      isDev;
+      (validSecret && tokenValue === validSecret) ||
+      (isDev && (!validSecret || tokenValue === 'resawc-dev-agent-secret'));
 
     if (!isValidToken) {
-      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      return NextResponse.json({ success: false, error: 'Forbidden: Invalid or missing agent authorization token' }, { status: 403 });
     }
 
     const data = await req.json();

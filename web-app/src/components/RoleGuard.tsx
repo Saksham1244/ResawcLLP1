@@ -15,17 +15,21 @@ export function RoleGuard({ allowedRoles, redirectTo, children }: Props) {
   const { user, isHydrated } = useRole();
   const router = useRouter();
 
-  if (!isHydrated) return null;
-  if (!user) return null;
+  const userRoleLower = (user?.role || "").toLowerCase();
+  const allowed = Boolean(
+    user && (userRoleLower === "admin" || allowedRoles.some(r => r.toLowerCase() === userRoleLower))
+  );
 
-  const userRoleLower = (user.role || "").toLowerCase();
-  const allowed = userRoleLower === "admin" || allowedRoles.some(r => r.toLowerCase() === userRoleLower);
-
+  // Hook is called unconditionally on every render adhering to React Rules of Hooks
   useEffect(() => {
-    if (!allowed && redirectTo) {
+    if (isHydrated && !allowed && redirectTo) {
       router.replace(redirectTo);
     }
-  }, [allowed, redirectTo, router]);
+  }, [isHydrated, allowed, redirectTo, router]);
+
+  if (!isHydrated || !user) {
+    return null;
+  }
 
   if (!allowed) {
     return (
@@ -42,7 +46,7 @@ export function RoleGuard({ allowedRoles, redirectTo, children }: Props) {
         </div>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Access Restricted</h2>
         <p className="text-sm text-muted" style={{ maxWidth: '320px', lineHeight: 1.6 }}>
-          You don't have permission to view this page. Contact your Admin if you think this is a mistake.
+          You don&apos;t have permission to view this page. Contact your Admin if you think this is a mistake.
         </p>
       </div>
     );

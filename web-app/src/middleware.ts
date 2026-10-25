@@ -31,8 +31,8 @@ function getRateLimitConfig(pathname: string, req?: NextRequest): {
   baseBackoffSec: number;
   maxBackoffSec: number;
 } {
-  // Generous limits for local test runs and test suite requests
-  if (process.env.NODE_ENV !== 'production' || req?.headers.get('x-test-suite') === 'true') {
+  // Generous limits only in local test/development environments
+  if (process.env.NODE_ENV !== 'production') {
     return { limit: 1000, windowMs: 60 * 1000, baseBackoffSec: 1, maxBackoffSec: 5 };
   }
 
@@ -206,8 +206,8 @@ export async function middleware(req: NextRequest) {
     return res;
   } catch {
     return NextResponse.json(
-      { error: 'Unauthorized: Invalid token' },
-      { status: 403, headers: rateLimit.headers }
+      { error: 'Unauthorized: Invalid or expired token' },
+      { status: 401, headers: rateLimit.headers }
     );
   }
 }

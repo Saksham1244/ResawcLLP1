@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 // Helper to generate payslip number (e.g. PAY-2026-10-001)
 async function generatePayslipNumber(monthYear: string): Promise<string> {

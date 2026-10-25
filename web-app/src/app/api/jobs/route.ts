@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
 
 // Helper to generate next Job Number (e.g. ED-1001 for photo, VD-1001 for video)
 async function generateJobNumber(category: string): Promise<string> {

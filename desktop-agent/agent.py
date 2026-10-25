@@ -13,7 +13,7 @@ import requests
 import winreg
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
-AGENT_SECRET = "fe3f34420dd77f7a20018c30023aefe55d0a9663467991a40ec4b594e23e4d97"
+AGENT_SECRET = os.getenv("RESAWC_AGENT_SECRET", "")
 ENDPOINTS = [
     "http://localhost:3000/api/monitor/sync",
     "https://resawc-llp-1-rt4y.vercel.app/api/monitor/sync",
@@ -217,8 +217,8 @@ def record_system_checkin(user_id: str):
 
 # ─── Telemetry Sync Engine ────────────────────────────────────────────────────
 def post_telemetry(payload):
-    """Posts telemetry trying localhost first, falling back to Vercel, and supporting multiple token variants."""
-    auth_tokens = [AGENT_SECRET, "undefined"]
+    """Posts telemetry trying localhost first, falling back to Vercel with authorized agent secret."""
+    auth_tokens = [AGENT_SECRET] if AGENT_SECRET else []
 
     for url in ENDPOINTS:
         for token in auth_tokens:

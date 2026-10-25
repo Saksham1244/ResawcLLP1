@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import * as XLSX from "xlsx";
 import {
   UploadCloud, Phone, MessageSquare, X, Search, Shuffle,
   ChevronDown, Clock, MoreVertical, Eye, ExternalLink, Plus, Trash2, AlertTriangle, Building2,
@@ -371,11 +370,12 @@ function LeadsContent() {
       .catch(() => {});
   }, []);
 
-  /* ── XLSX parse ── */
+  /* ── XLSX parse (Dynamically imported to save ~800KB on initial load) ── */
   const parseFile = (file: File) => {
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = async e => {
       try {
+        const XLSX = await import("xlsx");
         const wb = XLSX.read(e.target?.result, { type: "binary" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: "" }) as any[];

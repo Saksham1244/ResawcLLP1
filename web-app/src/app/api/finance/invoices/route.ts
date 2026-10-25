@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/lib/auth-server';
 
 // Helper to generate invoice number (e.g. INV-2026-0001)
 async function generateInvoiceNumber(): Promise<string> {
@@ -82,13 +81,25 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Compute summary metrics
-    const allInvoices = await prisma.invoice.findMany();
-    const totalBilled = allInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
-    const totalReceived = allInvoices.reduce((sum, inv) => sum + (inv.amountPaid || 0), 0);
+    // Compute summary metrics efficiently via database aggregations
+    const [aggregateMetrics, paidCount, pendingCount] = await Promise.all([
+      prisma.invoice.aggregate({
+        _sum: {
+          totalAmount: true,
+          amountPaid: true,
+        },
+        _count: {
+          _all: true,
+        },
+      }),
+      prisma.invoice.count({ where: { status: 'PAID' } }),
+      prisma.invoice.count({ where: { status: { in: ['SENT', 'DRAFT', 'PARTIAL'] } } }),
+    ]);
+
+    const totalBilled = aggregateMetrics._sum.totalAmount || 0;
+    const totalReceived = aggregateMetrics._sum.amountPaid || 0;
     const outstanding = Math.max(0, totalBilled - totalReceived);
-    const paidCount = allInvoices.filter(i => i.status === 'PAID').length;
-    const pendingCount = allInvoices.filter(i => i.status === 'SENT' || i.status === 'DRAFT' || i.status === 'PARTIAL').length;
+    const totalCount = aggregateMetrics._count._all || 0;
 
     return NextResponse.json({
       success: true,
@@ -99,7 +110,7 @@ export async function GET(req: Request) {
         outstanding,
         paidCount,
         pendingCount,
-        totalCount: allInvoices.length,
+        totalCount,
       },
     });
   } catch (error) {
@@ -250,6 +261,11 @@ export async function PATCH(req: Request) {
 // DELETE /api/finance/invoices?id=...
 export async function DELETE(req: Request) {
   try {
+    const { authorized } = requireAdmin(req);
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: 'Forbidden: Admin role required to delete invoices' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
